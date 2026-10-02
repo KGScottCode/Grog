@@ -1,0 +1,14 @@
+{
+  "name": "grog-docs",
+  "private": true,
+  "type": "module",
+  "description": "Documentation site for Grog (VitePress + GitHub Pages)",
+  "scripts": {
+    "docs:dev": "vitepress dev",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  }
+}

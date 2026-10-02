@@ -1,0 +1,22 @@
+# Grog - one line-ending policy for every editor, so VS never shows the
+# "inconsistent line endings" dialog. LF everywhere; VS respects this for
+# new lines and new files.
+root = true
+
+[*]
+end_of_line = lf
+charset = utf-8
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{cs,axaml}]
+indent_style = space
+indent_size = 4
+
+[*.{json,yml,yaml,md}]
+indent_style = space
+indent_size = 2
+
+# Windows batch files are the one format that requires CRLF.
+[*.{bat,cmd}]
+end_of_line = crlf

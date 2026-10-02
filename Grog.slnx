@@ -1,0 +1,21 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Grog.Core/Grog.Core.csproj" />
+    <Project Path="src/Grog.App/Grog.App.csproj" />
+    <Project Path="src/Grog.Cli/Grog.Cli.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Grog.Core.Tests/Grog.Core.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <!-- Renders views to PNG headlessly, so UI changes can be checked BEFORE a human is asked to look at
+         them. Not shipped and not referenced by the app or CLI. It sat OUTSIDE the solution, so it never
+         built with everything else and its two seams into the view model rotted unnoticed; in the solution
+         a break is loud and immediate. -->
+    <Project Path="tools/HeadlessShots/HeadlessShots.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="README.md" />
+    <File Path=".github/RELEASE_NOTES.md" />
+  </Folder>
+</Solution>

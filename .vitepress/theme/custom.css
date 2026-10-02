@@ -1,0 +1,28 @@
+/* Grog brand accent: the app's AccentAmber family (Palette.axaml: #D8A040 / #E8B64C). */
+:root {
+  --vp-c-brand-1: #b57f2a;
+  --vp-c-brand-2: #d8a040;
+  --vp-c-brand-3: #d8a040;
+  --vp-c-brand-soft: rgba(216, 160, 64, 0.14);
+  --vp-home-hero-name-color: #d8a040;
+}
+
+/* Full-width app screenshot under the hero: framed like a window, not pasted like a bitmap. */
+.hero-shot {
+  max-width: 1152px;
+  margin: 2rem auto 0;
+  padding: 0 24px;
+}
+.hero-shot img {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(216, 160, 64, 0.25);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+}
+
+.dark {
+  --vp-c-brand-1: #e8b64c;
+  --vp-c-brand-2: #d8a040;
+  --vp-c-brand-3: #b57f2a;
+  --vp-c-brand-soft: rgba(216, 160, 64, 0.16);
+}

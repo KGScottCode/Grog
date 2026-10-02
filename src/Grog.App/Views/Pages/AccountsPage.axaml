@@ -1,0 +1,160 @@
+<!-- Accounts page. Split out of MainWindow.axaml 2026-09-02. The page binds the AccountsViewModel (S3.4, DataContext rebased
+     on the ScrollViewer); the row buttons reach it back through $parent[Window] from inside the AccountRow template. -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Grog.App.ViewModels"
+             xmlns:ctl="using:Grog.App.Controls"
+             x:Class="Grog.App.Views.Pages.AccountsPage"
+             x:DataType="vm:MainWindowViewModel">
+  <ScrollViewer Background="Transparent" DataContext="{Binding Accounts}" x:DataType="vm:AccountsViewModel">
+    <!-- Two peer cards: accounts list left, SIGN-IN SECURITY right. The right card exists only
+         off-Windows (DPAPI needs no explanation), so on Windows the page is the single left card. -->
+    <!-- Grid, not a horizontal StackPanel: the right card takes the REMAINING width (capped at its
+         380 design width) instead of a fixed 380 that overran the window by ~28px at 1366x768 and
+         clipped its text mid-word. At 1080p the cap makes this pixel-identical to the old layout. -->
+    <Grid ColumnDefinitions="Auto,18,*" Margin="14,69,14,0" VerticalAlignment="Top">
+    <Grid Grid.Column="0" RowDefinitions="Auto,*">
+    <!-- Same shape as Cloud Saves and Folders: the card has a SQUARE bottom and its side strokes
+         carry on down the page, so the region reads as one object however little is in it. -->
+    <Border Grid.Row="0" Classes="barecard"
+            Width="720" HorizontalAlignment="Left" VerticalAlignment="Top">
+      <StackPanel Spacing="0">
+        <Border Classes="shead sheadbare">
+          <Grid ColumnDefinitions="Auto,*">
+            <TextBlock Grid.Column="0" Classes="sgh" Text="GOG ACCOUNTS TO BACK UP"/>
+            <Border Grid.Column="1" Classes="shrule" Background="{StaticResource NeutralRuleFade}"/>
+          </Grid>
+        </Border>
+        <!-- More air under the strip than the shared sbody gives: the first account row is a card in
+             its own right, so 6px put two edges almost on top of each other. -->
+        <StackPanel Classes="sbody" Spacing="16" Margin="18,18,18,6">
+      <!-- No "Add account" button here: the dashed slot below IS the add control - never two controls for
+           one action. -->
+      <!-- No "CONNECTED" sub-head: the signed-out state is stated on the row itself (CountText and
+           the Log In button), so a group label above a mostly-uniform set would signal nothing. -->
+      <!-- x:Name for the guide: what the account step should ring when the account ALREADY EXISTS. -->
+      <ItemsControl x:Name="GuideAccountList" ItemsSource="{Binding Accounts}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:AccountRow">
+            <Border Margin="0,0,0,10" CornerRadius="{StaticResource RadiusControl}" Background="Transparent" BorderBrush="{StaticResource FlatEdge}" BorderThickness="1" ClipToBounds="True">
+              <Grid ColumnDefinitions="Auto,*,Auto">
+                <!-- No primary marker: with the per-account session engine every account is simply
+                     authenticated or not, so no card outranks another. -->
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2" Margin="16,14">
+                  <StackPanel Orientation="Horizontal" Spacing="10">
+                    <!-- The account's grid disc, here beside its full name: the card row IS the
+                         legend for the Owner column (same color, same initials, everywhere). -->
+                    <Border Classes="acctdisc" Background="{Binding Badge.Fill}" IsVisible="{Binding HasBadge}" ToolTip.Tip="{Binding Name}">
+                      <TextBlock Text="{Binding Badge.Initials}" Foreground="{Binding Badge.Ink}"/>
+                    </Border>
+                    <TextBlock Text="{Binding Name}" Foreground="{StaticResource White}" FontWeight="SemiBold" FontSize="{StaticResource FontRow}" VerticalAlignment="Center"/>
+                    <!-- PRIMARY badge removed (multi-account end state): no account outranks another. -->
+                  </StackPanel>
+                  <!-- (UX 09-08 #1) Subline carries the backup stats: items · games backed up · last checked. -->
+                  <TextBlock Text="{Binding StatsText}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}"/>
+                </StackPanel>
+                <!-- Two verbs. Log Out follows the SESSION (ghost while connected, amber Log In once signed out)
+                     and only forgets the token; Remove unregisters and wipes the saved login (bytes stay), so it
+                     alone wears red - behind the "…" menu since UX 09-08 #1. -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" Margin="0,0,16,0" VerticalAlignment="Center">
+                  <Button Classes.ghost="{Binding !ActionIsPrimary}" Classes.primary="{Binding ActionIsPrimary}"
+                          Classes.attn="{Binding ActionIsAttn}"
+                          Content="{Binding ActionText}" FontSize="{StaticResource FontCaption}"
+                          Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Accounts.LogoutAccountCommand}"
+                          CommandParameter="{Binding}" VerticalAlignment="Center"
+                          ToolTip.Tip="{Binding ActionTip}"/>
+                  <!-- (UX 09-08 #1) Remove moves behind a quiet "…" menu: the destructive verb is one step further
+                       from the visible Log In/Log Out, but keeps its red ink and its confirm dialog. -->
+                  <Button Classes="ghost" Content="…" FontSize="{StaticResource FontCaption}" Padding="12,8"
+                          VerticalAlignment="Center" HorizontalAlignment="Left" ToolTip.Tip="More actions">
+                    <Button.Flyout>
+                      <MenuFlyout Placement="BottomEdgeAlignedRight">
+                        <MenuItem Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Accounts.RemoveAccountCommand}"
+                                  CommandParameter="{Binding}">
+                          <MenuItem.Header>
+                            <StackPanel Spacing="2" MaxWidth="300">
+                              <TextBlock Text="Remove account…" Foreground="{StaticResource ErrorRed}" FontSize="{StaticResource FontCaption}"/>
+                              <TextBlock Text="Removes this account from Grog. Files already backed up stay on your drives."
+                                         Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontEyebrow}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                          </MenuItem.Header>
+                        </MenuItem>
+                      </MenuFlyout>
+                    </Button.Flyout>
+                  </Button>
+                </StackPanel>
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <!-- Invitation slot: a dashed outline (never a solid card - it is not a thing yet) that both fills
+           the empty canvas and states what a second account actually does. Click = Add account. -->
+      <Button x:Name="GuideAddAccount" Classes="linky" Padding="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+              Background="Transparent" Command="{Binding ConnectOrAddAccountCommand}"
+              ToolTip.Tip="{Binding AddAccountSlotTip}">
+        <Panel>
+          <Rectangle RadiusX="8" RadiusY="8" Stroke="{StaticResource StrokeAmberSoft}" StrokeThickness="1"
+                     StrokeDashArray="4,3" Fill="Transparent"/>
+          <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,15" VerticalAlignment="Center">
+            <!-- Disc INVERTED: the amber is the fill and the glyph is cut out of it, so the "+" is
+                 the object rather than an outline with a mark inside it. -->
+            <Border Width="26" Height="26" CornerRadius="{StaticResource RadiusCard}" Background="{StaticResource AccentAmber}">
+              <TextBlock Text="+" Foreground="{StaticResource SurfaceBg}" FontSize="{StaticResource FontRow}" FontWeight="Bold"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <TextBlock Text="{Binding AddAccountSlotText}"
+                       Foreground="{StaticResource AccentAmber}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Panel>
+      </Button>
+        </StackPanel>
+      </StackPanel>
+    </Border>
+    <!-- No side strokes or 90px fade here: both existed only to dissolve a card fill into the page, and
+         there is no fill left to dissolve. -->
+    </Grid>
+    <!-- SIGN-IN SECURITY: state (headline + badge + body), a rule, then the scheduled-tasks toggle.
+         Neutral-tier heading; badge is neutral normally, amber for the FILE ONLY exception - color
+         marking a distinction, not wallpaper. -->
+    <Border Grid.Column="2" Classes="barecard" MaxWidth="380" HorizontalAlignment="Left" VerticalAlignment="Top"
+            IsVisible="{Binding ShowTokenSafetyOptions}">
+      <StackPanel Spacing="0">
+        <Border Classes="shead sheadbare">
+          <Grid ColumnDefinitions="Auto,*">
+            <TextBlock Grid.Column="0" Classes="sgh" Foreground="{StaticResource InkDim}" Text="SIGN-IN SECURITY"/>
+            <Border Grid.Column="1" Classes="shrule" Background="{StaticResource NeutralRuleFade}"/>
+          </Grid>
+        </Border>
+        <StackPanel Classes="sbody" Spacing="10" Margin="18,16,18,18">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <TextBlock Text="{Binding TokenSafetyHeadline}" Foreground="{StaticResource White}"
+                       FontWeight="SemiBold" FontSize="{StaticResource FontBody}" VerticalAlignment="Center"/>
+          </StackPanel>
+          <Border HorizontalAlignment="Left" CornerRadius="3" Padding="7,2"
+                  Background="{StaticResource SurfaceAmberSoft}" IsVisible="{Binding TokenSafetyIsFallback}">
+            <TextBlock Text="{Binding TokenSafetyBadge}" Foreground="{StaticResource AccentAmberSoft}"
+                       FontSize="{StaticResource FontEyebrow}" FontWeight="Bold" LetterSpacing="0.7"/>
+          </Border>
+          <Border HorizontalAlignment="Left" CornerRadius="3" Padding="7,2"
+                  Background="{StaticResource SurfaceRaised}" IsVisible="{Binding !TokenSafetyIsFallback}">
+            <TextBlock Text="{Binding TokenSafetyBadge}" Foreground="{StaticResource InkDim}"
+                       FontSize="{StaticResource FontEyebrow}" FontWeight="Bold" LetterSpacing="0.7"/>
+          </Border>
+          <TextBlock Text="{Binding TokenSafetyBody}" Foreground="{StaticResource InkDim}"
+                     FontSize="{StaticResource FontCaption}" TextWrapping="Wrap"/>
+          <Border Height="1" Background="{StaticResource NeutralRuleFade}" Margin="0,4"/>
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0" Text="Keep sign-in usable by scheduled tasks"
+                       Foreground="{StaticResource White}" FontSize="{StaticResource FontCaption}"
+                       VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,12,0"/>
+            <ToggleSwitch Grid.Column="1" IsChecked="{Binding PlainTextTokenEnabled}" OnContent="" OffContent="" VerticalAlignment="Center"/>
+          </Grid>
+          <TextBlock Text="Only for CLI backups you schedule yourself (cron, systemd timers). Backups scheduled inside Grog do not need it. The token is then stored unencrypted, readable only by your user account."
+                     Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" TextWrapping="Wrap"/>
+        </StackPanel>
+      </StackPanel>
+    </Border>
+    </Grid>
+  </ScrollViewer>
+</UserControl>

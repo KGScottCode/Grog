@@ -1,0 +1,1005 @@
+<!-- Overview page: the status lede, coverage, queue and activity. Split out of MainWindow.axaml 2026-09-02. The page binds
+     the OverviewViewModel (S3.3, DataContext rebased on the root Grid); the shell-owned members it still needs (the
+     primary/secondary bar slots, the run transport commands, the rail's fits-nowhere pair, the schedule card) go through
+     $parent[Window] onto the MainWindowViewModel, and the Moving pane binds the StorageViewModel the same way. -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Grog.App.ViewModels"
+             xmlns:ctl="using:Grog.App.Controls"
+             x:Class="Grog.App.Views.Pages.OverviewPage"
+             x:DataType="vm:MainWindowViewModel">
+  <Grid Background="Transparent" DataContext="{Binding Overview}" x:DataType="vm:OverviewViewModel">
+  <Grid.ColumnDefinitions>
+    <!-- The two BANDS (health over run) share the left region; ACTIVITY keeps its own column. -->
+    <ColumnDefinition Width="*" MinWidth="560"/>
+    <ColumnDefinition Width="6"/>
+    <ColumnDefinition Width="0.62*" MinWidth="320"/>
+  </Grid.ColumnDefinitions>
+
+  <!-- LEFT REGION: HEALTH band on top, CURRENT RUN band below, drag handle between. Pairing cards
+       two-wide halves their height so the region ends where the queue does, and the shared edges are
+       what make the page read as aligned. -->
+  <ScrollViewer Grid.Column="0" Background="Transparent" VerticalScrollBarVisibility="Auto">
+  <Grid RowDefinitions="Auto,Auto,*" Margin="14,69,10,10"><!-- 14, not 11: this card left edge must land on the SAME x as the Folders page, or the pages twitch as you switch. Measured: both x=219 at 1080p. -->
+
+    <!-- BAND 1: LOCAL BACKUP HEALTH - the whole library. Nothing here changes while you watch. -->
+    <!-- x:Name for the guide: the Confirm card rings THIS, the coverage figures it talks about. It sits
+         high on the page, so the bubble lands beside it instead of being pushed into a clipped corner. -->
+    <Border x:Name="GuideHealthCard" Grid.Row="0" Classes="scard" Margin="0,0,0,14" VerticalAlignment="Top">
+      <Grid RowDefinitions="Auto,Auto">
+        <Border Grid.Row="0" Classes="shead">
+          <Grid ColumnDefinitions="Auto,*">
+            <TextBlock Grid.Column="0" Classes="sgh" Text="LOCAL LIBRARY HEALTH"/>
+            <Border Grid.Column="1" Classes="shrule" Background="{StaticResource NeutralRuleFade}"/>
+          </Grid>
+        </Border>
+    <Grid Grid.Row="1" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+        <!-- Verdict card: the plain-language answer to "is my backup okay?" -->
+          <!-- LEDE. The page is written as an inverted pyramid: this line is chosen by severity in Core
+               (StatusLede.Pick) and has to stand alone - a reader who sees only this has the whole story. -->
+          <!-- Lede as the control: the verdict lines are ALWAYS here and are themselves the way into the
+               detail - nothing appears or moves between states; only the words and their color change.
+               The click target spans the number + sentence ONLY; the transport in column 2 keeps its own
+               buttons. -->
+          <Border Grid.Row="1" Classes="section top" Padding="20,12,20,10">
+            <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+              <!-- NOT a button: a full-width click target claims far more than "(Details)" delivers, and amber on
+                   a passive headline breaks the color law. The link below is the only pressable thing here. -->
+              <!-- x:Name for the guide: the watching/landed steps ring this verdict, which is the thing
+                   they tell the user to watch move. -->
+              <!-- (09-19) "*", not "Auto": the headline row WRAPS when the transport beside it needs the width ("Finish
+                   current files" + "Pause" at 1366). Auto let it run on under the buttons. -->
+              <Grid x:Name="GuideVerdict" Grid.Column="0" ColumnDefinitions="*" VerticalAlignment="Center" HorizontalAlignment="Left">
+                <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
+                  <TextBlock Grid.Column="0" Classes="ledenum" Text="{Binding LedeValue}" Foreground="{Binding LedeBrush}" FontSize="30"
+                             FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                  <!-- Headline bottom-aligned with the numeral it completes, so the two read as one sentence. The
+                       status line below is the whole deck, reduced to its exceptions. -->
+                  <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                    <WrapPanel Orientation="Horizontal" ItemSpacing="7" LineSpacing="2">
+                      <TextBlock Classes="ledehead" Text="{Binding LedeHeadline}" FontSize="{StaticResource FontRow}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Bottom"/>
+                      <!-- The queued share of the gap, beside the headline: "to Back Up" alone reads as if
+                           nothing is planned while a queue sits right there (owner 08-31). -->
+                      <TextBlock Text="{Binding LedeQueuedNote}" Foreground="{StaticResource InkDim}"
+                                 FontSize="{StaticResource FontCaption}" VerticalAlignment="Bottom" Margin="0,0,0,1"
+                                 IsVisible="{Binding LedeQueuedNote, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                      <Button Classes="ledebtn" Padding="0" Background="Transparent" BorderThickness="0"
+                              Command="{Binding OpenIssuesCommand}" ToolTip.Tip="{Binding HealthDetailTip}"
+                              VerticalAlignment="Center">
+                        <TextBlock Classes="ledelink" Text="(Details)" Foreground="{StaticResource InkPrimary}"
+                                   FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"/>
+                      </Button>
+                      <!-- A run-failure notice carries its own verb: the transport's Clear beside it empties the QUEUE. -->
+                      <Button Classes="ledebtn" Padding="0" Background="Transparent" BorderThickness="0"
+                              Command="{Binding DismissRunFailureCommand}" IsVisible="{Binding HasRunFailure}"
+                              ToolTip.Tip="Forget this failure notice. The files stay queued for the next run." VerticalAlignment="Center">
+                        <TextBlock Classes="ledelink" Text="(Dismiss)" Foreground="{StaticResource InkDim}"
+                                   FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"/>
+                      </Button>
+                    </WrapPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="7" IsVisible="{Binding HasHealthStatus}">
+                      <TextBlock Text="{Binding HealthStatusText}" Foreground="{Binding HealthStatusBrush}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                      <!-- One-click fix beside the finding (owner 08-30): re-queues the affected files at
+                           the TOP of the queue; a paused queue stays paused and says so. -->
+                      <!-- A real button, not a parenthetical link: the finding is red, so the fix beside it must
+                           read as the thing to press (owner 09-02). FILLED amber (owner 09-19): amber is the action;
+                           red stays destructive-only, and the finding beside it already carries the red. -->
+                      <Button Classes="primary" Content="Fix It" Padding="10,2" Margin="4,0,0,0" FontSize="{StaticResource FontCaption}" HorizontalAlignment="Left"
+                              Command="{Binding LedeFixNowCommand}" IsVisible="{Binding ShowLedeFixNow}"
+                              ToolTip.Tip="Re-queue the affected files at the top of the download queue. If downloads are paused they stay paused until you Resume."
+                              VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </StackPanel>
+                </Grid>
+              </Grid>
+              <!-- The transport lives HERE for alignment across pages: Folders and Library both put their actions
+                   in the top card, so Overview's action row sits at the same height. -->
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                <Button Classes="secondarybtn" Classes.lookahead="{Binding !$parent[Window].((vm:MainWindowViewModel)DataContext).BarSecondaryIsLive}" Classes.stopbtn="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).BarSecondaryIsDestructive}"
+                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).BarSecondaryCommand}" IsEnabled="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).BarSecondaryEnabled}" MinWidth="82" Padding="10,6">
+                  <TextBlock Text="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).BarSecondaryLabel}" HorizontalAlignment="Center"/>
+                </Button>
+                <Button Classes="primary" Classes.dimmed="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).BarPrimaryDimmed}"
+                        Classes.resume="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).BarPrimaryResume}" Classes.neutral="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).BarPrimaryNeutral}"
+                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).BarPrimaryCommand}" IsEnabled="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).BarPrimaryEnabled}" MinWidth="82" Padding="10,6">
+                  <TextBlock Text="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).BarPrimaryLabel}" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                </Button>
+              </StackPanel>
+            </Grid>
+          </Border>
+          <!-- Findings surface as ONE line under the headline, and only when there is something to report
+               (green is assumed, never reported). See HealthStatusText. -->
+          <!-- DATA tier: the two completeness bars, type scale one step up (these are the numbers people read).
+               The EXTRAS track is segmented by content type via the app-wide palette (ExtraTypeSegment);
+               only the FILLED part is divided, so length keeps its one meaning and color adds a second.
+               Games stays single-color: splitting Game/Mod would need a Core breakdown that does not exist. -->
+          <!-- A NEUTRAL fade hairline marks the verdict/data split. Neutral, not amber: a division inside a
+               card must not compete with the amber page heading. -->
+          <!-- MOCK A: full-width rule REMOVED. -->
+          <Border Grid.Row="3" Classes="section" BorderThickness="0" Padding="20,10,20,8">
+            <StackPanel Spacing="9">
+              <!-- The right-hand readouts are VALUES, so they take InkPrimary like the row labels; only the offline
+                   STATUS word keeps its own brush. Peer eyebrow to FOLDER STATUS below. Not "Inventory":
+                   these bars measure how much of the GOG library is backed up. -->
+              <!-- One line, two jobs: the section label AND the table's column heads share the heading row, the
+                   shortened rule separating them. Right margin 13 = the well's padding + border, so the
+                   eyebrows land exactly over their value columns. -->
+              <Grid ColumnDefinitions="Auto,*,84,14,150" Margin="0,0,13,2">
+                <TextBlock Grid.Column="0" Text="LIBRARY COVERAGE" Foreground="White" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" Text="FILES" Foreground="White" FontSize="12" FontWeight="SemiBold" LetterSpacing="0.6" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,-1"/>
+                <Border Grid.Column="3" Width="1" Background="{StaticResource StrokeSubtle}" HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0,4,0,-2"/>
+                <TextBlock Grid.Column="4" Text="{Binding CoverageDataHeader}" Foreground="White" FontSize="12" FontWeight="SemiBold" LetterSpacing="0.6" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,-1"/>
+                <!-- The trailing rule BACKED UP HERE already uses: a labeled section gets a rule running out from
+                     its label. Neutral - a division inside a card. -->
+                <Border Grid.Column="1" Height="1" Background="{StaticResource NeutralRuleFade}" Margin="10,0,10,0" VerticalAlignment="Center"/>
+              </Grid>
+              <!-- Separation by surface: a second hairline could only repeat "boundary"; a recess says "different
+                   thing", which these two groups are. -->
+              <Border Background="{StaticResource SurfaceBg}" CornerRadius="{StaticResource RadiusChip}" Padding="12,8,12,8"
+                      BorderBrush="{StaticResource FlatEdge}" BorderThickness="1">
+                <StackPanel Spacing="7">
+              <!-- DATA column 120->150 (owner 09-01): the right-aligned halves clipped "284.14"/"315.36" at 120;
+                   150 leaves room for a four-digit GB figure. The legend inset below tracks it (248). -->
+              <Grid ColumnDefinitions="72,72,*,84,14,150" RowDefinitions="Auto,7,Auto,6,Auto,4,Auto">
+                <!-- The column divider: one continuous line through all rows completes the table. -->
+                <Border Grid.Column="4" Grid.RowSpan="7" Width="1" Background="{StaticResource StrokeSubtle}" HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
+                <TextBlock Grid.Column="0" Text="Games" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontRow}" VerticalAlignment="Center"/>
+                <!-- A track needs its own edge: on a recess the empty track and the well are near the same value and
+                     the bar vanishes at 0%. The 1px SurfaceStroke matches all four tracks in the app. -->
+                <ProgressBar Grid.Column="2" Height="10" Minimum="0" Maximum="100" Value="{Binding GamesBytePercent}" CornerRadius="{StaticResource RadiusChip}" Margin="0,0,10,0"
+                             Foreground="{StaticResource AccentAmber}" Background="{StaticResource PlotRecess}"
+                             BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1"/>
+                <TextBlock Grid.Column="1" Text="{Binding GamesBytePercentText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontRow}" FontWeight="SemiBold" FontFamily="Consolas,monospace" HorizontalAlignment="Right" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                <Grid Grid.Row="0" Grid.Column="3" ColumnDefinitions="*,Auto,*" VerticalAlignment="Center">
+                  <TextBlock Grid.Column="0" Text="{Binding GamesFilesDoneText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontFeatures="tnum" HorizontalAlignment="Right"/>
+                  <TextBlock Grid.Column="1" Text=" / " Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontBody}"/>
+                  <TextBlock Grid.Column="2" Text="{Binding GamesFilesTotalText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontFeatures="tnum" HorizontalAlignment="Right"/>
+                </Grid>
+                <Grid Grid.Row="0" Grid.Column="5" ColumnDefinitions="*,Auto,*" VerticalAlignment="Center">
+                  <TextBlock Grid.Column="0" Text="{Binding GamesDataDoneText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontFeatures="tnum" HorizontalAlignment="Right"/>
+                  <TextBlock Grid.Column="1" Text=" / " Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontBody}"/>
+                  <TextBlock Grid.Column="2" Text="{Binding GamesDataTotalText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontFeatures="tnum" HorizontalAlignment="Right"/>
+                </Grid>
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Extras" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontRow}" VerticalAlignment="Center"/>
+                <!-- A star-sized Grid is the only layout that gives EXACT proportions; the eight slots are
+                     fixed (7 buckets + the empty remainder) and unused ones collapse to zero width. -->
+                <Border Grid.Row="2" Grid.Column="2" Height="10" CornerRadius="{StaticResource RadiusChip}" Margin="0,0,10,0" ClipToBounds="True"
+                        Background="{StaticResource PlotRecess}" BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1"
+                        VerticalAlignment="Center">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="{Binding ExtraCol0}"/><ColumnDefinition Width="{Binding ExtraCol1}"/>
+                      <ColumnDefinition Width="{Binding ExtraCol2}"/><ColumnDefinition Width="{Binding ExtraCol3}"/>
+                      <ColumnDefinition Width="{Binding ExtraCol4}"/><ColumnDefinition Width="{Binding ExtraCol5}"/>
+                      <ColumnDefinition Width="{Binding ExtraCol6}"/><ColumnDefinition Width="{Binding ExtraColRest}"/>
+                    </Grid.ColumnDefinitions>
+                    <Panel Grid.Column="0" Background="{Binding ExtraBrush0}"/>
+                    <Panel Grid.Column="1" Background="{Binding ExtraBrush1}"/>
+                    <Panel Grid.Column="2" Background="{Binding ExtraBrush2}"/>
+                    <Panel Grid.Column="3" Background="{Binding ExtraBrush3}"/>
+                    <Panel Grid.Column="4" Background="{Binding ExtraBrush4}"/>
+                    <Panel Grid.Column="5" Background="{Binding ExtraBrush5}"/>
+                    <Panel Grid.Column="6" Background="{Binding ExtraBrush6}"/>
+                  </Grid>
+                </Border>
+                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ExtrasBytePercentText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontRow}" FontWeight="SemiBold" FontFamily="Consolas,monospace" HorizontalAlignment="Right" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                <Grid Grid.Row="2" Grid.Column="3" ColumnDefinitions="*,Auto,*" VerticalAlignment="Center">
+                  <TextBlock Grid.Column="0" Text="{Binding ExtrasFilesDoneText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontFeatures="tnum" HorizontalAlignment="Right"/>
+                  <TextBlock Grid.Column="1" Text=" / " Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontBody}"/>
+                  <TextBlock Grid.Column="2" Text="{Binding ExtrasFilesTotalText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontFeatures="tnum" HorizontalAlignment="Right"/>
+                </Grid>
+                <Grid Grid.Row="2" Grid.Column="5" ColumnDefinitions="*,Auto,*" VerticalAlignment="Center">
+                  <TextBlock Grid.Column="0" Text="{Binding ExtrasDataDoneText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontFeatures="tnum" HorizontalAlignment="Right"/>
+                  <TextBlock Grid.Column="1" Text=" / " Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontBody}"/>
+                  <TextBlock Grid.Column="2" Text="{Binding ExtrasDataTotalText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontFeatures="tnum" HorizontalAlignment="Right"/>
+                </Grid>
+                <!-- TOTALS (owner 08-31): a rule under the number columns, then the games+extras sums in the
+                     same split-halves cells so the slashes stay on one x. Live like the rows above. -->
+                <Border Grid.Row="4" Grid.Column="3" Grid.ColumnSpan="3" Height="1" Background="{StaticResource StrokeSubtle}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Row="6" Grid.Column="0" Text="Total" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"/>
+                <!-- The extras legend shares the Total row (owner 09-02): it is a caption OF THE BARS, so it sits
+                     in the bar column, under the segments it names, between the Total label and the sums. A
+                     fuller library wraps it to a second line inside this row. Content stays honest - only the
+                     types present. -->
+                <Grid Grid.Row="6" Grid.Column="2" VerticalAlignment="Center">
+              <ItemsControl ItemsSource="{Binding ExtraSegments}" Margin="0,0,10,0" VerticalAlignment="Center" IsVisible="{Binding HasExtraSegments}">
+              <!-- WrapPanel, not UniformGrid: division-sized cells overlap their neighbors the moment a label
+                   outgrows its share; wrapped items keep their own width and take a second line when needed. -->
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:ExtraTypeSegment">
+                  <!-- Swatch, label and value sit TIGHT together and the air goes between columns - proximity does
+                       the grouping; a value pushed to the cell edge pairs with the NEXT column's swatch. -->
+                  <!-- One font, so label and value share a baseline. Mono belongs where digits stack in a COLUMN;
+                       inline beside a label it buys only a baseline mismatch. -->
+                  <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,16,3" VerticalAlignment="Center">
+                    <Border Width="10" Height="10" CornerRadius="2" Background="{Binding Brush}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding Name}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding DoneBytesText}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+                </Grid>
+                <Grid Grid.Row="6" Grid.Column="3" ColumnDefinitions="*,Auto,*" VerticalAlignment="Center">
+                  <TextBlock Grid.Column="0" Text="{Binding TotalCovFilesDoneText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontWeight="SemiBold" FontFeatures="tnum" HorizontalAlignment="Right"/>
+                  <TextBlock Grid.Column="1" Text=" / " Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontBody}"/>
+                  <TextBlock Grid.Column="2" Text="{Binding TotalCovFilesTotalText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontWeight="SemiBold" FontFeatures="tnum" HorizontalAlignment="Right"/>
+                </Grid>
+                <Grid Grid.Row="6" Grid.Column="5" ColumnDefinitions="*,Auto,*" VerticalAlignment="Center">
+                  <TextBlock Grid.Column="0" Text="{Binding TotalCovDataDoneText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontWeight="SemiBold" FontFeatures="tnum" HorizontalAlignment="Right"/>
+                  <TextBlock Grid.Column="1" Text=" / " Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontBody}"/>
+                  <TextBlock Grid.Column="2" Text="{Binding TotalCovDataTotalText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontWeight="SemiBold" FontFeatures="tnum" HorizontalAlignment="Right"/>
+                </Grid>
+              </Grid>
+                </StackPanel>
+              </Border>
+              <!-- FOLDER STATUS: same row grammar as the two bars above (label, percent, bar, figure). Amber fill
+                   = Grog's share, gray = other data, rest = free - the one place a two-tone bar earns it. -->
+              <Border Height="0" Margin="0,7,0,0"/>
+              <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2,0,1">
+                <TextBlock Grid.Column="0" Text="STORAGE STATUS" Foreground="White" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <!-- Stops short of the key, so the rule marks the label rather than striking through it. -->
+                <Border Grid.Column="1" Height="1" Background="{StaticResource NeutralRuleFade}" Margin="10,0,10,0" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="14" HorizontalAlignment="Right" VerticalAlignment="Center">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Border Width="9" Height="9" CornerRadius="2" Background="{StaticResource AccentAmber}" VerticalAlignment="Center"/>
+                    <TextBlock Text="Grog" Foreground="White" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"/>
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Border Width="9" Height="9" CornerRadius="2" Background="{StaticResource StrokeSubtle}" VerticalAlignment="Center"/>
+                    <TextBlock Text="Other data" Foreground="White" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"
+                               ToolTip.Tip="Anything on the drive that is not Grog's, including the filesystem's own bookkeeping - the same 'used' Explorer shows"/>
+                  </StackPanel>
+                </StackPanel>
+              </Grid>
+              <!-- (09-25, owner) A drive slow to answer is named here instead of the bars silently freezing. Shown only after
+                   a second without an answer; plain white, not amber: it is a state, not an action. -->
+              <TextBlock Text="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.WaitingDriveText}"
+                         IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.HasWaitingDrive}"
+                         Foreground="White" FontSize="{StaticResource FontCaption}" Margin="0,0,0,6"/>
+              <!-- Separation by surface: a second hairline could only repeat "boundary"; a recess says "different
+                   thing", which these two groups are. -->
+              <Border Background="{StaticResource SurfaceBg}" CornerRadius="{StaticResource RadiusChip}" Padding="12,9,12,10"
+                      BorderBrush="{StaticResource FlatEdge}" BorderThickness="1">
+                <StackPanel Spacing="9">
+              <ItemsControl ItemsSource="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.BackupLocations}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:BackupLocationRow">
+                    <!-- 260 (was 210): the fixed free/total columns that pin "free of" to one x
+                         need the extra room (92 + ~55 joint + 96), or the total clips at the column edge. Grow the container with the type.
+                         Col 1 is 96 (was 80): it held "0.0%" and now holds a SIZE ("171.70 GB"), which is
+                         four characters wider. Grow the container with the type; 80 clipped the unit. -->
+                    <Grid ColumnDefinitions="96,96,*,260" Margin="0,1,0,0">
+                      <TextBlock Grid.Column="0" Text="{Binding Label}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontRow}" VerticalAlignment="Center"/>
+                      <!-- The size is a FOLDER fact; the bar and the capacity beside it are DRIVE facts. They say
+                           nothing until the probe is trustworthy: a gray bar is a wrong answer, not "unknown".
+                           The readout column carries the offline
+                           word in that gap so the row is never blank. -->
+                      <TextBlock Grid.Column="1" Text="{Binding GrogSizeText}" Foreground="{StaticResource InkPrimary}"
+                                 IsVisible="{Binding IsOnline}"
+                                 FontSize="{StaticResource FontRow}" FontWeight="SemiBold" FontFamily="Consolas,monospace"
+                                 HorizontalAlignment="Right" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                      <Border Grid.Column="2" Height="10" CornerRadius="{StaticResource RadiusChip}" Margin="0,0,10,0" ClipToBounds="True"
+                              IsVisible="{Binding IsOnline}" ToolTip.Tip="{Binding BarToolTip}"
+                              Background="{StaticResource PlotRecess}" BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1"
+                              VerticalAlignment="Center">
+                        <Grid>
+                          <!-- Same segment order as the Folders capacity bar: bright amber, muted
+                               amber (red when the plan fits nowhere), gray, free. -->
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="{Binding GrogCol}"/><ColumnDefinition Width="{Binding QueuedCol}"/><ColumnDefinition Width="{Binding OtherCol}"/><ColumnDefinition Width="{Binding FreeCol}"/>
+                          </Grid.ColumnDefinitions>
+                          <Panel Grid.Column="0" Background="{StaticResource AccentAmber}"/>
+                          <Panel Grid.Column="1" Background="{Binding QueuedSegmentBrush}"/>
+                          <Panel Grid.Column="2" Background="{StaticResource StrokeSubtle}"/>
+                        </Grid>
+                      </Border>
+                      <!-- Offline states borrow the FOLDERS card's own status word and brush, so the two pages can never
+                           disagree; online, this slot is a plain dim capacity value. -->
+                      <!-- Values white, "free of" dim: the numbers are the readout, the words are only the
+                           joint between them. The cell is a fixed width; the free figure anchors LEFT, the
+                           total anchors RIGHT, and "free of" is CENTERED in whatever room is left between
+                           them (owner 09-02) - so it never drifts toward either number as digits change. -->
+                      <Grid Grid.Column="3" Width="260" ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding IsOnline}"
+                            HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <TextBlock Grid.Column="0" Text="{Binding CapacityFreeText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}"/>
+                        <TextBlock Grid.Column="1" Text="free of" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontBody}" HorizontalAlignment="Center" Margin="8,0"/>
+                        <TextBlock Grid.Column="2" Text="{Binding CapacityTotalText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}"/>
+                      </Grid>
+                      <TextBlock Grid.Column="3" Text="{Binding StatusWord}" Foreground="{Binding StateBrush}" FontSize="{StaticResource FontBody}"
+                                 FontWeight="SemiBold" IsVisible="{Binding !IsOnline}"
+                                 HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <!-- A manifest save failed: stays until a later save lands. Amber - nothing was destroyed. -->
+              <Border IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).LibraryNotSaved}" Padding="9,6"
+                      Background="{StaticResource SurfaceAmberSoft}" BorderBrush="{StaticResource StrokeAmberSoft}"
+                      BorderThickness="1" CornerRadius="{StaticResource RadiusChip}">
+                <TextBlock Text="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).LibraryNotSavedLine}" Foreground="{StaticResource AccentAmber}"
+                           FontSize="{StaticResource FontCaption}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+              </Border>
+              <!-- Same warning as the Folders card, LIVE: the count and GB fall as queue rows are
+                   removed, so you can trim from Overview and watch it reach "fits" (owner request). -->
+              <Border IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).QueueHasUnplaceable}" Padding="9,6"
+                      Background="{StaticResource SurfaceErrorSoft}" BorderBrush="{StaticResource StrokeErrorSoft}"
+                      BorderThickness="1" CornerRadius="{StaticResource RadiusChip}">
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+                  <TextBlock Grid.Column="0" Text="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).QueueUnplaceableLine}" Foreground="{StaticResource ErrorRedBright}"
+                             FontSize="{StaticResource FontCaption}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                  <!-- ACTIONABLE (owner 09-11): red text alone was what the user had, and it was not enough. Remove is
+                       surgical: only the rows that won't fit go, everything else keeps its position. Show me scrolls
+                       to the first such row. Neither blocks a run; nothing here is a modal. -->
+                  <Button Grid.Column="1" Classes="ghost" Content="Show files in Queue" Padding="10,5" FontSize="{StaticResource FontEyebrow}" VerticalAlignment="Center" Command="{Binding ShowWontFitCommand}"/>
+                  <!-- THE fix, in amber (owner 09-13): more room. Goes to Storage and opens the folder picker for the
+                       second storage straight away. Only while there is no second storage yet. -->
+                  <Button Grid.Column="2" Classes="primary" Content="Add second storage" Padding="10,5" FontSize="{StaticResource FontEyebrow}" VerticalAlignment="Center"
+                          IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.CanAddSecondary}"
+                          Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddSecondaryStorageFromBannerCommand}"/>
+                  <!-- (09-19) Remove lives on the red divider, on top of the rows it removes; this banner informs and points. -->
+                </Grid>
+              </Border>
+                </StackPanel>
+              </Border>
+
+              <!-- Legend: only the buckets this library actually contains, each carrying its backed-up
+                   file count, so it decodes the colors AND is the breakdown. -->
+              <!-- WrapPanel: division-sized UniformGrid cells have no floor and neighbors paint over each other
+                   at 1366. Ragged-right is legible; overlap is not. -->
+              <!-- Left margin = label column (72) + percent column (80), so the first swatch sits exactly under
+                   the START of the bars; right margin 114 matches the bars' right edge (104 + 10). -->
+            </StackPanel>
+          </Border>
+
+        <!-- FILES & ISSUES lives in a dialog: the lede line above carries the alert and the detail opens on
+             demand. See ShowIssuesModal. The Recent-errors strip moved INTO that dialog (owner 08-31). -->
+      </Grid>
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="1" Classes="scard" Margin="0,0,0,14" VerticalAlignment="Top">
+      <StackPanel Spacing="0">
+        <Border Classes="shead">
+          <Grid ColumnDefinitions="Auto,*,Auto">
+            <TextBlock Grid.Column="0" Classes="sgh" Text="SCHEDULE"/>
+            <Border Grid.Column="1" Classes="shrule" Background="{StaticResource NeutralRuleFade}"/>
+            <!-- Where the schedule is CHANGED: a link on the header strip is always there, sits where the other
+                 cards keep their actions, and reads as this card's control. -->
+            <!-- A NAVIGATION ACTION, so it takes the secondary button tier: naked amber text reads as emphasis,
+                 not something you can press. -->
+            <Button Grid.Column="2" Classes="secondarybtn" Padding="10,4"
+                    Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).NavigateCommand}" CommandParameter="Settings"
+                    ToolTip.Tip="Backup schedule is set in Settings" VerticalAlignment="Center">
+              <TextBlock Text="Change in Settings" FontSize="{StaticResource FontEyebrow}" FontWeight="SemiBold"/>
+            </Button>
+          </Grid>
+        </Border>
+      <!-- THREE readouts: "last completed run" and "how the last run ended" are different facts that can
+           disagree, and the disagreement is the readout. Not equal columns - Auto sizes the outcome
+           column to its eyebrow (MinWidth keeps it on one line) and the two timestamp columns keep the
+           rest, so "Tomorrow, 3:00 AM" never breaks after "3:00". -->
+      <!-- Readouts bind to ScheduleViewModel (09-02 split); the card header above keeps the window context for its Navigate. -->
+      <Grid ColumnDefinitions="*,1,*,1,Auto" DataContext="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Schedule}" x:DataType="vm:ScheduleViewModel">
+        <StackPanel Grid.Column="0" Spacing="4" Margin="18,12,18,13">
+          <TextBlock Classes="eyebrow" Text="NEXT RUN"/>
+          <TextBlock Text="{Binding NextRunValue}" Foreground="{Binding NextRunBrush}" FontSize="{StaticResource FontSection}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+          <TextBlock Text="{Binding NextRunSub}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontEyebrow}" TextWrapping="Wrap"/>
+        </StackPanel>
+        <Border Grid.Column="1" Background="{StaticResource StrokeSubtle}"/>
+        <StackPanel Grid.Column="2" Spacing="4" Margin="18,12,18,13">
+          <TextBlock Classes="eyebrow" Text="LAST COMPLETED RUN"/>
+          <TextBlock Text="{Binding LastRunValue}" Foreground="{Binding LastRunBrush}" FontSize="{StaticResource FontSection}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+          <!-- Gated: LastRunSub is empty in the "Never" state (it would only restate the value), and an
+               empty TextBlock still measures a full line, leaving dead space under it. -->
+          <TextBlock Text="{Binding LastRunSub}" Foreground="{Binding LastRunSubBrush}" FontSize="{StaticResource FontEyebrow}" TextWrapping="Wrap"
+                     IsVisible="{Binding LastRunSub, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+        </StackPanel>
+        <Border Grid.Column="3" Background="{StaticResource StrokeSubtle}"/>
+        <StackPanel Grid.Column="4" Spacing="4" Margin="18,12,18,13" MinWidth="150">
+          <TextBlock Classes="eyebrow" Text="LAST RUN RESULT"/>
+          <TextBlock Text="{Binding LastRunResultValue}" Foreground="{Binding LastRunResultBrush}" FontSize="{StaticResource FontSection}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+          <TextBlock Text="{Binding LastRunResultSub}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontEyebrow}" TextWrapping="Wrap"
+                     IsVisible="{Binding LastRunResultSub, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+        </StackPanel>
+      </Grid>
+      </StackPanel>
+    </Border>
+
+    <!-- x:Name for the guide: the Confirm cards PARK over this card rather than beside their target,
+         where the bubble would cover the coverage figures and health verdict the step points at. -->
+    <Border x:Name="GuideActivityArea" Grid.Row="2" Classes="scard">
+      <!-- Grid, NOT StackPanel: a StackPanel gives each child its desired height, so the graph
+           band's star row would collapse to its MinHeight instead of taking the slack. -->
+      <Grid RowDefinitions="Auto,*">
+        <Border Grid.Row="0" Classes="shead">
+          <Grid ColumnDefinitions="Auto,*,Auto">
+            <TextBlock Grid.Column="0" Classes="sgh" Text="BACKUP TASK"/>
+            <Border Grid.Column="1" Classes="shrule" Background="{StaticResource NeutralRuleFade}"/>
+            <!-- Same wayfinding as SCHEDULE's "Change in Settings": the QUEUE is chosen on Library, by selecting
+                 games - state where, without making the user hunt. -->
+            <!-- A NAVIGATION ACTION, so it takes the secondary button tier: naked amber text reads as emphasis,
+                 not something you can press. -->
+            <Button Grid.Column="2" Classes="secondarybtn" Padding="10,4"
+                    Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).NavigateCommand}" CommandParameter="Library"
+                    ToolTip.Tip="Pick what to back up on the Library page" VerticalAlignment="Center">
+              <TextBlock Text="Queue in Library" FontSize="{StaticResource FontEyebrow}" FontWeight="SemiBold"/>
+            </Button>
+          </Grid>
+        </Border>
+      <Grid Grid.Row="1" RowDefinitions="Auto,Auto,*">
+        <Border Grid.Row="0" Padding="20,9">
+            <StackPanel Spacing="10">
+              <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+                <!-- +tnum (fixed-width digits) + a MinWidth that clears "12:59 PM": the value ticks
+                     every second, and without these each redraw resized the column and dragged the
+                     "is when..." text sideways (owner-caught 2026-08-29). -->
+                <TextBlock Grid.Column="0" Text="{Binding RunLedeValue}" Foreground="{Binding RunLedeBrush}" FontSize="27"
+                           FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,16,0"
+                           FontFeatures="+tnum" MinWidth="132"/>
+                <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding RunLedeHeadline}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontWeight="SemiBold" TextWrapping="Wrap"
+                             IsVisible="{Binding RunLedePausedReason, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                  <!-- (UX 09-08 #2b) Paused reads as a state: the reason sits inline beside the word, dim body text. -->
+                  <TextBlock Text="{Binding RunLedePausedReason}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontBody}" TextWrapping="Wrap"
+                             IsVisible="{Binding RunLedePausedReason, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                  <TextBlock Text="{Binding RunLedeDetail}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" TextWrapping="Wrap"
+                             IsVisible="{Binding RunLedeDetail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                </StackPanel>
+                <!-- The transport lives in LOCAL LIBRARY HEALTH (see there); BACKUP TASK keeps the run's telemetry,
+                     so the action row lands on the same line as you move between pages. -->
+              </Grid>
+              <StackPanel Spacing="5">
+                <Border Height="14" CornerRadius="{StaticResource RadiusChip}" Background="{StaticResource SurfaceBg}" BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1" ClipToBounds="True">
+                  <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="{Binding RunDoneCol}"/><ColumnDefinition Width="{Binding RunRemainCol}"/></Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" CornerRadius="{StaticResource RadiusChip}" Background="{StaticResource AccentAmber}"/>
+                  </Grid>
+                </Border>
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Grid.Column="0" Text="{Binding TaskBarValueText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontFamily="Consolas,monospace"/>
+                </Grid>
+              </StackPanel>
+            </StackPanel>                </Border>
+        <Border Grid.Row="1" Classes="section" Padding="20,9,20,9">
+          <!-- Time reads left to right: what has passed, what is happening, what is left (owner 09-05). -->
+          <Grid ColumnDefinitions="*,1,*,2,*,1,*">
+            <StackPanel VerticalAlignment="Top" Grid.Column="0" Spacing="4" Margin="0,0,12,0">
+              <TextBlock Classes="eyebrow" Text="ELAPSED"/>
+              <TextBlock Text="{Binding ElapsedText}" Foreground="{StaticResource InkPrimary}" FontSize="20" FontWeight="SemiBold" FontFamily="Consolas,monospace"/>
+              <TextBlock Text="{Binding ElapsedInlineText}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontEyebrow}" TextWrapping="Wrap"/>
+            </StackPanel>
+            <Border Grid.Column="1" Background="{StaticResource StrokeSubtle}"/>
+            <StackPanel VerticalAlignment="Top" Grid.Column="2" Spacing="4" Margin="12,0">
+              <TextBlock Classes="eyebrow" Text="SPEED"/>
+              <TextBlock Text="{Binding CurrentSpeedText}" Foreground="{StaticResource InkPrimary}" FontSize="20" FontWeight="SemiBold" FontFamily="Consolas,monospace"/>
+              <TextBlock Text="{Binding AvgSpeedInlineText}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontEyebrow}" TextWrapping="Wrap"/>
+            </StackPanel>
+            <!-- Heavier rule here: left of it is what is happening now, right of it is what is left (owner 09-05). -->
+            <Border Grid.Column="3" Background="{StaticResource InkDim}" Opacity="0.55"/>
+            <StackPanel VerticalAlignment="Top" Grid.Column="4" Spacing="4" Margin="12,0">
+              <!-- (09-19) These two count only the rows that can land; with red rows queued the label says so. Wraps as a unit. -->
+              <WrapPanel><TextBlock Classes="eyebrow" Text="FILES LEFT" Margin="0,0,5,0"/><TextBlock Classes="eyebrow" Text="(WHAT FITS)" IsVisible="{Binding HasWontFitStats}"/></WrapPanel>
+              <TextBlock Text="{Binding FilesLeftText}" Foreground="{StaticResource InkPrimary}" FontSize="20" FontWeight="SemiBold" FontFamily="Consolas,monospace"/>
+              <TextBlock Text="{Binding FilesDoneInlineText}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontEyebrow}" TextWrapping="Wrap"/>
+            </StackPanel>
+            <Border Grid.Column="5" Background="{StaticResource StrokeSubtle}"/>
+            <StackPanel VerticalAlignment="Top" Grid.Column="6" Spacing="4" Margin="12,0,0,0">
+              <!-- (09-19) These two count only the rows that can land; with red rows queued the label says so. Wraps as a unit. -->
+              <WrapPanel><TextBlock Classes="eyebrow" Text="EST. TIME LEFT" Margin="0,0,5,0"/><TextBlock Classes="eyebrow" Text="(WHAT FITS)" IsVisible="{Binding HasWontFitStats}"/></WrapPanel>
+              <TextBlock Text="{Binding EtaText}" Foreground="{StaticResource InkPrimary}" FontSize="20" FontWeight="SemiBold" FontFamily="Consolas,monospace"/>
+              <TextBlock Text="{Binding FinishClockText}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontEyebrow}" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Grid>
+        </Border>
+        <!-- SPEED OVER TIME is a reading off the run, so it is a band of the run card. It also takes the
+             slack: a time series is the one element that gets better with height. -->
+        <!-- Padding + plot floor trimmed so the page fits typical ~800 window heights; the graph still takes
+             the star row's extra height on a taller window. -->
+        <Border Grid.Row="2" Padding="18,11,18,10" BorderBrush="{StaticResource StrokeSubtle}" BorderThickness="0,1,0,0">
+      <Panel>
+        <!-- (UX 09-08 #2c) The chart band is only shown while a run is active; idle, the band keeps its slot
+             with a one-line dim placeholder so the card does not jump when a run starts. -->
+        <TextBlock Text="Speed and time remaining appear while a backup runs" Foreground="{StaticResource InkDim}"
+                   FontSize="{StaticResource FontCaption}" VerticalAlignment="Top" IsVisible="{Binding !RunActive}"/>
+      <Grid RowDefinitions="Auto,*,Auto" IsVisible="{Binding RunActive}">
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,6">
+          <TextBlock Grid.Column="0" Classes="eyebrow" Text="SPEED OVER TIME"/>
+          <TextBlock Grid.Column="2" Text="last 60s" Foreground="White" FontSize="13" FontFamily="Consolas,monospace"/>
+        </Grid>
+        <!-- The plot area keeps the SAME height with or without a trace, so the card never resizes between
+             idle and running. Empty, it keeps the recessed panel but drops the outline and centers the
+             state. It takes the slack - a time series gets better with height; MinHeight keeps it honest. -->
+          <Panel Grid.Row="1" MinHeight="38">
+          <Border CornerRadius="{StaticResource RadiusChip}" Background="{StaticResource PlotRecess}" BorderBrush="{StaticResource FlatEdge}"
+                  BorderThickness="1" ClipToBounds="True" IsVisible="{Binding ShowSpeedGraph}">
+            <Panel>
+              <!-- #2 chrome: two faint gridlines at 1/3 and 2/3 so the trace reads against a scale
+                   instead of floating on a blank recess. Behind the trace; neutral, never amber. -->
+              <Grid>
+                <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="*"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                <Rectangle Grid.Row="1" VerticalAlignment="Top" Height="1" HorizontalAlignment="Stretch" Fill="{StaticResource InkMuted}" Opacity="0.18"/>
+                <Rectangle Grid.Row="2" VerticalAlignment="Top" Height="1" HorizontalAlignment="Stretch" Fill="{StaticResource InkMuted}" Opacity="0.18"/>
+              </Grid>
+              <!-- Vertical gradient, not a flat fill: the trace gets a light source, so peaks read as peaks
+                   instead of one solid amber wedge. Same geometry, same hue. -->
+              <Viewbox Stretch="Fill" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                <Path Data="{Binding SpeedGraphGeometry}" Fill="{StaticResource SpeedTraceFill}" Width="1000" Height="100"/>
+              </Viewbox>
+              <!-- Y-axis overlay: peak = the ceiling the fill reaches; the dashed line marks the average. In pixel
+                   space (not the Viewbox) so the dash never scales. -->
+              <Grid Margin="7,5,7,0">
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="{Binding SpeedAboveAvgRow}"/>
+                  <RowDefinition Height="{Binding SpeedBelowAvgRow}"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="{Binding SpeedPeakText}" VerticalAlignment="Top" HorizontalAlignment="Right"
+                           Foreground="White" FontSize="{StaticResource FontEyebrow}" FontFamily="Consolas,monospace"/>
+                <Rectangle Grid.Row="1" VerticalAlignment="Top" Height="1" HorizontalAlignment="Stretch"
+                           Stroke="{StaticResource InkMuted}" StrokeThickness="1" StrokeDashArray="4,3"/>
+                <TextBlock Grid.Row="1" Text="{Binding SpeedAvgTag}" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,2,0,0"
+                           Foreground="White" FontSize="13" FontFamily="Consolas,monospace"/>
+              </Grid>
+            </Panel>
+          </Border>
+          <Border CornerRadius="{StaticResource RadiusChip}" Background="{StaticResource PlotRecess}" BorderBrush="{StaticResource FlatEdge}"
+                  BorderThickness="1" IsVisible="{Binding !ShowSpeedGraph}">
+            <!-- Deliberately EMPTY: the recess reserves the plot's space and the run state is stated at full
+                 size directly above; a stop square would read as "something is wrong". -->
+          </Border>
+        </Panel>
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" Height="15" Margin="0,4,0,0">
+          <TextBlock Grid.Column="0" Text="-60s" Foreground="White" FontSize="13" FontFamily="Consolas,monospace" IsVisible="{Binding ShowSpeedGraph}"/>
+          <TextBlock Grid.Column="2" Text="now" Foreground="White" FontSize="13" FontFamily="Consolas,monospace" IsVisible="{Binding ShowSpeedGraph}"/>
+        </Grid>
+      </Grid>
+      </Panel>
+        </Border>
+      </Grid>
+      </Grid>
+    </Border>
+
+
+    <!-- SPEED OVER TIME. A time series wants width, not height: wide and short is far easier to read.
+         The plot area keeps a constant height so the card never resizes between idle and running. -->
+    <!-- The speed graph takes the slack row: a time series gets better with height, so it grows into
+         whatever the window leaves. MinHeight keeps it honest on a short window. -->
+    <!-- SCHEDULE: the two facts as cards, with equal weight and room to say when. -->
+
+  </Grid>
+  </ScrollViewer>
+
+  <GridSplitter Classes="dividerflat" Grid.Column="1" ResizeDirection="Columns" HorizontalAlignment="Stretch"/>
+
+  <!-- COLUMN 3: ACTIVITY, flattened - the column heading IS the header. Moving sizes to its content
+       and yields the slack to Downloading, so an idle move queue cannot strand a footer mid-column. -->
+  <!-- ACTIVITY is ONE surface with a rounded top running off the bottom edge (the Library grid
+       treatment); the pill and empty state inside drop their outlines - a box inside a box otherwise. -->
+  <!-- ACTIVITY's heading sits OUTSIDE the surface, exactly like LOCAL LIBRARY HEALTH and CURRENT RUN:
+       header above, rounded surface beneath - also the Library grid pattern. -->
+  <!-- Height pinned to the viewport (see the ScrollViewer note above): these star-sized queue lists
+       would otherwise measure unbounded and kill their own scrollbars. The 69px leading ROW (not a
+       margin) keeps the column's last 69px inside the window - a margin sits outside Height. -->
+  <!-- Plain STRETCH: the page grid is viewport-bounded now, so the star row is bounded and the
+       queue ScrollViewers get real heights - no viewport binding needed any more. -->
+  <Grid Grid.Column="2" Margin="8,0,14,0" RowDefinitions="69,Auto,*">
+    <Border Grid.Row="1" Grid.RowSpan="2" Classes="scard" CornerRadius="12,12,0,0">
+      <!-- GRID, not StackPanel: a StackPanel measures children with UNBOUNDED height, so the star row
+           resolves to content height and the queue ScrollViewer is left nothing to scroll. -->
+      <Grid RowDefinitions="Auto,*">
+        <Border Grid.Row="0" Classes="shead">
+          <Grid ColumnDefinitions="Auto,*">
+            <TextBlock Grid.Column="0" Classes="sgh" Text="ACTIVITY"/>
+            <Border Grid.Column="1" Classes="shrule" Background="{StaticResource NeutralRuleFade}"/>
+          </Grid>
+        </Border>
+    <!-- Row 0 is the user's persisted height, not Auto (Auto floats the handle to wherever the Moving
+         list ends). Bound TwoWay - the splitter writes the drag straight back to settings. -->
+    <Grid Grid.Row="1">
+      <Grid.RowDefinitions>
+        <!-- The splitter resizes the ROW, so the TwoWay binding lives here, not on the panel inside it. -->
+        <!-- 200, not 96 (09-09): the Moving pane docks an active-move card, the sort pills and the stats
+             footer before its list gets a pixel. At 96 the total overruns the row, and a DockPanel does
+             not clip; the Top children simply paint over the Bottom footer. Measured against the docked
+             content, not guessed. -->
+        <RowDefinition Height="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ActivityTopHeight, Mode=TwoWay}" MinHeight="200"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+      </Grid.RowDefinitions>
+    <DockPanel Grid.Row="0" VerticalAlignment="Stretch">
+          <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="16,12,16,6">
+            <!-- Sub-heading inside the ACTIVITY surface: white label + a NEUTRAL fade rule. Neutral so the
+                 amber ACTIVITY heading above stays the section marker and these read as its children. -->
+            <Grid Grid.Column="0" ColumnDefinitions="Auto,Auto,Auto,*" VerticalAlignment="Center">
+              <Ellipse Grid.Column="0" Width="7" Height="7" VerticalAlignment="Center" Margin="0,0,8,0" Fill="{StaticResource SuccessGreen}" IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.IsReorgRunning}"/>
+              <TextBlock Grid.Column="1" Text="Moving" FontSize="{StaticResource FontRow}" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+              <!-- Plain readout, not a pill: it's informational, not clickable. -->
+              <TextBlock Grid.Column="2" IsVisible="{Binding ShowMoveCount}" Text="{Binding MoveCountText}" Foreground="{StaticResource InkDim}"
+                         FontSize="{StaticResource FontCaption}" FontFamily="Consolas,monospace" VerticalAlignment="Center" Margin="8,0,0,0"/>
+              <Border Grid.Column="3" Height="1.5" Background="{StaticResource NeutralRuleFade}" Margin="12,0,8,0" VerticalAlignment="Center"/>
+            </Grid>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.ShowMoveTransport}">
+              <!-- A move WAITING for the activity slot needs a way out (Stop only shows once running):
+                   DismissReorg drops the waiting job and clears the deferred one - what Cancel means here. -->
+              <Button Classes="ghost" Content="Cancel" FontSize="{StaticResource FontCaption}" Padding="12,5"
+                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.DismissReorgCommand}" IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.MoveWaitingForSlot}"/>
+              <!-- Same transport grammar as the Downloading pane: destructive verb red-ghost on the
+                   left, Pause primary-neutral, Resume amber-ghost - shared treatments move together. -->
+              <Button Classes="ghost" Content="Stop" FontSize="{StaticResource FontCaption}" Padding="12,5" Foreground="{StaticResource ErrorRed}"
+                      BorderBrush="{StaticResource StrokeErrorSoft}" Background="{StaticResource SurfaceErrorSoft}"
+                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.CancelActiveReorgCommand}" IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.IsReorgRunning}"/>
+              <Button Classes="ghost" Content="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.ReorgPauseLabel}" FontSize="{StaticResource FontCaption}" Padding="12,5" Foreground="{StaticResource AccentAmber}"
+                      BorderBrush="{StaticResource StrokeAmberSoft}" Background="{StaticResource SurfaceAmberSoft}"
+                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.PauseReorgCommand}" IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.ShowPauseReorg}" IsEnabled="{Binding !$parent[Window].((vm:MainWindowViewModel)DataContext).Storage.ReorgPausing}"/>
+              <Button Classes="ghost" Content="Resume" FontSize="{StaticResource FontCaption}" Padding="12,5" Foreground="{StaticResource AccentAmber}"
+                      BorderBrush="{StaticResource StrokeAmberSoft}" Background="{StaticResource SurfaceAmberSoft}"
+                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.ResumePausedReorgCommand}" IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.ReorgPaused}"/>
+            </StackPanel>
+          </Grid>
+          <!-- Stats footer is declared FIRST so the Bottom edge is reserved before the Top card claims
+               space; the Downloading pane does the same. Declared after, it takes its strip out of the
+               scrolled list instead and paints over the sort pills. -->
+          <Border DockPanel.Dock="Bottom" Background="{StaticResource SurfaceRaised}" BorderBrush="{StaticResource SurfaceStroke}"
+                  BorderThickness="0,1,0,0" Padding="16,7" IsVisible="{Binding ShowMoveCount}">
+            <!-- Centered + white (owner 08-30): the run tally is a value being read, not a caption. -->
+            <TextBlock Text="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.MoveStatsText}" Foreground="White" FontSize="{StaticResource FontCaption}" HorizontalAlignment="Center"/>
+          </Border>
+          <!-- Pinned "pill" for the head of the move queue: always present (active / next-up / idle). -->
+          <!-- (09-15) The active-file card is an INSET like the Library Coverage card: SurfaceBg + FlatEdge, a
+               well inside the column, not a raised panel. Same treatment on the Moving card. -->
+          <Border DockPanel.Dock="Top" Margin="16,2,16,6" Background="{StaticResource SurfaceBg}" BorderBrush="{StaticResource FlatEdge}"
+                  BorderThickness="1" CornerRadius="{StaticResource RadiusChip}" Padding="12">
+            <Panel>
+              <!-- Active (in-flight) move -->
+              <ContentControl IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.HasReorgActive}" Content="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.ReorgActive}">
+                <ContentControl.ContentTemplate>
+                  <DataTemplate x:DataType="vm:ReorgMoveRow">
+                    <!-- One layout with the active DOWNLOAD card: title, file name + OS chip, amber bar, then state,
+                         readout and the route bottom-right. The two cards must read the same way. -->
+                    <StackPanel Spacing="5">
+                      <TextBlock Text="{Binding Title}" Foreground="White" FontSize="{StaticResource FontBody}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding PathText}"/>
+                      <Grid ColumnDefinitions="Auto,Auto,*">
+                        <TextBlock Grid.Column="0" Text="{Binding FileName}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip.Tip="{Binding PathText}"/>
+                        <Border Grid.Column="1" Classes="osbadge" Margin="7,0,0,0" IsVisible="{Binding ShowOsBadge}" BorderBrush="{StaticResource InkDim}">
+                          <TextBlock Text="{Binding OsBadge}" Foreground="{StaticResource InkDim}"/>
+                        </Border>
+                      </Grid>
+                      <ProgressBar Value="{Binding Percent}" Maximum="100" Height="7" CornerRadius="{StaticResource RadiusChip}" Foreground="{StaticResource AccentAmber}" Background="{StaticResource SurfaceBg}"/>
+                      <Grid ColumnDefinitions="Auto,*,Auto">
+                        <TextBlock Grid.Column="0" Text="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.ReorgPillState}"
+                                   Foreground="{StaticResource AccentAmber}" FontSize="{StaticResource FontEyebrow}" FontWeight="SemiBold" LetterSpacing="0.6" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <TextBlock Grid.Column="1" Text="{Binding ProgressText}" Foreground="White" FontSize="{StaticResource FontCaption}" FontFamily="Consolas,monospace" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="{Binding RouteText}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" FontFamily="Consolas,monospace" VerticalAlignment="Center"/>
+                      </Grid>
+                    </StackPanel>
+                  </DataTemplate>
+                </ContentControl.ContentTemplate>
+              </ContentControl>
+              <!-- Next-up move (paused / idle-with-queue): the file that resumes next -->
+              <ContentControl IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.HasReorgPillNext}" Content="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.ReorgPillNext}">
+                <ContentControl.ContentTemplate>
+                  <DataTemplate x:DataType="vm:ReorgMoveRow">
+                    <StackPanel Spacing="5">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Text="{Binding Title}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontEyebrow}" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Grid.Column="1" Text="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.ReorgPillState}" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}" FontWeight="Bold" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                      </Grid>
+                      <TextBlock Text="{Binding PathText}" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Text="{Binding SizeText}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontEyebrow}" FontFamily="Consolas,monospace"/>
+                    </StackPanel>
+                  </DataTemplate>
+                </ContentControl.ContentTemplate>
+              </ContentControl>
+              <!-- Idle placeholder -->
+              <TextBlock IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.ReorgPillIdle}" Text="Files can be moved between locations on the Storage page" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" LineHeight="16" VerticalAlignment="Center" Margin="2,0,0,0" TextWrapping="Wrap"/>
+            </Panel>
+          </Border>
+          <StackPanel DockPanel.Dock="Top" Margin="16,2,16,0" IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.HasReorgTail}">
+              <!-- Same "Order by" pills as the download queue (owner 09-04): re-sequences the job's pending
+                   moves; the in-flight copy keeps its slot; a drag reverts to the job's own order. -->
+              <WrapPanel Orientation="Horizontal" Margin="0,2,0,6" IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.HasReorgTail}">
+                <!-- The caption is the first thing to go when narrow: the pills say what they do, and its ~70px is what keeps the row on one line in a 416px column. -->
+                <TextBlock Text="Order by" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center" Margin="0,0,8,4" IsVisible="{Binding !$parent[Window].((vm:MainWindowViewModel)DataContext).NarrowChrome}"/>
+                <Button Classes="qsort" Margin="0,0,6,4" Classes.sel="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.MoveSortIsInstallers}"
+                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.SortMovesCommand}" CommandParameter="Kind" ToolTip.Tip="Game installers before extras">
+                  <TextBlock FontSize="{StaticResource FontCaption}"><Run Text="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SortLabelInstallers}"/><Run Text="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.MoveSortGlyphInstallers}" Foreground="{StaticResource AccentAmber}"/></TextBlock>
+                </Button>
+                <Button Classes="qsort" Margin="0,0,6,4" Classes.sel="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.MoveSortIsExtras}"
+                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.SortMovesCommand}" CommandParameter="Extras" ToolTip.Tip="Extras before game installers">
+                  <TextBlock FontSize="{StaticResource FontCaption}"><Run Text="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SortLabelExtras}"/><Run Text="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.MoveSortGlyphExtras}" Foreground="{StaticResource AccentAmber}"/></TextBlock>
+                </Button>
+                <Button Classes="qsort" Margin="0,0,6,4" Classes.sel="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.MoveSortIsGame}"
+                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.SortMovesCommand}" CommandParameter="Game" ToolTip.Tip="Sort the moves alphabetically by game title">
+                  <TextBlock FontSize="{StaticResource FontCaption}"><Run Text="Name"/><Run Text="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.MoveSortGlyphGame}" Foreground="{StaticResource AccentAmber}"/></TextBlock>
+                </Button>
+                <Button Classes="qsort" Margin="0,0,6,4" Classes.sel="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.MoveSortIsSize}"
+                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.SortMovesCommand}" CommandParameter="Size" ToolTip.Tip="Sort the moves by file size">
+                  <TextBlock FontSize="{StaticResource FontCaption}"><Run Text="Size"/><Run Text="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.MoveSortGlyphSize}" Foreground="{StaticResource AccentAmber}"/></TextBlock>
+                </Button>
+              </WrapPanel>
+              <Border Height="1" Background="{StaticResource SurfaceStroke}" IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.HasReorgTail}"/>
+          </StackPanel>
+          <!-- Virtualized, ItemsControl as the ScrollViewer's DIRECT content; see the download queue for
+               why a wrapper panel here defeats it (infinite measured height, so no viewport). -->
+          <ScrollViewer>
+              <ItemsControl x:Name="MoveWaitingList" ItemsSource="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.ReorgTail}" Margin="16,6,16,8">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ReorgMoveRow">
+                    <StackPanel Background="Transparent" Tag="{Binding}">
+                    <Border Height="2" CornerRadius="1" Background="{StaticResource AccentAmber}" IsVisible="{Binding DropLineAbove}" Margin="0,0,0,2"/>
+                    <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,1" Background="Transparent">
+                      <TextBlock Grid.Column="0" Text="&#10303;" Foreground="{StaticResource InkFaint}" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip.Tip="Drag to reorder"/>
+                      <StackPanel Grid.Column="1" Spacing="0" Margin="0,3" ToolTip.Tip="{Binding PathText}">
+                        <TextBlock Text="{Binding Title}" Foreground="White" FontSize="{StaticResource FontCaption}" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{Binding FileName}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" TextTrimming="CharacterEllipsis"/>
+                      </StackPanel>
+                      <TextBlock Grid.Column="2" Text="{Binding SizeText}" Foreground="White" FontSize="{StaticResource FontCaption}" FontFamily="Consolas,monospace" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Border Height="2" CornerRadius="1" Background="{StaticResource AccentAmber}" IsVisible="{Binding DropLineBelow}" Margin="0,2,0,0"/>
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+          </ScrollViewer>
+        </DockPanel>
+    <GridSplitter Classes="dividerh" Grid.Row="1" Height="12" HorizontalAlignment="Stretch" ResizeDirection="Rows"/>
+    <!-- 200, matching the Moving pane above (09-09): the two panes dock the same furniture (heading, pill
+         card, sort pills, stats footer) before their lists get a pixel, so they need the same floor. At 140
+         the same overlap the Moving pane had is latent here, hidden only by this row taking the slack. -->
+    <DockPanel Grid.Row="2" MinHeight="200">
+          <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="16,12,16,6">
+            <!-- Same sub-heading treatment as Moving: white label + neutral fade rule. -->
+            <Grid Grid.Column="0" ColumnDefinitions="Auto,Auto,Auto,*" VerticalAlignment="Center">
+              <Ellipse Grid.Column="0" Width="7" Height="7" VerticalAlignment="Center" Margin="0,0,8,0" Fill="{StaticResource AccentAmber}" IsVisible="{Binding HasActive}"/>
+              <TextBlock Grid.Column="1" Text="Downloading" FontSize="{StaticResource FontRow}" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+              <TextBlock Grid.Column="2" IsVisible="{Binding HasQueuedWork}" Text="{Binding DownloadCountText}" Foreground="{StaticResource InkDim}"
+                         FontSize="{StaticResource FontCaption}" FontFamily="Consolas,monospace" VerticalAlignment="Center" Margin="8,0,0,0"/>
+              <Border Grid.Column="3" Height="1.5" Background="{StaticResource NeutralRuleFade}" Margin="12,0,8,0" VerticalAlignment="Center"/>
+            </Grid>
+            <Panel Grid.Column="1" VerticalAlignment="Center" IsVisible="{Binding HasQueuedWork}">
+              <!-- Two separate buttons, not one merged pill: two different verbs never share a single object.
+                   Secondary LEFT, primary RIGHT, matching the run card. Clear keeps red - it destroys work. -->
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Button Classes="ghost" Content="Clear queue…" FontSize="{StaticResource FontCaption}" Padding="12,5" Foreground="{StaticResource ErrorRed}"
+                        BorderBrush="{StaticResource StrokeErrorSoft}" Background="{StaticResource SurfaceErrorSoft}"
+                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RequestClearQueueCommand}" IsVisible="{Binding HasQueuedWork}"
+                        ToolTip.Tip="Clear the download queue - stops the current file too. Partial downloads are kept, so re-queuing resumes where it left off."/>
+                <!-- (09-19) Pause / Resume left this header: run verbs live in the top card only, queue verbs here. -->
+                <!-- Resume's slot when NO account is connected: resuming would only fail, so the
+                     honest action is the sign-in itself. -->
+                <Button Classes="ghost" Content="{Binding QueueConnectLabel}" FontSize="{StaticResource FontCaption}" Padding="12,5" Foreground="{StaticResource AccentAmber}"
+                        BorderBrush="{StaticResource StrokeAmberSoft}" Background="{StaticResource SurfaceAmberSoft}"
+                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Accounts.ConnectOrAddAccountCommand}" IsVisible="{Binding ShowQueueConnectAccount}"/>
+              </StackPanel>
+            </Panel>
+          </Grid>
+          <!-- Same footer the Moving pane carries: how far through the run, in files AND bytes. -->
+          <Border DockPanel.Dock="Bottom" Background="{StaticResource SurfaceRaised}" BorderBrush="{StaticResource SurfaceStroke}"
+                  BorderThickness="0,1,0,0" Padding="16,7" IsVisible="{Binding ShowDownloadStats}">
+            <!-- White = what this run will do; red = the rows it cannot reach (won't fit), so the two never
+                 add up to a promise the drive cannot keep. -->
+            <!-- WrapPanel, not StackPanel: on a narrow pane the red segment drops to a second line instead of
+                 clipping or forcing the pane wider (owner 09-13). The dot travels with the red text. -->
+            <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center">
+              <TextBlock Text="{Binding DownloadStatsText}" Foreground="White" FontSize="{StaticResource FontCaption}" Margin="0,0,10,0" IsVisible="{Binding ShowReachStats}"/>
+              <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding HasWontFitStats}">
+                <TextBlock Text="·" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" IsVisible="{Binding ShowReachStats}"/>
+                <TextBlock Text="{Binding WontFitStatsText}" Foreground="{StaticResource ErrorRedBright}" FontWeight="SemiBold" FontSize="{StaticResource FontCaption}"/>
+              </StackPanel>
+            </WrapPanel>
+          </Border>
+
+          <!-- Pinned "pill" for the head of the download queue: always present (active / next-up / idle). -->
+          <!-- (09-15) The active-file card is an INSET like the Library Coverage card: SurfaceBg + FlatEdge, a
+               well inside the column, not a raised panel. Same treatment on the Moving card. -->
+          <Border DockPanel.Dock="Top" Margin="16,2,16,6" Background="{StaticResource SurfaceBg}" BorderBrush="{StaticResource FlatEdge}"
+                  BorderThickness="1" CornerRadius="{StaticResource RadiusChip}" Padding="12">
+            <Panel>
+              <ContentControl IsVisible="{Binding !DownloadPillIdle}" Content="{Binding DownloadPill}">
+                <ContentControl.ContentTemplate>
+                  <DataTemplate x:DataType="vm:QueueRow">
+                    <StackPanel Spacing="5">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <!-- Same two lines as the waiting rows (title, then GOG's label): a file must not change
+                             its name the moment it becomes the active one. The real filename is the tooltip. -->
+                        <TextBlock Grid.Column="0" Text="{Binding GameTitle}" Foreground="White" FontSize="{StaticResource FontBody}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding LabelText}"/>
+                        <Button Grid.Column="1" Classes="linky" FontSize="{StaticResource FontCaption}" Foreground="{StaticResource InkDim}" Content="&#10005;"
+                                Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Overview.CancelQueueRowCommand}"
+                                CommandParameter="{Binding}" ToolTip.Tip="Cancel this file (keeps the partial download)"/>
+                      </Grid>
+                      <Grid ColumnDefinitions="Auto,Auto,Auto,*">
+                        <!-- Title above, real FILE NAME here (owner 09-04): GOG's label mostly repeats the title, the
+                             filename is the information. Same rule as the Moving pane; the label is the tooltip. -->
+                        <TextBlock Grid.Column="0" Text="{Binding FileNameText}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip.Tip="{Binding LabelText}" IsVisible="{Binding ShowFileLine}"/>
+                        <!-- Same chip as the waiting rows below: one QueueRow type must not render two
+                             different treatments a few pixels apart. -->
+                        <Border Grid.Column="1" Classes="typechip" Background="{Binding ExtraTypeFill}" BorderBrush="{Binding ExtraTypeBorder}" Margin="7,0,0,0" IsVisible="{Binding IsExtra}">
+                          <TextBlock Text="{Binding TypeBadgeText}" Foreground="{Binding ExtraTypeText}"/>
+                        </Border>
+                        <Border Grid.Column="2" Classes="osbadge" Margin="7,0,0,0" IsVisible="{Binding ShowOsBadge}" BorderBrush="{Binding OsBadgeBrush}">
+                          <TextBlock Text="{Binding OsBadge}" Foreground="{Binding OsBadgeBrush}"/>
+                        </Border>
+                      </Grid>
+                      <ProgressBar Value="{Binding Percent}" Maximum="100" Height="7" CornerRadius="{StaticResource RadiusChip}" Foreground="{StaticResource AccentAmber}" Background="{StaticResource SurfaceBg}"/>
+                      <!-- State (DOWNLOADING / PAUSED / STARTING / UP NEXT) leads the readout line, bottom-left, the same
+                           place the tail's active rows carry theirs (owner 09-08: it sat top-right on the pill alone). -->
+                      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                        <TextBlock Grid.Column="0" Text="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Overview.DownloadPillState}"
+                                   Foreground="{StaticResource AccentAmber}" FontSize="{StaticResource FontEyebrow}" FontWeight="SemiBold" LetterSpacing="0.6" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <TextBlock Grid.Column="1" Text="{Binding ProgressText}" Foreground="White" FontSize="{StaticResource FontCaption}" FontFamily="Consolas,monospace" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="{Binding RateText}" Foreground="White" FontSize="{StaticResource FontCaption}" FontFamily="Consolas,monospace" VerticalAlignment="Center" Margin="12,0,12,0"/>
+                        <TextBlock Grid.Column="3" Text="{Binding TargetText}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" FontFamily="Consolas,monospace" VerticalAlignment="Center"/>
+                      </Grid>
+                    </StackPanel>
+                  </DataTemplate>
+                </ContentControl.ContentTemplate>
+              </ContentControl>
+              <TextBlock IsVisible="{Binding DownloadPillIdle}" Text="{Binding DownloadPillIdleText}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" LineHeight="16" VerticalAlignment="Center" TextWrapping="Wrap"/>
+            </Panel>
+          </Border>
+          <!-- Static sort row: stays pinned below the active-file pill while the waiting list scrolls. -->
+          <StackPanel DockPanel.Dock="Top" Margin="16,2,16,0" IsVisible="{Binding HasDownloadTail}">
+              <!-- Sortable queue: click a field to re-sequence the real download order; click again to flip.
+                   Sticky until you drag a row (reverts to manual "Queue order"); a sort that promotes a
+                   file above the active one pre-empts it (partial kept). -->
+              <!-- WrapPanel: at 1366 the four pills outgrow the queue panel and the Size pill was
+                   clipped at the edge; wrapping drops the tail pills to a second line instead. -->
+              <WrapPanel Orientation="Horizontal" Margin="0,2,0,6">
+                <!-- The caption is the first thing to go when narrow: the pills say what they do, and its ~70px is what keeps the row on one line in a 416px column. -->
+                <TextBlock Text="Order by" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center" Margin="0,0,8,4" IsVisible="{Binding !$parent[Window].((vm:MainWindowViewModel)DataContext).NarrowChrome}"/>
+                <Button Classes="qsort" Margin="0,0,6,4" Classes.sel="{Binding QueueSortIsInstallers}"
+                        Command="{Binding SortQueueCommand}" CommandParameter="Kind" ToolTip.Tip="Game installers before extras">
+                  <TextBlock FontSize="{StaticResource FontCaption}"><Run Text="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SortLabelInstallers}"/><Run Text="{Binding QueueSortGlyphInstallers}" Foreground="{StaticResource AccentAmber}"/></TextBlock>
+                </Button>
+                <Button Classes="qsort" Margin="0,0,6,4" Classes.sel="{Binding QueueSortIsExtras}"
+                        Command="{Binding SortQueueCommand}" CommandParameter="Extras" ToolTip.Tip="Extras before game installers">
+                  <TextBlock FontSize="{StaticResource FontCaption}"><Run Text="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).SortLabelExtras}"/><Run Text="{Binding QueueSortGlyphExtras}" Foreground="{StaticResource AccentAmber}"/></TextBlock>
+                </Button>
+                <Button Classes="qsort" Margin="0,0,6,4" Classes.sel="{Binding QueueSortIsGame}"
+                        Command="{Binding SortQueueCommand}" CommandParameter="Game" ToolTip.Tip="Sort the queue alphabetically by game title">
+                  <TextBlock FontSize="{StaticResource FontCaption}"><Run Text="Name"/><Run Text="{Binding QueueSortGlyphGame}" Foreground="{StaticResource AccentAmber}"/></TextBlock>
+                </Button>
+                <Button Classes="qsort" Margin="0,0,6,4" Classes.sel="{Binding QueueSortIsSize}"
+                        Command="{Binding SortQueueCommand}" CommandParameter="Size" ToolTip.Tip="Sort the queue by file size">
+                  <TextBlock FontSize="{StaticResource FontCaption}"><Run Text="Size"/><Run Text="{Binding QueueSortGlyphSize}" Foreground="{StaticResource AccentAmber}"/></TextBlock>
+                </Button>
+              </WrapPanel>
+              <!-- Divider between the sort pills and the waiting list below. -->
+              <Border Height="1" Background="{StaticResource SurfaceStroke}" Margin="0,0,0,0"/>
+          </StackPanel>
+          <!-- VIRTUALIZED, and the ItemsControl is the ScrollViewer's DIRECT content on purpose. A plain
+               StackPanel wrapper used to sit here, and a StackPanel measures its child at INFINITE height:
+               the list then has no finite viewport to virtualize against, so every queued row is realized
+               whatever the ItemsPanel says. With a fresh library that is ~1100 rows of a 5-column Grid, and
+               Avalonia's layout pass over them was the UI stall the watchdog could not name (measured
+               2026-09-09: ~800 ms of every ~1000 ms beat, plus a 4.3 s hitch as downloads started).
+               Only the rows on screen need to exist. Keep the ItemsControl directly under the ScrollViewer;
+               do not reintroduce a wrapper panel. The drag-reorder in MainWindow.Reorder.cs is already
+               virtualization-safe (ContainerFromIndex with null guards, IndexAtY over realized rows). -->
+          <ScrollViewer>
+              <ItemsControl x:Name="WaitingList" ItemsSource="{Binding DownloadTail}" Margin="16,6,16,8">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <!-- Two row kinds, picked by type (09-16): the queue row, and the ONE won't-fit divider that the
+                     view-model places after the last row that fits and folds the red rows beneath it. -->
+                <ItemsControl.DataTemplates>
+                  <DataTemplate DataType="vm:WontFitDividerRow" x:DataType="vm:WontFitDividerRow">
+                    <!-- Red is the exception colour on this card (banner precedent): the divider is the group's
+                         header, so the count never leaves sight while scrolling into the red rows. -->
+                    <Border Background="{StaticResource SurfaceErrorSoft}" BorderBrush="{StaticResource StrokeErrorSoft}" BorderThickness="0,1,0,1" Margin="0,4,0,1" Padding="0,2,6,4">
+                      <!-- Two lines: the fact, then its actions. One line clipped the count in a 416px column (measured 09-16). -->
+                      <StackPanel Spacing="2">
+                        <Border Height="2" CornerRadius="1" Background="{StaticResource AccentAmber}" IsVisible="{Binding DropLineAbove}" Margin="0,0,0,2"/>
+                        <Grid ColumnDefinitions="Auto,*">
+                          <Button Grid.Column="0" Classes="linky" Foreground="{StaticResource ErrorRedBright}" FontSize="{StaticResource FontBody}" VerticalAlignment="Center" Padding="0,4,8,4"
+                                  Content="{Binding Caret}" ToolTip.Tip="{Binding Tip}"
+                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Overview.ToggleWontFitDividerCommand}"/>
+                          <Button Grid.Column="1" Classes="linky" HorizontalAlignment="Left" VerticalAlignment="Center" Padding="0,4" ToolTip.Tip="These stay queued and download when room frees up (a second storage, or files removed above). Remove them if you do not want them. Click to show or hide them."
+                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Overview.ToggleWontFitDividerCommand}">
+                            <TextBlock Text="{Binding Text}" Foreground="{StaticResource ErrorRedBright}" FontSize="{StaticResource FontCaption}" FontWeight="Bold" TextWrapping="Wrap"/>
+                          </Button>
+                        </Grid>
+                        <WrapPanel Margin="18,0,0,0">
+                          <!-- (09-16) Lift every red row that fits in the room still free, in queue order. -->
+                          <Button Classes="ghost" Content="Pull up what fits" Padding="10,4" Margin="0,0,8,0" FontSize="{StaticResource FontEyebrow}" ToolTip.Tip="Move the files below that fit in the free space above the line, keeping their order"
+                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Overview.PullUpWhatFitsCommand}"/>
+                          <!-- The banner's own action, repeated where the rows are: surgical, only the flagged rows go. -->
+                          <Button Classes="ghost" Content="{Binding RemoveLabel}" Padding="10,4" FontSize="{StaticResource FontEyebrow}" Foreground="{StaticResource ErrorRedBright}"
+                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Overview.RemoveWontFitCommand}"/>
+                        </WrapPanel>
+                        <Border Height="2" CornerRadius="1" Background="{StaticResource AccentAmber}" IsVisible="{Binding DropLineBelow}" Margin="0,2,0,0"/>
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                  <DataTemplate DataType="vm:QueueRow" x:DataType="vm:QueueRow">
+                    <StackPanel Spacing="3" Margin="0,0,0,1" Tag="{Binding}" Classes="qrow" Classes.moved="{Binding JustMoved}">
+                      <StackPanel.Styles>
+                      <!-- Drag-reorder insertion line (amber = the action), flag-driven; see IDropTargetRow. -->
+
+                        <!-- Transparent (hit-testable) by default; the row that just moved glows amber for a moment
+                             (amber = the action). A LOCAL Background would beat the style, so both live here (09-16). -->
+                        <Style Selector="StackPanel.qrow"><Setter Property="Background" Value="Transparent"/></Style>
+                        <Style Selector="StackPanel.qrow.moved"><Setter Property="Background" Value="{StaticResource SurfaceAmberSoft}"/></Style>
+                      </StackPanel.Styles>
+                      <!-- (09-16) A row far down a long list cannot be dragged to the top in one gesture: the menu
+                           does the long move. "Download this next" lands right behind the file downloading now. -->
+                      <StackPanel.ContextMenu>
+                        <ContextMenu>
+                          <MenuItem Header="Download this next" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Overview.MoveQueueRowToFrontCommand}" CommandParameter="{Binding}"/>
+                          <!-- Red rows only: the lowest place it fits. Greyed (CanExecute) when it does not fit in the room still free. -->
+                          <MenuItem Header="Pull up if it fits" IsVisible="{Binding WontFit}" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Overview.PullUpRowCommand}" CommandParameter="{Binding}"/>
+                          <MenuItem Header="Move to the end" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Overview.MoveQueueRowToEndCommand}" CommandParameter="{Binding}"/>
+                          <Separator/>
+                          <MenuItem Header="Remove from the queue" Foreground="{StaticResource ErrorRedBright}" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Overview.CancelQueueRowCommand}" CommandParameter="{Binding}"/>
+                        </ContextMenu>
+                      </StackPanel.ContextMenu>
+                      <Border Height="2" CornerRadius="1" Background="{StaticResource AccentAmber}" IsVisible="{Binding DropLineAbove}" Margin="0,0,0,2"/>
+                      <!-- FIXED columns so the badge, size and cancel line up down the list; the badge sits in its own
+                           column, centered against the two-line name block, so it belongs to the row. -->
+                      <Grid ColumnDefinitions="Auto,*,116,88,24" RowDefinitions="Auto,Auto">
+                        <!-- (09-19) Over the drive's per-file limit: the reason is too long for the size column, so it takes
+                             its own line under the row, right-aligned under the size. -->
+                        <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding WontFitText}" ToolTip.Tip="{Binding WontFitTip}" Foreground="{StaticResource ErrorRedBright}" FontSize="{StaticResource FontEyebrow}" FontWeight="Bold" LetterSpacing="0.6" TextAlignment="Right" Margin="0,1,0,0" IsVisible="{Binding ShowWontFitLong}"/>
+                        <TextBlock Grid.Column="0" Text="&#10303;" Foreground="{StaticResource InkFaint}" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip.Tip="Drag to reorder"/>
+                        <StackPanel Grid.Column="1" Spacing="1" Margin="0,6" ToolTip.Tip="{Binding LabelText}">
+                          <TextBlock Text="{Binding GameTitle}" Foreground="White" FontSize="{StaticResource FontBody}" TextTrimming="CharacterEllipsis"/>
+                          <TextBlock Text="{Binding FileNameText}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" TextTrimming="CharacterEllipsis" IsVisible="{Binding ShowFileLine}"/>
+                        </StackPanel>
+                        <!-- TYPE chip for extras (exactly the details-pane / filter-pill treatment), gray OS badge for
+                             installers. Color marks a NON-game file, so it keeps one meaning. -->
+                        <Border Grid.Column="2" Classes="typechip" Background="{Binding ExtraTypeFill}" BorderBrush="{Binding ExtraTypeBorder}" Margin="8,0,0,0" HorizontalAlignment="Right" IsVisible="{Binding IsExtra}">
+                          <TextBlock Text="{Binding TypeBadgeText}" Foreground="{Binding ExtraTypeText}"/>
+                        </Border>
+                        <Border Grid.Column="2" Classes="osbadge" Margin="8,0,0,0" HorizontalAlignment="Right" IsVisible="{Binding ShowOsBadge}" BorderBrush="{Binding OsBadgeBrush}">
+                          <TextBlock Text="{Binding OsBadge}" Foreground="{Binding OsBadgeBrush}"/>
+                        </Border>
+                        <!-- The size stays on every row (owner 09-16): it is what says whether dragging a red row above the
+                             divider could work. WON'T FIT goes UNDER it in the same column, so the name keeps its width. Red is
+                             the exception colour on this card (the banner set the precedent); the row keeps its place because
+                             the order is the user's. -->
+                        <StackPanel Grid.Column="3" Spacing="1" VerticalAlignment="Center" Margin="8,0,0,0">
+                          <TextBlock Text="{Binding SizeText}" Foreground="White" FontSize="{StaticResource FontCaption}" FontFamily="Consolas,monospace" TextAlignment="Right" TextTrimming="CharacterEllipsis"/>
+                          <TextBlock Text="WON'T FIT" Foreground="{StaticResource ErrorRedBright}" FontSize="{StaticResource FontEyebrow}" FontWeight="Bold" LetterSpacing="0.6" TextAlignment="Right" IsVisible="{Binding ShowWontFitShort}"/>
+                          <!-- (09-19) Waiting for its owner's account: same slot, warning orange (red stays "nowhere to land"). -->
+                          <TextBlock Text="NEEDS SIGN-IN" Foreground="{StaticResource WarnOrange}" FontSize="{StaticResource FontEyebrow}" FontWeight="Bold" LetterSpacing="0.6" TextAlignment="Right" IsVisible="{Binding NeedsSignIn}"/>
+                        </StackPanel>
+                        <Button Grid.Column="4" Classes="linky" Content="&#10005;" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="{StaticResource InkFaint}"
+                                Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Overview.CancelQueueRowCommand}"
+                                CommandParameter="{Binding}" ToolTip.Tip="Remove from the queue"/>
+                      </Grid>
+                      <!-- A paused / partially-fetched waiting file keeps its progress bar (seeded from the persisted partial bytes). -->
+                      <ProgressBar Value="{Binding Percent}" Maximum="100" Height="4" CornerRadius="2" Margin="20,0,0,2"
+                                   IsVisible="{Binding ShowBar}"
+                                   Foreground="{StaticResource AccentAmber}" Background="{StaticResource SurfaceBg}"/>
+                      <!-- A SECOND (third...) in-flight file lives in the tail with simultaneous downloads > 1. It wears
+                           the pill's readout line so it is unmistakably moving, not merely waiting (owner 09-02). -->
+                      <Grid IsVisible="{Binding IsActive}" ColumnDefinitions="Auto,*,Auto,Auto" Margin="20,0,0,2">
+                        <TextBlock Grid.Column="0" Text="{Binding PhaseText}" Foreground="{StaticResource AccentAmber}" FontSize="{StaticResource FontEyebrow}" FontWeight="SemiBold" LetterSpacing="0.6" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <TextBlock Grid.Column="1" Text="{Binding ProgressText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" FontFamily="Consolas,monospace" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="{Binding RateText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" FontFamily="Consolas,monospace" VerticalAlignment="Center" Margin="12,0,12,0"/>
+                        <!-- The same readout line as the card, destination included (owner 10-01): every in-flight file says where it lands. -->
+                        <TextBlock Grid.Column="3" Text="{Binding TargetText}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" FontFamily="Consolas,monospace" VerticalAlignment="Center"/>
+                      </Grid>
+                      <!-- TRAILING hairline: the taller, higher-contrast rows need a boundary or they run
+                           together. Trailing, not leading, so row 1 doesn't double the sort-row divider. -->
+                      <Border Height="1" Background="{StaticResource FlatRowLine}" Opacity="0.5" Margin="0,3,0,0"/>
+                      <Border Height="2" CornerRadius="1" Background="{StaticResource AccentAmber}" IsVisible="{Binding DropLineBelow}" Margin="0,2,0,0"/>
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.DataTemplates>
+              </ItemsControl>
+          </ScrollViewer>
+        </DockPanel>
+  </Grid>
+      </Grid>
+    </Border>
+  </Grid>
+  </Grid>
+</UserControl>

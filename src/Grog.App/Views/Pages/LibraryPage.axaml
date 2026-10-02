@@ -1,0 +1,858 @@
+<!-- Library page: the filter bar, the game grid, its header filter popups, and the detail pane. Split out of MainWindow.axaml 2026-09-02.
+     The page binds the LibraryViewModel (S3.2, DataContext rebased on the root Panel); the few shell-owned members it
+     still needs (Busy, the primary/secondary bar slots, the per-file download commands) go through $parent[Window]
+     onto the MainWindowViewModel. -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Grog.App.ViewModels"
+             xmlns:ctl="using:Grog.App.Controls"
+             x:Class="Grog.App.Views.Pages.LibraryPage"
+             x:DataType="vm:MainWindowViewModel">
+  <Panel DataContext="{Binding Library}" x:DataType="vm:LibraryViewModel">
+    <!-- header-dropdown filter popups (anchored to the dropdown arrow in the Type/Status column headers) -->
+    <!-- (The Type header popup was removed 09-02: nothing opened it - the type CHIP row is the type filter.) -->
+    <Popup x:Name="FolderFilterPopup" Placement="BottomEdgeAlignedLeft" IsLightDismissEnabled="True">
+      <ctl:FilterPanel Heading="Filter by storage" ItemsSource="{Binding FolderOptions}" FilterKey="folder"
+                       AllCommand="{Binding FilterAllCommand}" NoneCommand="{Binding FilterNoneCommand}"/>
+    </Popup>
+    <!-- Extras COLUMN filter: what is in the column (per-type, plus "No extras"), each type wearing the
+         column's own legend square. Not the toolbar chips - those answer a different question. -->
+    <Popup x:Name="ExtrasFilterPopup" Placement="BottomEdgeAlignedLeft" IsLightDismissEnabled="True">
+      <ctl:FilterPanel Heading="Filter by extras type" ItemsSource="{Binding ExtrasOptions}" FilterKey="extras" MinWidth="190"
+                       AllCommand="{Binding FilterAllCommand}" NoneCommand="{Binding FilterNoneCommand}"/>
+    </Popup>
+    <Popup x:Name="OwnerFilterPopup" Placement="BottomEdgeAlignedLeft" IsLightDismissEnabled="True">
+      <ctl:FilterPanel Heading="Filter by account" ItemsSource="{Binding OwnerOptions}" FilterKey="owner"
+                       AllCommand="{Binding FilterAllCommand}" NoneCommand="{Binding FilterNoneCommand}"/>
+    </Popup>
+    <Popup x:Name="StatusFilterPopup" Placement="BottomEdgeAlignedLeft" IsLightDismissEnabled="True">
+      <ctl:FilterPanel Heading="Filter by status" ItemsSource="{Binding StatusOptions}" FilterKey="status"
+                       AllCommand="{Binding FilterAllCommand}" NoneCommand="{Binding FilterNoneCommand}"/>
+    </Popup>
+
+    <DockPanel LastChildFill="True">
+
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="{Binding DetailColumnWidth, Mode=TwoWay}" MinWidth="{Binding DetailMinWidth}" MaxWidth="1600"/>
+      </Grid.ColumnDefinitions>
+      <GridSplitter Classes="dividerflat" Grid.Column="1" ResizeDirection="Columns" HorizontalAlignment="Stretch" ZIndex="20"/>
+      <Border Grid.Column="0">
+        <DockPanel>
+          <!-- Action row (Stage 2): only Search. Run-stat pills + Rescan + Back up live in the bottom activity
+               bar; filters live in the Type/Status column headers. -->
+          <!-- Filter card (flat pass): search + chips + count as one faint-outlined unit, same edge as the
+               grid card. Flat BG behind it; the search field goes borderless since the card is its frame. -->
+          <Border DockPanel.Dock="Top" Background="Transparent" Padding="14,61,16,3">
+            <!-- No fill: this strip is a CONTROL BAR for the whole page, not a card header, so a fill would group
+                 nothing. The 1px bottom edge stays - it keeps the row on the one top line (strip bottom y=143). -->
+            <Border x:Name="LibHead" Background="Transparent" BorderBrush="{StaticResource FlatEdge}" BorderThickness="0,0,0,1" CornerRadius="11,11,0,0" Padding="12,8">
+            <Grid x:Name="ActionRow" ColumnDefinitions="Auto,*">
+              <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                <Path Width="16" Height="16" Stretch="Uniform" Stroke="{StaticResource InkFaint}" StrokeThickness="2"
+                      StrokeLineCap="Round" Margin="4,0,6,0" VerticalAlignment="Center"
+                      Data="M6 6 m-5 0 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0 M9.5 9.5 L14 14"/>
+                <Grid VerticalAlignment="Center">
+                  <TextBox Classes="flatsearch" Text="{Binding FilterText}" Width="160"
+                           VerticalAlignment="Center" Background="Transparent" FontSize="14.5"
+                           Foreground="White" BorderBrush="Transparent" CornerRadius="0" Padding="4,4"/>
+                  <!-- muted placeholder overlay (matches GOG/Steam/Epic convention); shows only when empty -->
+                  <TextBlock Text="Search Your GOG Library…" Foreground="{StaticResource InkFaint}" FontSize="14.5"
+                             VerticalAlignment="Center" Margin="8,0,0,0" IsHitTestVisible="False"
+                             IsVisible="{Binding FilterText, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                </Grid>
+
+              </StackPanel>
+              <!-- Content filter chips (Game + extras): the primary filter + backup scope. All lit by default =
+                   everything shown; deselect to narrow. Readout + Clear at the right, shown only when filtering. -->
+              <!-- Two COLUMNS, not one cell, so the readout can never land on top of the chips: the chips take the
+                   slack and scroll; the readout reserves its own width. -->
+              <Grid Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+                <!-- The visible-games readout belongs here: it is the RESULT of the filter it sits beside, not a fact
+                     about the run. -->
+                <ScrollViewer x:Name="PillScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" VerticalAlignment="Center">
+                  <!-- Left-aligned on purpose: stretched, this panel's Bounds report the VIEWPORT width and the
+                         responsive test (natural > available) compares the viewport against itself; left-aligned,
+                         Bounds are the panel's DESIRED width, which is what the test needs. -->
+                    <!-- RIGHT-justified (owner 09-16): the chips hug the grid's right edge; Right (not Stretch) still
+                         reports the panel's DESIRED width, which the responsive test needs. -->
+                    <StackPanel x:Name="PillBar" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                                HorizontalAlignment="Right">
+                    <!-- "Filter" caption (owner 09-16): white; drops with the labels in the icon-only mode (768-class
+                         widths), so the chips stand alone there as before. -->
+                    <TextBlock Text="Filter" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"
+                               VerticalAlignment="Center" Margin="0,0,6,0"
+                               IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Library.PillShowCaption}"/>
+                    <!-- SOFTWARE: Game, Mod -->
+                    <ItemsControl ItemsSource="{Binding SoftwareChips}" VerticalAlignment="Center">
+                      <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="5"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:FilterChip">
+                          <Button Classes="chipbtn" Classes.compact="{Binding !$parent[Window].((vm:MainWindowViewModel)DataContext).Library.PillShowLabel}"
+                                  ToolTip.Tip="{Binding Label}" IsVisible="{Binding IsVisible}"
+                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Library.ToggleChipCommand}" CommandParameter="{Binding}">
+                            <Border Classes="chipcard" Background="{Binding ChipBackground}" BorderBrush="{Binding ChipBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusCard}">
+                              <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                                <Border Classes="chiptile" Background="{Binding Swatch}"
+                                        IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Library.PillShowIcon}">
+                                  <Viewbox Width="12" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <!-- 24x24 MDI design frame so every glyph centers identically,
+                                         instead of each scaling to its own tight bounds. -->
+                                    <Canvas Width="24" Height="24"><Path Data="{Binding Icon}" Fill="White"/></Canvas>
+                                  </Viewbox>
+                                </Border>
+                                <TextBlock Text="{Binding Label}" Foreground="{Binding ChipForeground}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"
+                                           IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Library.PillShowLabel}"/>
+                              </StackPanel>
+                            </Border>
+                          </Button>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <!-- thematic divider: games/mods vs extras, consistent with the rest of the app -->
+                    <Border Classes="chipdiv"/>
+                    <!-- EXTRAS: Soundtracks, Manuals, Videos, Art, Other -->
+                    <ItemsControl ItemsSource="{Binding ExtraFilterChips}" VerticalAlignment="Center">
+                      <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="5"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:FilterChip">
+                          <Button Classes="chipbtn" Classes.compact="{Binding !$parent[Window].((vm:MainWindowViewModel)DataContext).Library.PillShowLabel}"
+                                  ToolTip.Tip="{Binding Label}" IsVisible="{Binding IsVisible}"
+                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Library.ToggleChipCommand}" CommandParameter="{Binding}">
+                            <Border Classes="chipcard" Background="{Binding ChipBackground}" BorderBrush="{Binding ChipBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusCard}">
+                              <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                                <Border Classes="chiptile" Background="{Binding Swatch}"
+                                        IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Library.PillShowIcon}">
+                                  <Viewbox Width="12" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <!-- 24x24 MDI design frame so every glyph centers identically,
+                                         instead of each scaling to its own tight bounds. -->
+                                    <Canvas Width="24" Height="24"><Path Data="{Binding Icon}" Fill="White"/></Canvas>
+                                  </Viewbox>
+                                </Border>
+                                <TextBlock Text="{Binding Label}" Foreground="{Binding ChipForeground}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold" VerticalAlignment="Center"
+                                           IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Library.PillShowLabel}"/>
+                              </StackPanel>
+                            </Border>
+                          </Button>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </ScrollViewer>
+              </Grid>
+            </Grid>
+            </Border>
+          </Border>
+          <!-- Resolution bar: shown only while the grid is filtered to files that vanished. The two
+               real outcomes, offered where you can see exactly what they apply to. -->
+          <Border DockPanel.Dock="Top" IsVisible="{Binding ShowGoneBar}" Background="{StaticResource SurfaceRaised}"
+                  BorderBrush="{StaticResource AccentAmber}" BorderThickness="0,0,0,1" Padding="18,10">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+              <TextBlock Grid.Column="0" Text="{Binding GoneBarText}" Foreground="{StaticResource InkBright}"
+                         FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"/>
+              <Button Grid.Column="1" Classes="primary" Content="Back Them Up" Padding="14,5" Margin="10,0,0,0"
+                      Command="{Binding BackUpGoneCommand}" IsEnabled="{Binding !$parent[Window].((vm:MainWindowViewModel)DataContext).Busy}"/>
+              <Button Grid.Column="2" Classes="ghost" Content="Mark as Not Backed Up" Padding="14,5" Margin="10,0,0,0"
+                      Command="{Binding MarkGoneNotBackedUpCommand}" IsEnabled="{Binding !$parent[Window].((vm:MainWindowViewModel)DataContext).Busy}"
+                      ToolTip.Tip="You deleted these on purpose. Stops calling them missing; nothing on disk changes."/>
+            </Grid>
+          </Border>
+        <!-- FILTERED STRIP: exists only while a filter is hiding rows (manage by exception). The count is the
+             VALUE, so it is white; one quiet link clears every narrowing where the narrowing is reported. -->
+        <Border DockPanel.Dock="Bottom" IsVisible="{Binding HasFilterCount}"
+                Background="{StaticResource SurfaceRaised}" BorderBrush="{StaticResource FlatEdge}"
+                BorderThickness="0,1,0,0" Padding="18,5" Margin="6,0,16,3">
+          <Grid ColumnDefinitions="Auto,*,Auto">
+            <TextBlock Grid.Column="0" Text="{Binding FilterCountText}" Foreground="{StaticResource White}"
+                       FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"/>
+            <Button Grid.Column="2" Classes="link" Content="Clear filters" Command="{Binding ClearFiltersCommand}"
+                    FontSize="{StaticResource FontCaption}" VerticalAlignment="Center" Padding="6,1"
+                    ToolTip.Tip="Reset search, chips and the Status / Owner dropdowns to show the whole library."/>
+          </Grid>
+        </Border>
+        <!-- Grid card (flat pass): the one object on the canvas. Faint outline, rounded, clipped so rows
+             meet the edge cleanly. Row separators are the fainter FlatRowLine. -->
+        <Border Margin="6,3,16,3" Background="Transparent" BorderThickness="0" CornerRadius="{StaticResource RadiusCard}" ClipToBounds="True">
+        <!-- HorizontalScrollBarVisibility is DISABLED, not Auto: Auto measures the grid at infinite width so
+             a star column never resolves; Disabled constrains to the viewport, letting Title take the slack. -->
+        <!-- The Games binding is for the XAML compiler's row-type inference; at runtime the code-behind
+             replaces it with a DataGridCollectionView seeded Title-ascending so the header arrow shows it. -->
+        <DataGrid x:Name="LibraryGrid" ItemsSource="{Binding Games}" AutoGenerateColumns="False" IsReadOnly="True"
+                  SelectedItem="{Binding SelectedRow}" SelectionMode="Extended" CanUserResizeColumns="True"
+                  GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{StaticResource FlatRowLine}" HeadersVisibility="Column"
+                  ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.AllowAutoHide="True"
+                  Background="Transparent" Foreground="White" RowBackground="Transparent" FontSize="{StaticResource FontBody}">
+          <DataGrid.ContextMenu>
+            <!-- Operates on the current selection (left-click rows, then right-click). Both actions are
+                 non-destructive: Confirm checks disk + sets the truth; Clear asserts not-backed-up. -->
+            <ContextMenu>
+              <!-- The PARENT is gated too, or the menu opens onto dead rows. CanBackUpAll is the right gate: it
+                   counts games AND extras, so it is zero exactly when both children are. -->
+              <MenuItem Header="{Binding BackUpSelectedLabel}" IsEnabled="{Binding CanAddToQueue}">
+                <MenuItem Header="{Binding BackUpAllLabel}"    Command="{Binding SyncSelectedAllCommand}"    IsEnabled="{Binding CanBackUpAll}"/>
+                <MenuItem Header="{Binding BackUpGamesLabel}"  Command="{Binding SyncSelectedGamesCommand}"  IsEnabled="{Binding CanBackUpGames}"/>
+                <MenuItem Header="{Binding BackUpExtrasLabel}" Command="{Binding SyncSelectedExtrasCommand}" IsEnabled="{Binding CanBackUpExtras}"/>
+              </MenuItem>
+              <!-- (09-20) Two intentions, two entries: Back up joins the END of the queue; this one jumps it. -->
+              <MenuItem Header="{Binding DownloadNextLabel}" Command="{Binding DownloadSelectedNextCommand}" IsEnabled="{Binding CanBackUpAll}"/>
+              <Separator/>
+              <MenuItem Header="Confirm downloaded" Command="{Binding ConfirmDownloadedCommand}"/>
+              <MenuItem Header="Mark as Not Backed Up" Command="{Binding MarkNotBackedUpCommand}"/>
+              <MenuItem Header="Mark as Missing" Command="{Binding MarkMissingCommand}"/>
+              <Separator/>
+              <!-- (New items 09-09) Drops the New chip; backup state is untouched either way. Both scopes
+                   sit here rather than one on the filter bar: "clear everything" is the same verb at a wider
+                   scope, not a different feature, and a bare link among the chips read as a label. -->
+              <MenuItem Header="Clear New Status">
+                <MenuItem Header="{Binding ClearNewSelectedLabel}" Command="{Binding ClearNewCommand}"/>
+                <MenuItem Header="All Items" Command="{Binding ClearAllNewCommand}"/>
+              </MenuItem>
+              <MenuItem Header="Hide from grid" Command="{Binding HideSelectedCommand}"/>
+              <MenuItem Header="Unhide" Command="{Binding UnhideSelectedCommand}" IsVisible="{Binding ShowHiddenItems}"/>
+              <Separator/>
+              <!-- Untrack, not delete: bytes stay, a rescan re-adds. Confirm dialog carries the details. -->
+              <MenuItem Header="Remove from library" Command="{Binding RemoveSelectedCommand}"/>
+              <!-- DELETE (09-11): the one verb that removes bytes. Only ever from a right-click, only after a
+                   confirm (or its "Don't ask again"). Files queued or downloading are left alone. -->
+              <Separator/>
+              <MenuItem Header="Delete downloaded files" Command="{Binding DeleteSelectedCommand}" Foreground="{StaticResource ErrorRedBright}"/>
+            </ContextMenu>
+          </DataGrid.ContextMenu>
+          <DataGrid.Styles>
+            <!-- Blend the vertical scrollbar into the canvas: transparent track + a muted, low-contrast thumb
+                 so its bright edge stops reading as a divider between the grid and the Details pane. -->
+            <Style Selector="ScrollBar:vertical">
+              <Setter Property="Background" Value="Transparent"/>
+            </Style>
+            <Style Selector="ScrollBar:vertical /template/ Thumb">
+              <Setter Property="Background" Value="{StaticResource RowHoverFill}"/>
+            </Style>
+            <Style Selector="ScrollBar:vertical:pointerover /template/ Thumb">
+              <Setter Property="Background" Value="{StaticResource RowSelectFill}"/>
+            </Style>
+            <Style Selector="DataGridColumnHeader">
+              <Setter Property="HorizontalContentAlignment" Value="Left"/>
+              <Setter Property="Padding" Value="8,6"/>
+              <Setter Property="FontSize" Value="13.5"/>
+              <Setter Property="FontWeight" Value="SemiBold"/>
+              <Setter Property="Foreground" Value="White"/>
+              <!-- Header band blends into the canvas: no fill, differentiated only by the bottom hairline
+                   (FlatEdge, in the template below) + bold white text. -->
+              <Setter Property="Background" Value="Transparent"/>
+              <Setter Property="Template">
+                <ControlTemplate>
+                  <Border Background="{TemplateBinding Background}" BorderBrush="{StaticResource FlatEdge}" BorderThickness="0,0,0,1">
+                    <Grid Margin="{TemplateBinding Padding}" ColumnDefinitions="*,Auto">
+                      <ContentPresenter Grid.Column="0" Content="{TemplateBinding Content}"
+                                        VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                      <TextBlock Grid.Column="1" Name="SortInd" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    </Grid>
+                  </Border>
+                </ControlTemplate>
+              </Setter>
+            </Style>
+            <!-- single sort indicator per header: faint double-arrow = sortable, bright up/down arrow = active sort direction -->
+            <Style Selector="DataGridColumnHeader /template/ TextBlock#SortInd">
+              <Setter Property="Text" Value="↕"/><Setter Property="Foreground" Value="{StaticResource StrokeStrongest}"/><Setter Property="FontSize" Value="10"/>
+            </Style>
+            <Style Selector="DataGridColumnHeader:sortascending /template/ TextBlock#SortInd">
+              <Setter Property="Text" Value="↑"/><Setter Property="Foreground" Value="{StaticResource InkBright}"/><Setter Property="FontSize" Value="11"/>
+            </Style>
+            <Style Selector="DataGridColumnHeader:sortdescending /template/ TextBlock#SortInd">
+              <Setter Property="Text" Value="↓"/><Setter Property="Foreground" Value="{StaticResource InkBright}"/><Setter Property="FontSize" Value="11"/>
+            </Style>
+            <Style Selector="DataGridCell">
+              <Setter Property="FontSize" Value="14"/>
+              <Setter Property="FocusAdorner" Value="{x:Null}"/>
+            </Style>
+            <!-- clicking any cell selects the whole row; no per-cell focus/selection box or fill -->
+            <Style Selector="DataGridCell /template/ Control#FocusVisual">
+              <Setter Property="IsVisible" Value="False"/>
+              <Setter Property="Opacity" Value="0"/>
+            </Style>
+            <Style Selector="DataGridCell /template/ Control#CurrencyVisual">
+              <Setter Property="IsVisible" Value="False"/>
+              <Setter Property="Opacity" Value="0"/>
+            </Style>
+            <!-- the actual white box is CellBorder's BorderBrush on :current:focus; zero the thickness -->
+            <Style Selector="DataGridCell /template/ Border#CellBorder">
+              <Setter Property="BorderThickness" Value="0"/>
+              <Setter Property="BorderBrush" Value="Transparent"/>
+            </Style>
+            <Style Selector="DataGridCell"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
+            <Style Selector="DataGridCell:current"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
+            <Style Selector="DataGridCell:selected"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
+            <Style Selector="DataGridCell:focus"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
+            <Style Selector="DataGridCell:current:focus"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
+            <Style Selector="DataGridCell:pointerover"><Setter Property="Background" Value="Transparent"/></Style>
+            <!-- numeric columns: Inter's tabular figures (+tnum), right-aligned, so digits line up -->
+            <Style Selector="DataGridCell.num TextBlock">
+              <Setter Property="FontFeatures" Value="+tnum"/>
+              <Setter Property="TextAlignment" Value="Right"/>
+              <Setter Property="HorizontalAlignment" Value="Right"/>
+            </Style>
+            <Style Selector="DataGridCell"><Setter Property="Padding" Value="8,0,12,0"/></Style>
+            <!-- numeric cells: a touch less right padding so wide values like "23.7 GB" don't clip -->
+            <Style Selector="DataGridCell.num"><Setter Property="Padding" Value="8,0,10,0"/></Style>
+            <Style Selector="DataGridColumnHeader"><Setter Property="Padding" Value="8,0,12,0"/></Style>
+            <!-- delisted rows get a permanent subtle red tint + at-risk tooltip -->
+            <Style Selector="DataGridRow">
+              <Setter Property="Background" Value="{Binding RowBackground, DataType=vm:GameRowViewModel}"/>
+              <Setter Property="ToolTip.Tip" Value="{Binding DelistedTip, DataType=vm:GameRowViewModel}"/>
+            </Style>
+            <!-- Selection is the ACCENT, not platform blue. Both the row Background and the template
+                 BackgroundRectangle are set (Fluent paints selection on the rectangle); the brushes are
+                 keyed + ThemeService-swapped. -->
+            <Style Selector="DataGridRow:selected /template/ Rectangle#BackgroundRectangle">
+              <Setter Property="Fill" Value="{StaticResource SurfaceAmberSoft}"/>
+              <Setter Property="Opacity" Value="1"/>
+            </Style>
+            <Style Selector="DataGridRow:selected:pointerover /template/ Rectangle#BackgroundRectangle">
+              <Setter Property="Fill" Value="{StaticResource StrokeAmberSoft}"/>
+              <Setter Property="Opacity" Value="1"/>
+            </Style>
+          </DataGrid.Styles>
+          <DataGrid.Columns>
+            <DataGridTemplateColumn Header="" Width="48" CanUserSort="False" CanUserResize="False">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:GameRowViewModel">
+                  <Border Width="42" Height="42" Background="{StaticResource SurfaceRaisedAlt}" CornerRadius="3" Margin="3,2"
+                          VerticalAlignment="Center" ClipToBounds="True"
+                          IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Library.ShowGridArt}">
+                    <Image Source="{Binding CoverBitmap}" Stretch="UniformToFill"/>
+                  </Border>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <!-- ONE column: a check when complete (no word - manage by exception), a bar plus "8 / 10 - 62%"
+                 when incomplete, and a glyph plus its word only when the state is an exception. -->
+            <!-- 196 wide, MEASURED: the bar plus "3/3 - 100%" renders 167px from the cell edge plus padding; the
+                 slack goes to Title, a star column. -->
+            <!-- Fixed at what its content needs (~183 for bar + count + percent; 200 covers "Not Downloaded"),
+                 right-hugged so figures sit against their titles. NOT a star column - DataGrid feeds the
+                 star first and starves Title. MinWidth stays BELOW preferred: column floors that exceed the
+                 pane make the whole card overflow, clipped rather than compressed. -->
+            <DataGridTemplateColumn Width="200" MinWidth="176" CanUserSort="True" SortMemberPath="CompletionPercent">
+              <DataGridTemplateColumn.Header>
+                <StackPanel Orientation="Horizontal" Spacing="3">
+                  <TextBlock Text="Status" VerticalAlignment="Center" Classes.filteron="{Binding StatusFilterActive}"/>
+                  <!-- FUNNEL, not a triangle: a filled triangle reads as a sort-desc arrow. Sort state belongs to the
+                       header's own indicator; this button only ever means "filter". -->
+                  <Button Classes="filterarrow" Classes.filteron="{Binding StatusFilterActive}" Click="OnStatusFilterClick"
+                          Background="Transparent" BorderThickness="0" Padding="3,2" Cursor="Hand" ToolTip.Tip="Filter by status">
+                    <Path Fill="{StaticResource AccentAmber}" Stretch="None" VerticalAlignment="Center" HorizontalAlignment="Center"
+                          Data="M 0,0 L 9,0 L 5.5,4 L 5.5,8.5 L 3.5,7 L 3.5,4 Z"/>
+                  </Button>
+                </StackPanel>
+              </DataGridTemplateColumn.Header>
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:GameRowViewModel">
+                  <!-- The caption sits BELOW the whole state group so it shows for every incomplete
+                       state (Not Downloaded, Partial, issues) - it marks files that can no longer be
+                       fetched, and a bar row has the same gap a resting row does. -->
+                  <StackPanel VerticalAlignment="Center" ToolTip.Tip="{Binding DelistedTip}">
+                  <!-- Four columns, all fixed but the star SPACER that right-justifies the row. The bar keeps ONE width
+                       for every row (a shape to compare), and the mono figure cells align slash and percent. -->
+                  <!-- (09-16) The BAR takes the star column and the percent cell is Auto (empty at rest), so the track
+                       and the rules use the whole column instead of a fixed 64px with 44px of dead space beside it. -->
+                  <Grid ColumnDefinitions="*,46,Auto" Margin="8,0" VerticalAlignment="Center" ToolTip.Tip="{Binding StatusText}">
+                    <!-- Mark and word are ONE GROUP spanning the bar and both figure cells, so the word gets the full
+                         width of the three cells and never paints over the mark. The row states WHAT IS BACKED UP. -->
+                    <!-- DONE: the tick centered across the status column, flanked by two green hairlines fading outward
+                         in a star/Auto/star grid. Chrome law: felt, not noticed; green marks a state. -->
+                    <Grid Grid.Column="0" Grid.ColumnSpan="{Binding RowDoneSpan}" ColumnDefinitions="*,Auto,*"
+                          VerticalAlignment="Center" IsVisible="{Binding ShowRowDone}">
+                      <Border Grid.Column="0" Height="1" Margin="4,0,10,0" VerticalAlignment="Center"
+                              Background="{StaticResource SuccessRuleFadeIn}"/>
+                      <TextBlock Grid.Column="1" Text="{Binding RowMarkGlyph}" Foreground="{Binding RowMarkBrush}"
+                                 FontSize="{StaticResource FontRow}" VerticalAlignment="Center"/>
+                      <Border Grid.Column="2" Height="1" Margin="10,0,4,0" VerticalAlignment="Center"
+                              Background="{StaticResource SuccessRuleFade}"/>
+                    </Grid>
+                    <!-- AT REST, NOT STARTED: the same centered, ruled shape as done, in neutral. The
+                         hollow circle is gone; it repeated what the word says. -->
+                    <!-- (09-17) The dash keeps the bar's column and the fraction shows beside it, so a resting row
+                         still says how many files it has; only "Not in Scope" spans all three cells. -->
+                    <Grid Grid.Column="0" Grid.ColumnSpan="{Binding RowIdleSpan}" ColumnDefinitions="*,Auto,*"
+                          VerticalAlignment="Center" IsVisible="{Binding ShowRowIdle}">
+                      <Border Grid.Column="0" Height="1" Margin="4,0,8,0" VerticalAlignment="Center"
+                              Background="{StaticResource RowRuleFadeIn}"/>
+                      <!-- (UX 09-08 #7) Not-yet-started rows show a dim dash, not the label; hover has the word. -->
+                      <TextBlock Grid.Column="1" Text="{Binding RowIdleText}" Foreground="{Binding RowIdleBrush}"
+                                 FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"/>
+                      <Border Grid.Column="2" Height="1" Margin="8,0,4,0" VerticalAlignment="Center"
+                              Background="{StaticResource RowRuleFade}"/>
+                    </Grid>
+                    <!-- AN EXCEPTION: glyph + word, right-aligned. No rules, because the calm treatment
+                         is the language of a row at rest and this row is not. -->
+                    <StackPanel Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="8"
+                                HorizontalAlignment="Right" VerticalAlignment="Center"
+                                IsVisible="{Binding ShowRowIssue}">
+                      <TextBlock Text="{Binding RowMarkGlyph}" Foreground="{Binding RowMarkBrush}"
+                                 FontSize="{StaticResource FontRow}" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding RowLabelText}" Foreground="{Binding RowMarkBrush}"
+                                 FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <!-- incomplete or live: the bar carries it, and the figures are the label. -->
+                    <Border Grid.Column="0" Height="6" CornerRadius="3" Background="{StaticResource SurfaceRaised}" Margin="4,0,0,0"
+                            VerticalAlignment="Center" ClipToBounds="True" IsVisible="{Binding ShowRowBar}">
+                      <!-- MinWidth=0 LOCALLY (09-16, measured): Fluent's ProgressBar theme carries MinWidth=200 and the
+                           style setter did not beat it, so the bar was 204px centred in a 64px track and clipped 70px
+                           each side: 43% drew as 20%, 57% as 75%, 71% as full. Stretch fills the track exactly. -->
+                      <ProgressBar Classes="row" MinWidth="0" HorizontalAlignment="Stretch"
+                                   Value="{Binding BarValue}" Foreground="{Binding BarBrush}" Background="Transparent"/>
+                    </Border>
+                    <!-- The figures are VALUES the user reads (readability law: values in primary ink). -->
+                    <TextBlock Grid.Column="1" Text="{Binding RowCountText}" Foreground="{StaticResource InkPrimary}"
+                               FontSize="{StaticResource FontCaption}" FontFamily="{StaticResource MonoFont}"
+                               VerticalAlignment="Center" HorizontalAlignment="Right" Margin="7,0,0,0"
+                               IsVisible="{Binding ShowRowCount}"/>
+                    <TextBlock Grid.Column="2" Text="{Binding RowPctText}" Foreground="{StaticResource InkPrimary}"
+                               FontSize="{StaticResource FontCaption}" FontFamily="{StaticResource MonoFont}"
+                               VerticalAlignment="Center" HorizontalAlignment="Right" Margin="6,0,0,0"
+                               IsVisible="{Binding ShowRowPct}"/>
+                  </Grid>
+                  <TextBlock Text="{Binding OwnerCaption}" Foreground="{StaticResource AccentOrange}"
+                             FontSize="11" HorizontalAlignment="Center" Margin="0,1,0,0"
+                             IsVisible="{Binding ShowOwnerCaption}"/>
+                  </StackPanel>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <!-- Title takes the slack: DataGrid gives the star column its share first, and titles are the thing
+                 being read, so they get the room. -->
+            <DataGridTemplateColumn Header="Title" Width="*" MinWidth="200" CanUserSort="True" SortMemberPath="Title">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:GameRowViewModel">
+                  <!-- Grid, not a horizontal StackPanel: a StackPanel measures children with unbounded width so
+                       TextTrimming never engages; the star column is what makes the ellipsis fire. Accepted
+                       trade-off: the rare type badge sits at the column's right edge. -->
+                  <Grid ColumnDefinitions="*,Auto,Auto" VerticalAlignment="Center">
+                    <!-- clickable when a store URL exists: opens the GOG store page in the browser -->
+                    <Button Grid.Column="0" Classes="link" HorizontalAlignment="Left" Padding="0"
+                            IsVisible="{Binding HasStoreUrl}"
+                            ToolTip.Tip="Open the GOG store page"
+                            Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenUrlCommand}"
+                            CommandParameter="{Binding StoreUrl}">
+                      <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"/>
+                    </Button>
+                    <TextBlock Grid.Column="0" Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                               IsVisible="{Binding !HasStoreUrl}"/>
+                    <!-- (New items 09-09) "New" chip: same visual language as the Cloud Saves status pill
+                         (amber-soft text on a translucent amber ground, eyebrow type, chip radius). It sits
+                         in an Auto column that collapses when hidden, so column widths never shift. -->
+                    <Border Grid.Column="1" IsVisible="{Binding IsNew}" VerticalAlignment="Center" Margin="9,0,0,0"
+                            Background="{Binding NewChipBg}" BorderBrush="{Binding NewChipBorder}" BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusChip}" Padding="7,1"
+                            ToolTip.Tip="New to your library since a recent scan. It clears when the item is fully backed up.">
+                      <TextBlock Text="New" Foreground="{StaticResource AccentAmberSoft}"
+                                 FontSize="{StaticResource FontEyebrow}" FontWeight="Bold" LetterSpacing="0.3"/>
+                    </Border>
+                    <!-- Type badge for the rare non-Game rows (there is no Type column) -->
+                    <Border Grid.Column="2" Classes="typebadge" BorderBrush="{Binding TypeBadgeBrush}" IsVisible="{Binding ShowTypeBadge}" VerticalAlignment="Center" Margin="9,0,0,0">
+                      <TextBlock Text="{Binding TypeBadgeText}" Foreground="{Binding TypeBadgeBrush}"/>
+                    </Border>
+                  </Grid>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <!-- Type column dropped (near-homogeneous "Game"); rare Mod/Movie shown as a title badge. -->
+            <!-- Owner discs (accounts > 1 only; visibility set from code-behind - columns can't bind). Side by
+                 side up to three owners, overlapping past that; color = identity, initials = shortest
+                 unique prefix, full names in the tooltip. -->
+            <!-- Width set in code-behind from the registered-account count: Auto measures against the first
+                 realized cells and undersizes for co-owned stacks that scroll in later. -->
+            <DataGridTemplateColumn Width="Auto" MinWidth="64" CanUserSort="True"
+                                    SortMemberPath="OwnerSortKey" CanUserResize="True">
+              <DataGridTemplateColumn.Header>
+                <!-- Same header shape as Status: label + amber filter arrow. The column is identified
+                     in code-behind by SortMemberPath (the header is not a plain string). -->
+                <StackPanel Orientation="Horizontal" Spacing="3">
+                  <TextBlock Text="Owner" VerticalAlignment="Center" Classes.filteron="{Binding OwnerFilterActive}"/>
+                  <Button Classes="filterarrow" Classes.filteron="{Binding OwnerFilterActive}" Click="OnOwnerFilterClick"
+                          Background="Transparent" BorderThickness="0" Padding="3,2" Cursor="Hand" ToolTip.Tip="Filter by account">
+                    <Path Fill="{StaticResource AccentAmber}" Stretch="None" VerticalAlignment="Center" HorizontalAlignment="Center"
+                          Data="M 0,0 L 9,0 L 5.5,4 L 5.5,8.5 L 3.5,7 L 3.5,4 Z"/>
+                  </Button>
+                </StackPanel>
+              </DataGridTemplateColumn.Header>
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:GameRowViewModel">
+                  <ItemsControl ItemsSource="{Binding OwnerBadges}" VerticalAlignment="Center" Margin="8,0"
+                                MinWidth="{Binding OwnerCellMinWidth}" HorizontalAlignment="Left"
+                                ToolTip.Tip="{Binding OwnerNames}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="{Binding OwnerSpacing}"/>
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:AccountBadge">
+                        <!-- No ring: the disc is just its fill color - a dark separation ring reads as a black stroke. -->
+                        <Border Classes="acctdisc" Background="{Binding Fill}">
+                          <TextBlock Text="{Binding Initials}" Foreground="{Binding Ink}"/>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTextColumn Header="Size" Binding="{Binding TotalSizeText}" Width="Auto" MinWidth="100" CanUserSort="True" SortMemberPath="TotalSizeBytes" CellStyleClasses="num"/>
+            <DataGridTemplateColumn Width="Auto" MinWidth="96" CanUserSort="True" SortMemberPath="LocationText">
+              <DataGridTemplateColumn.Header>
+                <StackPanel Orientation="Horizontal" Spacing="3">
+                  <TextBlock Text="Storage" VerticalAlignment="Center" Classes.filteron="{Binding FolderFilterActive}"/>
+                  <Button Classes="filterarrow" Classes.filteron="{Binding FolderFilterActive}" Click="OnFolderFilterClick"
+                          Background="Transparent" BorderThickness="0" Padding="3,2" Cursor="Hand" ToolTip.Tip="Filter by storage">
+                    <Path Fill="{StaticResource AccentAmber}" Stretch="None" VerticalAlignment="Center" HorizontalAlignment="Center"
+                          Data="M 0,0 L 9,0 L 5.5,4 L 5.5,8.5 L 3.5,7 L 3.5,4 Z"/>
+                  </Button>
+                </StackPanel>
+              </DataGridTemplateColumn.Header>
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:GameRowViewModel">
+                  <TextBlock Text="{Binding LocationShort}" ToolTip.Tip="{Binding LocationText}" VerticalAlignment="Center"/>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTextColumn Header="Game" Binding="{Binding GameFileCount}" Width="Auto" MinWidth="78" CanUserSort="True" CellStyleClasses="num"/>
+            <!-- Extras = one legend-colored square per extras TYPE + its file count; wraps to a 2nd line. -->
+            <DataGridTemplateColumn Width="Auto" MinWidth="146" CanUserSort="True" SortMemberPath="ExtraFileCount">
+              <DataGridTemplateColumn.Header>
+                <StackPanel Orientation="Horizontal" Spacing="3">
+                  <TextBlock Text="Extras" VerticalAlignment="Center" Classes.filteron="{Binding ExtrasFilterActive}"/>
+                  <Button Classes="filterarrow" Classes.filteron="{Binding ExtrasFilterActive}" Click="OnExtrasFilterClick"
+                          Background="Transparent" BorderThickness="0" Padding="3,2" Cursor="Hand"
+                          ToolTip.Tip="Filter by extras type - drives the same filter as the toolbar chips">
+                    <Path Fill="{StaticResource AccentAmber}" Stretch="None" VerticalAlignment="Center" HorizontalAlignment="Center"
+                          Data="M 0,0 L 9,0 L 5.5,4 L 5.5,8.5 L 3.5,7 L 3.5,4 Z"/>
+                  </Button>
+                </StackPanel>
+              </DataGridTemplateColumn.Header>
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate x:DataType="vm:GameRowViewModel">
+                  <ItemsControl ItemsSource="{Binding ExtraChips}" VerticalAlignment="Center" Margin="0,3">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" MaxWidth="112"/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:GameRowViewModel+ExtraChip">
+                        <StackPanel Orientation="Horizontal" Spacing="3" Margin="0,1,9,1" VerticalAlignment="Center" ToolTip.Tip="{Binding Name}" Classes.exdim="{Binding Dim}">
+                          <Border Width="10" Height="10" CornerRadius="2" Background="{Binding Brush}" VerticalAlignment="Center"/>
+                          <TextBlock Text="{Binding Count}" FontSize="{StaticResource FontEyebrow}" Foreground="White" VerticalAlignment="Center"/>
+                        </StackPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTextColumn Header="Total" Binding="{Binding TotalFileCount}" Width="Auto" MinWidth="78" CanUserSort="True" CellStyleClasses="num"/>
+            <!-- thin trailing spacer: the vertical scrollbar overlays this, never the Extras numbers -->
+          </DataGrid.Columns>
+        </DataGrid>
+        </Border>
+        </DockPanel>
+      </Border>
+
+      <!-- Reorg / move progress lives in the Activity tab (see below), so a long move is tracked alongside
+           downloads and the detail pane stays usable. -->
+
+      <!-- DETAIL PANE (master-detail): slides in only when a game is selected. Flat pass: same BG, no seam. -->
+      <Panel Grid.Column="2">
+        <!-- The COLUMN's left edge, not the pane's: full height, behind everything, present with or without a
+             selection, so the rule above the action foot has something to stop against. 1px FlatEdge. -->
+        <Border Width="1" HorizontalAlignment="Left" Background="{StaticResource FlatEdge}"
+                IsHitTestVisible="False"/>
+        <!-- Top margin matches the filter card's top (16,12) so the pane lines up with the grid section. -->
+        <Border Background="Transparent" Margin="0,61,0,0">
+        <DockPanel>
+        <!-- THE ACTION FOOT: operates on the SELECTION, which Overview cannot (it has no selection) - a
+             different verb, not a second copy. Lives in the details column so the grid keeps its height;
+             filled acts, outlined assists: Back up takes the amber fill, Rescan drops it. -->
+        <!-- Action foot + scan progress as ONE named block: the guide spotlights this container while a scan
+             runs, so the progress card sits inside the lit area with the button that cancels it. -->
+        <StackPanel DockPanel.Dock="Bottom">
+        <!-- Scan progress, inline and above the action row so the library stays visible behind it; this is
+             the one moment the user wants to watch it fill. -->
+        <Border IsVisible="{Binding ShowScanPanel}"
+                Background="{StaticResource SurfaceSection}" BorderBrush="{StaticResource StrokeAmberSoft}"
+                BorderThickness="1" CornerRadius="{StaticResource RadiusCard}" Padding="18,14"
+                Margin="0,0,14,12">
+          <StackPanel Spacing="10">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+              <!-- SCAN, not "reading" or "syncing" or "checking". The app had seven phrases for this one
+                   operation; the button and the milestone both say scan, so scan wins. -->
+              <TextBlock Grid.Column="0" Text="{Binding ScanPanelTitle}" Classes="eyebrow" VerticalAlignment="Center"/>
+              <TextBlock Grid.Column="1" Text="{Binding CatalogCountText}" Foreground="White"
+                         FontSize="{StaticResource FontRow}" FontFamily="{StaticResource MonoFont}"
+                         VerticalAlignment="Center" Margin="0,0,14,0"/>
+              <TextBlock Grid.Column="2" Text="{Binding CatalogPercentText}" Foreground="{StaticResource AccentAmber}"
+                         FontSize="{StaticResource FontRow}" FontWeight="Bold" VerticalAlignment="Center"/>
+            </Grid>
+            <ProgressBar Classes="prominent" Height="8"
+                         Value="{Binding CatalogProgress}" IsIndeterminate="{Binding CatalogIndeterminate}"
+                         Foreground="{StaticResource AccentAmber}" Background="{StaticResource PlotRecess}"/>
+            <!-- No third line: SyncProgress carries counts only and CatalogDetail restates its neighbor. Add it
+                 back when the sync reports which product it is on. -->
+          </StackPanel>
+        </Border>
+          <!-- x:Name for the guide: the scan stop's revisit face rings BOTH buttons (Rescan and Back up are the two
+               choices it names), so the caption parks clear of them instead of covering Rescan. -->
+          <Grid x:Name="GuideActionRow" ColumnDefinitions="*,10,*" Margin="14,12,14,14">
+          <!-- SIDE BY SIDE, with the right column clear of the window edge: this row is the last thing
+               on the page and had no gutter, so the primary sat flush against the frame. -->
+          <!-- Hidden until there is a catalog: an initial scan has no sub-action, and the row's rule is one
+               obvious next action on the right with an optional sub-action on its left. -->
+          <Button Grid.Column="0" Classes="secondarybtn outline" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).CheckForUpdatesCommand}"
+                  IsVisible="{Binding ShowLibrarySecondary}"
+                  Padding="10,9" ToolTip.Tip="Ask GOG what has changed for the selected games">
+            <TextBlock Text="{Binding LibraryRescanLabel}" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+          </Button>
+          <!-- The PRIMARY ACTION SLOT - what the guide spotlights for both the scan and back-up steps. -->
+          <!-- The PRIMARY tier, not a secondary variant: backing up is never an assist on this page. Its states
+               come from the .primary modifiers: neutral (Pause), resume (green), dimmed (nothing to do). -->
+          <Button x:Name="GuidePrimaryAction" Grid.Column="2" Classes="primary"
+                  Classes.dimmed="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).BarPrimaryDimmed}"
+                  Classes.neutral="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).BarPrimaryNeutral}" Classes.resume="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).BarPrimaryResume}"
+                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).BarPrimaryCommand}" IsEnabled="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).BarPrimaryEnabled}" Padding="10,9"
+                  ToolTip.Tip="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).BarPrimaryLabel}">
+            <TextBlock Text="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).BarPrimaryLabel}" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+          </Button>
+        </Grid>
+
+        </StackPanel>
+        <!-- The rule above the foot, docked AFTER the button row on purpose: in a DockPanel the first docked
+             child takes the outer edge, and docked second this lands between content and foot - the
+             content stops at the line and the foot reads as a fixed base. -->
+        <Border DockPanel.Dock="Bottom" Height="1" Margin="0,0,14,0" Background="{StaticResource StrokeSubtle}"/>
+        <!-- Inspect zone: Details ONLY now (Stage 2). The Library run transport (Pause/Resume/Stop)
+             moved to the bottom activity bar's action corner, the run's single control home. -->
+        <Panel>
+        <!-- nothing selected: say so quietly. The pane stays because Queue and Log don't depend on
+             a selection; only this tab does. -->
+        <StackPanel IsVisible="{Binding !DetailHasSelection}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                    Spacing="8" Margin="24">
+          <TextBlock Text="No game selected" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontBody}" FontWeight="SemiBold"
+                     HorizontalAlignment="Center"/>
+          <TextBlock Text="Pick a game in the library to see its files, sizes and serial keys."
+                     Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontCaption}" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="240"/>
+        </StackPanel>
+        <ScrollViewer IsVisible="{Binding DetailHasSelection}">
+          <StackPanel>
+            <!-- Cover art band: a Viewbox scales uniformly to the available width so height follows the aspect,
+                 no letterbox bars; MaxWidth caps growth on a very wide pane, beyond which it centers. -->
+            <Border MaxWidth="440" HorizontalAlignment="Stretch" IsVisible="{Binding HasDetailArt}">
+              <Border.Background>
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                  <GradientStop Color="{StaticResource StrokeAltColor}" Offset="0"/><GradientStop Color="{StaticResource SurfacePanelAltColor}" Offset="1"/>
+                </LinearGradientBrush>
+              </Border.Background>
+              <Viewbox Stretch="Uniform" StretchDirection="Both">
+                <Image Source="{Binding DetailLogoBitmap}"/>
+              </Viewbox>
+            </Border>
+            <!-- title, on its own strip below the art (no overlap) -->
+            <Border Padding="16,12,16,10">
+              <StackPanel>
+                <TextBlock Text="{Binding DetailTitle}" Foreground="White" FontSize="{StaticResource FontTitle}" FontWeight="Bold" TextWrapping="Wrap"/>
+                <!-- the one amber bar: a thick amber-fade banner rule capping the title, full pane width -->
+                <Border Height="4" CornerRadius="2" Background="{StaticResource AmberRuleFade}" HorizontalAlignment="Stretch" Margin="0,10,0,0"/>
+              </StackPanel>
+            </Border>
+
+            <StackPanel Margin="16" Spacing="14">
+              <!-- Top facts: two columns - Status/Folder/Size left, Ratings right so the boards use the pane's
+                   empty right half. Languages + Serial drop to full width below (they wrap long). -->
+              <Grid ColumnDefinitions="Auto,*">
+                <!-- LEFT: "Details" section - Status / Folder / Size under a titled, underlined header. -->
+                <StackPanel Grid.Column="0" VerticalAlignment="Top">
+                  <StackPanel Margin="0,0,0,9">
+                    <TextBlock Text="DETAILS" Foreground="White" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+                    <Border Height="1" Background="{StaticResource FlatEdge}" Margin="0,4,8,0" HorizontalAlignment="Stretch"/>
+                  </StackPanel>
+                  <Grid ColumnDefinitions="76,Auto" RowDefinitions="Auto,Auto,Auto,Auto">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Status" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontBody}"/>
+                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding DetailStatus}" Foreground="White" FontSize="{StaticResource FontBody}"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Storage" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontBody}" Margin="0,7,0,0"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding DetailDrive}" Foreground="White" FontFamily="Consolas,monospace" FontSize="{StaticResource FontBody}" Margin="0,7,0,0"/>
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Size" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontBody}" Margin="0,7,0,0"/>
+                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding DetailSize}" Foreground="White" FontFamily="Consolas,monospace" FontSize="{StaticResource FontBody}" Margin="0,7,0,0"/>
+                    <!-- Added: acquisition date from GOG's order history. The whole row hides when GOG's
+                         history does not cover the product, rather than printing a dash. -->
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Added" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontBody}" Margin="0,7,0,0" IsVisible="{Binding DetailHasAcquired}"/>
+                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding DetailAcquired}" Foreground="White" FontSize="{StaticResource FontBody}" Margin="0,7,0,0" IsVisible="{Binding DetailHasAcquired}"/>
+                  </Grid>
+                </StackPanel>
+
+                <!-- RIGHT: per-board age ratings from GOG's v2 response; hidden when GOG lists no boards. The (?)
+                     sits inline after each acronym so no separate justified column eats width. -->
+                <StackPanel Grid.Column="1" Margin="40,0,0,0" HorizontalAlignment="Left"
+                            VerticalAlignment="Top" IsVisible="{Binding DetailHasRatings}">
+                  <StackPanel Margin="0,0,0,9">
+                    <TextBlock Text="RATINGS" Foreground="White" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+                    <Border Height="1" Background="{StaticResource FlatEdge}" Margin="0,4,0,0" HorizontalAlignment="Stretch"/>
+                  </StackPanel>
+                  <ItemsControl ItemsSource="{Binding DetailRatings}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:RatingEntry">
+                        <Grid ColumnDefinitions="52,Auto" Margin="0,0,0,5">
+                          <!-- acronym carries the board explainer on hover (no visible (?)). Fixed width so ages align. -->
+                          <TextBlock Grid.Column="0" Text="{Binding Board}" Foreground="{StaticResource InkMuted}"
+                                     FontSize="{StaticResource FontBody}" FontWeight="Bold" VerticalAlignment="Center"
+                                     ToolTip.Tip="{Binding Tooltip}"/>
+                          <TextBlock Grid.Column="1" Text="{Binding Age}" IsVisible="{Binding HasRating}" Margin="6,0,0,0"
+                                     Foreground="White" FontSize="{StaticResource FontBody}"
+                                     VerticalAlignment="Center"/>
+                          <TextBlock Grid.Column="1" Text="NA" IsVisible="{Binding !HasRating}" Margin="6,0,0,0"
+                                     Foreground="White" FontSize="{StaticResource FontBody}" VerticalAlignment="Center"/>
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Grid>
+
+              <!-- Languages: grouped tight with Details/Ratings (info block), pulled up from the default gap. -->
+              <StackPanel Margin="0,-6,0,0" IsVisible="{Binding DetailHasLanguages}">
+                <StackPanel Margin="0,0,0,8">
+                  <TextBlock Text="LANGUAGES" Foreground="White" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+                  <Border Height="1" Background="{StaticResource FlatEdge}" Margin="0,4,0,0" HorizontalAlignment="Stretch"/>
+                </StackPanel>
+                <TextBlock Text="{Binding DetailLanguages}" Foreground="White" FontSize="{StaticResource FontBody}" TextWrapping="Wrap"/>
+              </StackPanel>
+
+              <!-- Ownership in words (multi-account only): ONE inline line - amber label, white names, wraps only
+                   when the list is long. All owners, regardless of the grid's filter. -->
+              <TextBlock IsVisible="{Binding DetailShowOwners}" TextWrapping="Wrap" FontSize="{StaticResource FontBody}">
+                <Run Text="Owned By: " Foreground="{StaticResource AccentAmberSoft}" FontWeight="SemiBold"/><Run Text="{Binding DetailOwners}" Foreground="{StaticResource White}"/>
+              </TextBlock>
+
+              <!-- Serial key: full width, only when present. -->
+              <Grid ColumnDefinitions="90,*" IsVisible="{Binding DetailHasSerial}">
+                <TextBlock Grid.Column="0" Text="Serial key" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontCaption}"/>
+                <ItemsControl Grid.Column="1" ItemsSource="{Binding DetailSerials}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:SerialEntry">
+                      <!-- name above key: side-by-side squeezed the key into a 4-char column and broke
+                           it mid-string. Stacked, the key gets the full pane width and stays readable. -->
+                      <StackPanel Spacing="1" Margin="0,0,0,7">
+                        <TextBlock Text="{Binding Name}" IsVisible="{Binding HasName}" FontWeight="Bold"
+                                   Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontEyebrow}" TextWrapping="Wrap"/>
+                        <SelectableTextBlock Text="{Binding Key}" Foreground="{StaticResource AccentAmber}"
+                                             FontFamily="Consolas,monospace" FontSize="{StaticResource FontCaption}" TextWrapping="Wrap"
+                                             ToolTip.Tip="Select to copy"/>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </Grid>
+
+              <Button Content="Open on GOG ↗" Classes="ghost" IsVisible="{Binding DetailHasStoreUrl}"
+                      Command="{Binding OpenStorePageCommand}"/>
+
+              <!-- GAME FILES -->
+              <Grid ColumnDefinitions="Auto,Auto,*" RowDefinitions="Auto,Auto" IsVisible="{Binding HasGameFiles}" Margin="0,14,0,4">
+                <Grid.ContextMenu>
+                  <ContextMenu>
+                    <MenuItem Header="Delete downloaded files" Foreground="{StaticResource ErrorRedBright}"
+                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Library.DeleteSectionCommand}"
+                              CommandParameter="games"/>
+                  </ContextMenu>
+                </Grid.ContextMenu>
+                <Button Grid.Column="0" Classes="filedl" Padding="0" Width="20" Height="20" Margin="0,0,7,0"
+                        IsVisible="{Binding GameFilesShowDownload}"
+                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DownloadSectionCommand}"
+                        CommandParameter="game" ToolTip.Tip="Download all game files, in order">
+                  <TextBlock Text="↓" Foreground="{StaticResource AccentAmber}" FontWeight="Bold" FontSize="{StaticResource FontCaption}" HorizontalAlignment="Center"/>
+                </Button>
+                <TextBlock Grid.Column="0" Text="✓" Foreground="{StaticResource SuccessGreen}" FontWeight="Bold" FontSize="{StaticResource FontCaption}" Width="20" Height="20" Margin="0,0,7,0"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding GameFilesAllDone}" ToolTip.Tip="All game files backed up"/>
+                <TextBlock Grid.Column="1" Text="(All) Game Files" Foreground="White" FontWeight="Bold" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"/>
+                <!-- Rule UNDER the heading: beside it, the fade read as a
+                     decorated row; underneath, the pair reads as a section header over its list. -->
+                <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Height="2" Background="{StaticResource AmberRuleFade}" Margin="0,4,0,0"/>
+              </Grid>
+              <!-- Game files: OS badge is short (WIN/MAC/LINUX), so a slim 48px badge column hands the
+                   freed width back to the filename. Extras keep the wider 78px column for "Soundtracks". -->
+              <!-- -10 top: the parent's Spacing=14 lands between the section header and its own list, giving 18px
+                   where rows get 7; netting to ~8 puts the first row in the same rhythm. Measured. -->
+              <ItemsControl ItemsSource="{Binding DetailGameFiles}" IsVisible="{Binding HasGameFiles}" Margin="14,-10,0,0" ItemTemplate="{StaticResource DetailFileRowTemplate}"/>
+
+              <!-- (09-25, owner) Installers exist, none in scope: say so where the installers would be, name the
+                   platforms, and link the setting. Extras below still list (they are language-scoped only). -->
+              <StackPanel Spacing="8" IsVisible="{Binding HasOutOfScopeInstallers}" Margin="0,14,0,4">
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                  <TextBlock Grid.Column="0" Text="Game Files" Foreground="{StaticResource InkMuted}" FontWeight="Bold" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"/>
+                  <Button Grid.Column="1" Classes="secondarybtn" Padding="10,4"
+                          Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).NavigateCommand}" CommandParameter="Settings"
+                          ToolTip.Tip="Platforms and languages are chosen in Settings" VerticalAlignment="Center">
+                    <TextBlock Text="Change in Settings" FontSize="{StaticResource FontEyebrow}" FontWeight="SemiBold"/>
+                  </Button>
+                  <Border Grid.Row="1" Grid.ColumnSpan="2" Height="2" Background="{StaticResource NeutralRuleFade}" Margin="0,4,0,0"/>
+                </Grid>
+                <StackPanel Orientation="Horizontal" Spacing="8" Margin="14,0,0,0">
+                  <TextBlock Text="Out of scope installers" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontBody}" VerticalAlignment="Center"/>
+                  <ItemsControl ItemsSource="{Binding DetailOutOfScopeOs}" VerticalAlignment="Center">
+                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:DetailFileRow">
+                        <Border Classes="osbadge" BorderBrush="{Binding OsBadgeBrush}"><TextBlock Text="{Binding OsBadge}" Foreground="{Binding OsBadgeBrush}"/></Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </StackPanel>
+
+              <!-- EXTRAS -->
+              <Grid ColumnDefinitions="Auto,Auto,*" RowDefinitions="Auto,Auto" IsVisible="{Binding HasExtraFiles}" Margin="0,8,0,4">
+                <Grid.ContextMenu>
+                  <ContextMenu>
+                    <MenuItem Header="Delete downloaded files" Foreground="{StaticResource ErrorRedBright}"
+                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Library.DeleteSectionCommand}"
+                              CommandParameter="extras"/>
+                  </ContextMenu>
+                </Grid.ContextMenu>
+                <Button Grid.Column="0" Classes="filedl" Padding="0" Width="20" Height="20" Margin="0,0,7,0"
+                        IsVisible="{Binding ExtrasShowDownload}"
+                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DownloadSectionCommand}"
+                        CommandParameter="extras" ToolTip.Tip="Download all extras, in order">
+                  <TextBlock Text="↓" Foreground="{StaticResource AccentAmber}" FontWeight="Bold" FontSize="{StaticResource FontCaption}" HorizontalAlignment="Center"/>
+                </Button>
+                <TextBlock Grid.Column="0" Text="✓" Foreground="{StaticResource SuccessGreen}" FontWeight="Bold" FontSize="{StaticResource FontCaption}" Width="20" Height="20" Margin="0,0,7,0"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding ExtrasAllDone}" ToolTip.Tip="All extras backed up"/>
+                <TextBlock Grid.Column="1" Text="(All) Extras" Foreground="White" FontWeight="Bold" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"/>
+                <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Height="2" Background="{StaticResource AmberRuleFade}" Margin="0,4,0,0"/>
+              </Grid>
+              <ItemsControl ItemsSource="{Binding DetailExtraFiles}" IsVisible="{Binding HasExtraFiles}" Margin="14,-10,0,0" ItemTemplate="{StaticResource DetailFileRowTemplate}"/>
+
+              <!-- ON DISK, OUTSIDE SCOPE: downloaded files the current scope leaves out. Collapsed by default; rows are
+                   read-only except Delete (the shared template hides its state marks and the download arrow). -->
+              <StackPanel Spacing="8" IsVisible="{Binding HasOutOfScopeOnDisk}" Margin="0,8,0,4">
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
+                  <Button Grid.Column="0" Classes="secondarybtn" Padding="8,3"
+                          Command="{Binding ToggleOutOfScopeOnDiskCommand}" ToolTip.Tip="Downloaded before the scope changed. Delete per file, or leave them.">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <TextBlock Text="▸" IsVisible="{Binding !OutOfScopeOnDiskExpanded}" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontCaption}"/>
+                      <TextBlock Text="▾" IsVisible="{Binding OutOfScopeOnDiskExpanded}" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontCaption}"/>
+                      <TextBlock Text="{Binding OutOfScopeOnDiskHeader}" Foreground="{StaticResource InkMuted}" FontWeight="Bold" FontSize="{StaticResource FontCaption}"/>
+                    </StackPanel>
+                  </Button>
+                  <Border Grid.Row="1" Grid.ColumnSpan="2" Height="2" Background="{StaticResource NeutralRuleFade}" Margin="0,4,0,0"/>
+                </Grid>
+                <ItemsControl ItemsSource="{Binding DetailOutOfScopeOnDisk}" IsVisible="{Binding OutOfScopeOnDiskExpanded}" Margin="14,-6,0,0" ItemTemplate="{StaticResource DetailFileRowTemplate}"/>
+              </StackPanel>
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+        </Panel>
+        </DockPanel>
+      </Border>
+      </Panel>
+    </Grid>
+    </DockPanel>
+  </Panel>
+</UserControl>

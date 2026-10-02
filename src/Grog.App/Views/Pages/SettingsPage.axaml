@@ -1,0 +1,879 @@
+<!-- Settings page. Split out of MainWindow.axaml 2026-09-02. The page binds the SettingsViewModel (S3.4, DataContext rebased on the
+     ScrollViewer); the scope, platform, language and view-toggle rows are the Library's and rebase onto it through $parent[Window],
+     as do the schedule card (ScheduleViewModel), the guide button and the storage fact the extras pills read. -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Grog.App.ViewModels"
+             xmlns:ctl="using:Grog.App.Controls"
+             x:Class="Grog.App.Views.Pages.SettingsPage"
+             x:DataType="vm:MainWindowViewModel">
+  <Grid DataContext="{Binding Settings}" x:DataType="vm:SettingsViewModel">
+  <ScrollViewer Background="Transparent">
+    <!-- Vertical spacing lives on the COLUMNS: 69 top puts each header strip's bottom on the rail's ON
+           GOG rule (measured, y=143 at 1080p), 40 bottom keeps the last card off the window edge. A
+           CONSTANT 34 between cards - bottom-justifying columns of unequal height opens 157px holes. -->
+      <Grid Margin="14,0,14,0" HorizontalAlignment="Stretch" MaxWidth="1760" ColumnDefinitions="*,50,*">
+      <Grid.Styles>
+        <!-- kept: Theme mode cards + the dim-when-off wrapper -->
+        <!-- 0.58, not 0.4: 0.4 puts a white 14px label at roughly InkFaint's luminance, which the readability
+             law bans; 0.58 still reads plainly as inactive, and the controls are genuinely disabled. -->
+        <Style Selector="Border.dimwhenoff:disabled"><Setter Property="Opacity" Value="0.58"/></Style>
+        <Style Selector="Button.modecard">
+          <Setter Property="HorizontalAlignment" Value="Stretch"/><Setter Property="VerticalAlignment" Value="Stretch"/>
+          <Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Top"/>
+          <Setter Property="Padding" Value="13,10"/><Setter Property="Background" Value="{StaticResource SurfaceBgAlt}"/>
+          <Setter Property="BorderBrush" Value="{StaticResource SurfaceStroke}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="9"/>
+        </Style>
+        <Style Selector="Button.modecard.on"><Setter Property="BorderBrush" Value="{StaticResource AccentAmber}"/><Setter Property="Background" Value="{StaticResource SurfaceAmberSelect}"/></Style>
+        <Style Selector="Button.modecard:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{StaticResource SurfaceBgAlt}"/><Setter Property="BorderBrush" Value="{StaticResource SurfaceStroke}"/></Style>
+        <Style Selector="Button.modecard.on:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{StaticResource SurfaceAmberSelect}"/><Setter Property="BorderBrush" Value="{StaticResource AccentAmber}"/></Style>
+        <Style Selector="Button.modecard TextBlock.mct"><Setter Property="FontSize" Value="13.5"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{StaticResource InkPrimary}"/></Style>
+        <Style Selector="Button.modecard.on TextBlock.mct"><Setter Property="Foreground" Value="{StaticResource AccentAmber}"/></Style>
+        <Style Selector="Button.modecard TextBlock.mcd"><Setter Property="FontSize" Value="11.5"/><Setter Property="Foreground" Value="{StaticResource InkMuted}"/></Style>
+
+        <!-- NEW settings look: white group heading + amber rule, no cards, roomy rows -->
+        <Style Selector="TextBlock.slab"><Setter Property="FontSize" Value="14"/><Setter Property="Foreground" Value="White"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+        <!-- A label whose controls are disabled dims WITH them (owner 08-30) - InkDim, still readable. -->
+        <Style Selector="TextBlock.slab.dimmed"><Setter Property="Foreground" Value="{StaticResource InkDim}"/></Style>
+        <Style Selector="TextBlock.sdesc"><Setter Property="FontSize" Value="13"/><Setter Property="Foreground" Value="{StaticResource InkDim}"/><Setter Property="TextWrapping" Value="Wrap"/><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="Margin" Value="24,0,0,0"/></Style>
+        <Style Selector="Border.srow"><Setter Property="Padding" Value="0,6"/><Setter Property="BorderBrush" Value="{StaticResource RowHairline}"/><Setter Property="BorderThickness" Value="0,0,0,1"/></Style>
+        <Style Selector="Border.srow.last"><Setter Property="BorderThickness" Value="0"/></Style>
+        <!-- condensed choice pill -->
+        <Style Selector="Button.spill">
+          <Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="{StaticResource SurfaceStroke}"/>
+          <Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="8"/><Setter Property="Padding" Value="12,9"/>
+          <Setter Property="Foreground" Value="{StaticResource InkPrimary}"/><Setter Property="FontSize" Value="13.5"/><Setter Property="FontWeight" Value="SemiBold"/>
+          <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.spill:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{StaticResource SurfaceBgAlt}"/><Setter Property="BorderBrush" Value="{StaticResource StrokeStrong}"/></Style>
+        <Style Selector="Button.spill.on"><Setter Property="Foreground" Value="{StaticResource AccentAmber}"/></Style>
+        <Style Selector="Button.spill.on /template/ ContentPresenter"><Setter Property="Background" Value="{StaticResource SurfaceAmberSelect}"/><Setter Property="BorderBrush" Value="{StaticResource AccentAmber}"/></Style>
+        <Style Selector="Button.spill.on:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{StaticResource SurfaceAmberSelect}"/><Setter Property="BorderBrush" Value="{StaticResource AccentAmber}"/></Style>
+        <Style Selector="Button.spill:disabled"><Setter Property="Opacity" Value="0.4"/></Style>
+        <!-- little "?" flag that opens a preview flyout -->
+        <!-- (UX 09-08 #3) Red outline secondary: hover tints red, not amber. -->
+        <Style Selector="Button.secondarybtn.outline.danger:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{StaticResource SurfaceErrorSoft}"/><Setter Property="BorderBrush" Value="{StaticResource ErrorRed}"/></Style>
+      </Grid.Styles>
+      <!-- Same star-gap grid as the right column (owner call 09-01): both columns stretch their
+           gaps so the two columns' top and bottom cards align at tall windows. -->
+      <Grid Grid.Column="0" Margin="0,69,0,4">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*" MinHeight="14"/>
+          <!-- (row 1 hosts SettingsLeftGap below: the measured gap the right column's pad copies) -->
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*" MinHeight="14"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*" MinHeight="14"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*" MinHeight="14"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*" MinHeight="14"/>
+        </Grid.RowDefinitions>
+        <Border Grid.Row="1" x:Name="SettingsLeftGap"/>
+
+        <!-- WHAT -->
+        <Border Classes="scard">
+          <StackPanel Spacing="0">
+            <Border Classes="shead" DataContext="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Library}" x:DataType="vm:LibraryViewModel">
+              <Grid ColumnDefinitions="Auto,*,Auto">
+                <TextBlock Grid.Column="0" Classes="sgh" Text="WHAT GETS BACKED UP"/>
+                <Border Grid.Column="1" Classes="shrule" Background="{StaticResource NeutralRuleFade}"/>
+                <!-- The card states its TOTAL on the header rule, the way BACKED UP HERE carries its
+                     contents telemetry: the answer, before the controls that change it. -->
+                <!-- The card's headline FIGURE, so it takes the value tier, not the caption tier: white and
+                     a step up from the body size. It was InkDim at 14 and read as chrome, which is the
+                     readability law's "never a value in gray" exactly. -->
+                <TextBlock Grid.Column="2" Text="{Binding ScopeTotalText}" VerticalAlignment="Center"
+                           Foreground="{StaticResource White}" FontFamily="{StaticResource MonoFont}"
+                           FontSize="{StaticResource FontBody}"/>
+              </Grid>
+            </Border>
+            <StackPanel Classes="sbody" Spacing="0">
+          <!-- SCOPE, one row of pickers (09-11). Three stacked rows of pills and checkboxes made a
+               first-run user read a form before learning the defaults were already right. Each value is
+               now the control that sets it, every option is PRICED, and the card is two rows in every
+               state. Buttons carry COUNTS, never lists: a list grows without bound and reflows the row.
+               Content and Platforms have their own flyouts rather than sharing one: the shared-collection
+               trick the two language buttons use only works because those two are the same question. -->
+          <Border Classes="srow last" DataContext="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Library}" x:DataType="vm:LibraryViewModel">
+            <!-- A DATA WELL (the recess law): four pickers of the same shape, read as one set. Without it
+                 the row was four grey boxes floating on a mostly empty card, so the page's most important
+                 decisions read as its least important. -->
+            <Border Background="{StaticResource PlotRecess}" BorderBrush="{StaticResource FlatEdge}"
+                    BorderThickness="1" CornerRadius="7" Padding="16,7" HorizontalAlignment="Left">
+            <StackPanel Orientation="Horizontal" Spacing="18" VerticalAlignment="Center">
+
+              <StackPanel Spacing="6">
+                <TextBlock Text="CONTENT" Foreground="{StaticResource White}" FontSize="{StaticResource FontEyebrow}" LetterSpacing="0.7" HorizontalAlignment="Center"/>
+                <Button x:Name="ContentPicker" Classes="spill on" FontSize="{StaticResource FontCaption}" Padding="14,7" HorizontalAlignment="Center">
+                  <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="9">
+                    <TextBlock Grid.Column="0" Text="{Binding ContentLabel}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="&#x25BE;" FontSize="10" VerticalAlignment="Center" Opacity="0.8"/>
+                  </Grid>
+                  <Button.Flyout>
+                    <Flyout Placement="Bottom">
+                      <StackPanel Spacing="6" MaxWidth="340" x:Name="ContentFlyoutBody">
+                        <StackPanel.Styles>
+                          <!-- The PICK, shaded (09-11). A 7px dot was the only mark on the row in force, and
+                               at a glance the list read as three equal options. Shading is what the pills
+                               elsewhere use to say "this one"; the dot stays as the precise marker. Scoped
+                               to this flyout's content root, because a flyout is its own popup tree and a
+                               style on the page would never reach it. -->
+                          <Style Selector="Button.ghost.on">
+                            <Setter Property="Background" Value="{StaticResource SurfaceAmberSoft}"/>
+                            <Setter Property="BorderBrush" Value="{StaticResource StrokeAmberSoft}"/>
+                          </Style>
+                          <Style Selector="Button.ghost.on /template/ ContentPresenter">
+                            <Setter Property="Background" Value="{StaticResource SurfaceAmberSoft}"/>
+                            <Setter Property="BorderBrush" Value="{StaticResource StrokeAmberSoft}"/>
+                          </Style>
+                        </StackPanel.Styles>
+                        <TextBlock Text="What to back up" Foreground="White" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+                        <TextBlock Text="Deselecting never deletes anything already on disk." Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontEyebrow}" TextWrapping="Wrap"/>
+                        <ItemsControl ItemsSource="{Binding ContentOptions}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:LibraryViewModel+ContentOption">
+                              <Button Classes="ghost" Classes.on="{Binding IsCurrent}"
+                                      HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="10,7" Margin="0,2"
+                                      Command="{Binding $parent[ItemsControl].((vm:LibraryViewModel)DataContext).SetScopeCommand}"
+                                      CommandParameter="{Binding Key}">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="9">
+                                  <Ellipse Grid.Column="0" Width="7" Height="7" VerticalAlignment="Center"
+                                           Fill="{StaticResource AccentAmber}" IsVisible="{Binding IsCurrent}"/>
+                                  <StackPanel Grid.Column="1" Spacing="0">
+                                    <TextBlock Text="{Binding Label}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}"/>
+                                    <TextBlock Text="{Binding CostText}" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}"/>
+                                  </StackPanel>
+                                </Grid>
+                              </Button>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </StackPanel>
+                    </Flyout>
+                  </Button.Flyout>
+                </Button>
+              </StackPanel>
+
+              <StackPanel Spacing="6" IsVisible="{Binding HasPlatformOptions}">
+                <TextBlock Text="PLATFORMS" Foreground="{StaticResource White}" FontSize="{StaticResource FontEyebrow}" LetterSpacing="0.7" HorizontalAlignment="Center"/>
+                <Button Classes="spill on" FontSize="{StaticResource FontCaption}" Padding="14,7" HorizontalAlignment="Center">
+                  <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="9">
+                    <TextBlock Grid.Column="0" Text="{Binding PlatformsLabel}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="&#x25BE;" FontSize="10" VerticalAlignment="Center" Opacity="0.8"/>
+                  </Grid>
+                  <Button.Flyout>
+                    <Flyout Placement="Bottom">
+                      <StackPanel Spacing="6" MaxWidth="340">
+                        <TextBlock Text="Platforms to back up" Foreground="White" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+                        <TextBlock Text="Unticked platforms are not fetched and do not count against completeness." Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontEyebrow}" TextWrapping="Wrap"/>
+                        <ItemsControl ItemsSource="{Binding PlatformOptions}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:LibraryViewModel+PlatformOption">
+                              <CheckBox IsChecked="{Binding IsChecked}" MinWidth="0" Margin="0,3">
+                                <StackPanel Spacing="0">
+                                  <TextBlock Text="{Binding Label}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}"/>
+                                  <TextBlock Text="{Binding CostText}" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}"/>
+                                </StackPanel>
+                              </CheckBox>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="{Binding NeutralPlatformCostText}" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}"/>
+                        <TextBlock Text="always kept: extras and files with no platform" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}"/>
+                      </StackPanel>
+                    </Flyout>
+                  </Button.Flyout>
+                </Button>
+              </StackPanel>
+
+              <StackPanel Spacing="6" IsVisible="{Binding HasLanguageChoices}">
+                <TextBlock Text="LANGUAGES" Foreground="{StaticResource White}" FontSize="{StaticResource FontEyebrow}" LetterSpacing="0.7" HorizontalAlignment="Center"/>
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                <Button Classes="spill on" FontSize="{StaticResource FontCaption}" Padding="14,7"
+                        Command="{Binding EditGamesLanguagesCommand}">
+                  <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="9">
+                    <TextBlock Grid.Column="0" Text="{Binding GamesLanguageLabel}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="&#x25BE;" FontSize="10" VerticalAlignment="Center" Opacity="0.8"/>
+                  </Grid>
+                  <Button.Flyout>
+                    <Flyout Placement="Bottom">
+                      <StackPanel Spacing="9" MaxWidth="560">
+                        <TextBlock Text="{Binding LanguageFlyoutTitle}" Foreground="{StaticResource White}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+                        <TextBlock Text="Only picked languages are backed up. Unpicked ones aren't fetched or counted; files on disk stay."
+                                   Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" TextWrapping="Wrap"/>
+                        <ItemsControl ItemsSource="{Binding LanguageOptions}">
+                          <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:LanguageOption">
+                              <CheckBox IsChecked="{Binding IsChecked}" IsEnabled="{Binding IsEnabled}" Opacity="{Binding ItemOpacity}" Margin="0,0,12,7" MinWidth="0">
+                                <StackPanel Spacing="0">
+                                  <TextBlock Text="{Binding Name}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}"/>
+                                  <TextBlock Text="{Binding SizeText}" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}"/>
+                                  <TextBlock Text="always kept" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}" IsVisible="{Binding IsLocked}"/>
+                                </StackPanel>
+                              </CheckBox>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </StackPanel>
+                    </Flyout>
+                  </Button.Flyout>
+                </Button>
+                <Button Classes="spill on" FontSize="{StaticResource FontCaption}" Padding="14,7"
+                        Command="{Binding EditExtrasLanguagesCommand}">
+                  <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="9">
+                    <TextBlock Grid.Column="0" Text="{Binding ExtrasLanguageLabel}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="&#x25BE;" FontSize="10" VerticalAlignment="Center" Opacity="0.8"/>
+                  </Grid>
+                  <Button.Flyout>
+                    <Flyout Placement="Bottom">
+                      <StackPanel Spacing="9" MaxWidth="520">
+                        <TextBlock Text="{Binding LanguageFlyoutTitle}" Foreground="{StaticResource White}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+                        <TextBlock Text="Only picked languages are backed up. Unpicked ones aren't fetched or counted; files on disk stay."
+                                   Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" TextWrapping="Wrap"/>
+                        <ItemsControl ItemsSource="{Binding LanguageOptions}">
+                          <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:LanguageOption">
+                              <CheckBox IsChecked="{Binding IsChecked}" IsEnabled="{Binding IsEnabled}" Opacity="{Binding ItemOpacity}" Margin="0,0,12,7" MinWidth="0">
+                                <StackPanel Spacing="0">
+                                  <TextBlock Text="{Binding Name}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}"/>
+                                  <TextBlock Text="{Binding SizeText}" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}"/>
+                                  <TextBlock Text="always kept" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}" IsVisible="{Binding IsLocked}"/>
+                                </StackPanel>
+                              </CheckBox>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </StackPanel>
+                    </Flyout>
+                  </Button.Flyout>
+                </Button>
+                </StackPanel>
+              </StackPanel>
+
+            </StackPanel>
+            </Border>
+          </Border>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- WHERE -->
+        <Border Grid.Row="2" Classes="scard" Classes.dirty="{Binding ExtrasCard.IsDirty}"
+                IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Library.ScopeHasExtras}">
+          <Border.Styles>
+            <!-- The one staged card on this page (09-11). The accent edge is what says the three
+                 choices inside commit together; every other card on the page applies on click. -->
+            <Style Selector="Border.scard.dirty">
+              <Setter Property="BorderBrush" Value="{StaticResource AccentAmberSoft}"/>
+            </Style>
+            <!-- RESERVED, not collapsed. IsVisible removes a row from layout, so the card was 17px
+                 shorter with each game and taller with a separate folder, and toggling made it jump
+                 (measured 09-11). These keep the space and hide the contents, so every state is the
+                 same height without a pinned pixel value that a font change would invalidate. -->
+            <Style Selector="StackPanel.reserved">
+              <Setter Property="Opacity" Value="0"/>
+              <Setter Property="IsHitTestVisible" Value="False"/>
+            </Style>
+            <Style Selector="Grid.reserved">
+              <Setter Property="Opacity" Value="0"/>
+              <Setter Property="IsHitTestVisible" Value="False"/>
+            </Style>
+            <Style Selector="Border.reserved">
+              <Setter Property="Opacity" Value="0"/>
+              <Setter Property="IsHitTestVisible" Value="False"/>
+            </Style>
+          </Border.Styles>
+          <!-- The preview inset SPANS the header band (owner 08-30): the space beside the card
+               heading was empty, and starting the inset there absorbs the taller separate-tree
+               previews without growing the card - the state that used to scroll Settings at 1080. -->
+          <!-- Two equal * spacer columns flank the inset: TRUE horizontal centering between the
+               controls and the card edge, by construction rather than margin arithmetic. -->
+          <Grid RowDefinitions="Auto,*" ColumnDefinitions="Auto,*,Auto,*">
+            <!-- Header spans ALL columns: the preview sits below it now, so the rule runs its
+                 full original length to the card edge (owner 08-30). -->
+            <Border Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="4" Classes="shead">
+              <Grid ColumnDefinitions="Auto,*">
+                <TextBlock Grid.Column="0" Classes="sgh" Text="WHERE EXTRAS ARE STORED"/>
+                <Border Grid.Column="1" Classes="shrule" Background="{StaticResource NeutralRuleFade}"/>
+              </Grid>
+            </Border>
+            <StackPanel Grid.Row="1" Grid.Column="0" Classes="sbody" Margin="18,6,0,6" Spacing="0">
+          <!-- Choice and its CONSEQUENCE side by side: the preview is live output, so pairing them horizontally
+               is the point (this row deliberately breaks the label-left / control-right convention).
+               Inside the preview the two folder trees stack VERTICALLY - side by side their paths truncate. -->
+          <Border Classes="srow last">
+              <!-- TOP, not center: the preview's height changes with the option chosen, and a centered column would
+                   slide the controls when only the preview should move; anchored, the preview grows downward. -->
+              <!-- Two questions in the order they matter: WHERE the Extras go, then HOW they are arranged. Each
+                   block is label, one line of why, then its pills, with a neutral rule between (a division
+                   inside a card never out-shouts the heading). The WHERE block hides with one folder. -->
+              <!-- WIDTH PINNED, not MaxWidth. Column 0 of the body grid is Auto, so it took the width of the
+                   widest row present, and that row differs between the two shapes: the preview beside it slid
+                   sideways when the shape toggled (owner-hit 09-11). A constant width removes the coupling. -->
+              <StackPanel Grid.Column="0" Spacing="0" VerticalAlignment="Top" Width="410">
+                <!-- THREE CHOICES, ONE COMMIT (09-11). The shape decides whether the other two mean
+                     anything, so they are staged and applied together by the footer below. Rows are
+                     ABSENT when they do not apply, not dimmed: the dimmed storage pills were clicked,
+                     did nothing visible, and the preview then promised a layout the disk never got. -->
+                <StackPanel Spacing="9">
+                  <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="7" HorizontalAlignment="Left">
+                    <Button Grid.Column="0" Classes="spill" Classes.on="{Binding ExtrasCard.WithGameActive}" Content="With Each Game" Command="{Binding ExtrasCard.SelectShapeCommand}" CommandParameter="withgame"/>
+                    <Button Grid.Column="1" Classes="spill" Classes.on="{Binding ExtrasCard.SeparateActive}" Content="Separate Extras Folder" Command="{Binding ExtrasCard.SelectShapeCommand}" CommandParameter="separate"/>
+                  </Grid>
+                </StackPanel>
+                <StackPanel Spacing="0" Classes.reserved="{Binding ExtrasCard.WithGameActive}">
+                <Border Height="1" Background="{StaticResource NeutralRuleFade}" Margin="0,11,0,11"/>
+                <!-- Storage BEFORE organisation: you pick the drive, then how that folder is ordered.
+                     Absent with one drive, where there is no other place to put anything. -->
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding ExtrasCard.ShowStorageRow}">
+                  <TextBlock Grid.Column="0" Classes="slab" Text="Which storage holds them" VerticalAlignment="Center"/>
+                  <Grid Grid.Column="1" ColumnDefinitions="Auto,Auto" ColumnSpacing="7">
+                    <Button Grid.Column="0" Classes="spill" Classes.on="{Binding ExtrasCard.OnPrimaryActive}" Content="Primary" Command="{Binding ExtrasCard.SelectStorageCommand}" CommandParameter="primary" ToolTip.Tip="The primary storage, beside the games."/>
+                    <Button Grid.Column="1" Classes="spill" Classes.on="{Binding ExtrasCard.OnSecondaryActive}" Content="Secondary" Command="{Binding ExtrasCard.SelectStorageCommand}" CommandParameter="secondary" ToolTip.Tip="The secondary storage."/>
+                  </Grid>
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,11,0,0">
+                  <TextBlock Grid.Column="0" Classes="slab" Text="Organize the folder" VerticalAlignment="Center"/>
+                  <Grid Grid.Column="1" ColumnDefinitions="Auto,Auto" ColumnSpacing="7">
+                    <Button Grid.Column="0" Classes="spill" Classes.on="{Binding ExtrasCard.ByTypeActive}" Content="By Type" Command="{Binding ExtrasCard.SelectOrganizeCommand}" CommandParameter="bytype"/>
+                    <Button Grid.Column="1" Classes="spill" Classes.on="{Binding ExtrasCard.ByGameActive}" Content="By Game" Command="{Binding ExtrasCard.SelectOrganizeCommand}" CommandParameter="bygame"/>
+                  </Grid>
+                </Grid>
+                </StackPanel>
+                <!-- FOOTER, in the left column and not across the card: the preview column is the taller
+                     of the two, so this sits in slack that already existed and the card does not grow.
+                     The file count is what makes Apply a considered click; it arrives from a background
+                     plan, so the line reads "Not applied" until it does. -->
+                <Border Margin="0,11,0,0" Classes.reserved="{Binding !ExtrasCard.IsDirty}">
+                  <StackPanel Spacing="0">
+                    <!-- A rule, then a tinted band. Without both, the row read as a THIRD option to pick
+                         rather than the commit for the two above it (owner-hit 09-11). The rule separates;
+                         the amber ground says "this is the action", matching the colour law. -->
+                    <Border Height="1" Background="{StaticResource NeutralRuleFade}"/>
+                    <Border Background="{StaticResource SurfaceAmberSoft}" CornerRadius="{StaticResource RadiusCard}"
+                            Padding="12,8" Margin="0,10,0,0">
+                      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                        <TextBlock Grid.Column="0" Text="{Binding ExtrasCard.PendingText}" Foreground="{StaticResource AccentAmberSoft}" FontFamily="Consolas,monospace" FontSize="{StaticResource FontEyebrow}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        <!-- NOT pills. Classes="spill on" is literally the selected-option treatment, so
+                             Apply read as a third choice already picked (owner-hit 09-11). Filled primary for
+                             the commit, ghost for the way out: the same pair every dialog in the app uses. -->
+                        <Button Grid.Column="1" Classes="ghost" Content="Discard" Command="{Binding ExtrasCard.DiscardCommand}"
+                                Padding="14,7" FontSize="{StaticResource FontCaption}" HorizontalAlignment="Right"/>
+                        <Button Grid.Column="2" Classes="primary" Content="Apply" Command="{Binding ExtrasCard.ApplyCommand}"
+                                Padding="16,7" FontSize="{StaticResource FontCaption}" HorizontalAlignment="Right"/>
+                      </Grid>
+                    </Border>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+          </Border>
+            </StackPanel>
+              <!-- CENTERED between the header hairline and the card bottom (owner 08-30): the inset
+                   lives in the BODY row only and centers there, so both gaps always match. -->
+              <!-- SurfaceSunken, not an inline hex: it FOLLOWS the theme, so this card cannot stay blue-gray on
+                   Tavern's warm black. -->
+              <Border Grid.Row="1" Grid.Column="2" Background="{StaticResource SurfaceSunken}" BorderBrush="{StaticResource FlatEdge}" BorderThickness="1" CornerRadius="{StaticResource RadiusCard}" Padding="12,9" MaxWidth="470"
+                      MinHeight="184" VerticalAlignment="Top" Margin="0,0,0,12">
+                <StackPanel Spacing="9" VerticalAlignment="Top">
+                  <!-- Eyebrow only (owner 08-30): the tree below IS the explanation; the policy
+                       caption line repeated it and stole tree height. -->
+                  <TextBlock Text="{Binding FolderPreviewEyebrow}" Foreground="{StaticResource InkFaint}" FontSize="{StaticResource FontEyebrow}" LetterSpacing="0.6"/>
+                  <StackPanel Spacing="10">
+                    <StackPanel Spacing="5">
+                      <StackPanel Orientation="Horizontal" Spacing="7">
+                        <Ellipse Width="6" Height="6" Fill="{StaticResource SuccessGreen}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Primary storage" Foreground="White" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+                      </StackPanel>
+                      <!-- Trimming, because at 1366 the preview card narrows and these mono lines
+                           hard-clipped mid-word; an ellipsis says "there is more" where a clip lies.
+                           Per-line ItemsControl so the extras lines - the part the choice MOVES -
+                           render amber; the preview is the card's explanation, no caption repeats it. -->
+                      <ItemsControl ItemsSource="{Binding FolderPreviewPrimary}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate>
+                            <!-- Foreground via STYLES both ways: a local Foreground attribute would beat the
+                                 accent style (local value > style setter) and gray every line. -->
+                            <TextBlock Text="{Binding Text}" Classes="pvline" Classes.pvaccent="{Binding Accent}" FontFamily="Consolas,monospace" FontSize="{StaticResource FontEyebrow}" TextTrimming="CharacterEllipsis">
+                              <TextBlock.Styles>
+                                <Style Selector="TextBlock.pvline"><Setter Property="Foreground" Value="{StaticResource InkDim}"/></Style>
+                                <Style Selector="TextBlock.pvline.pvaccent"><Setter Property="Foreground" Value="{StaticResource AccentAmberSoft}"/></Style>
+                              </TextBlock.Styles>
+                            </TextBlock>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
+                    <StackPanel Spacing="5" IsVisible="{Binding ShowPreviewSecondary}">
+                      <StackPanel Orientation="Horizontal" Spacing="7">
+                        <Ellipse Width="6" Height="6" Fill="{StaticResource SuccessGreen}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Secondary storage" Foreground="White" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+                      </StackPanel>
+                      <ItemsControl ItemsSource="{Binding FolderPreviewSecondary}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate>
+                            <!-- Foreground via STYLES both ways: a local Foreground attribute would beat the
+                                 accent style (local value > style setter) and gray every line. -->
+                            <TextBlock Text="{Binding Text}" Classes="pvline" Classes.pvaccent="{Binding Accent}" FontFamily="Consolas,monospace" FontSize="{StaticResource FontEyebrow}" TextTrimming="CharacterEllipsis">
+                              <TextBlock.Styles>
+                                <Style Selector="TextBlock.pvline"><Setter Property="Foreground" Value="{StaticResource InkDim}"/></Style>
+                                <Style Selector="TextBlock.pvline.pvaccent"><Setter Property="Foreground" Value="{StaticResource AccentAmberSoft}"/></Style>
+                              </TextBlock.Styles>
+                            </TextBlock>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+          </Grid>
+        </Border>
+
+        <!-- WHAT'S VISIBLE -->
+        <Border Grid.Row="4" Classes="scard">
+          <StackPanel Spacing="0">
+            <Border Classes="shead">
+              <Grid ColumnDefinitions="Auto,*">
+                <TextBlock Grid.Column="0" Classes="sgh" Text="WHAT'S VISIBLE"/>
+                <Border Grid.Column="1" Classes="shrule" Background="{StaticResource NeutralRuleFade}"/>
+              </Grid>
+            </Border>
+            <StackPanel Classes="sbody" Spacing="0" DataContext="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Library}" x:DataType="vm:LibraryViewModel">
+          <Border Classes="srow">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Grid.Column="0" Classes="slab" Text="Show legacy Movie products" VerticalAlignment="Center"/>
+              <ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowLegacyMovies}" OnContent="" OffContent="" VerticalAlignment="Center"/>
+            </Grid>
+          </Border>
+          <Border Classes="srow">
+            <Grid ColumnDefinitions="*,Auto">
+              <Grid Grid.Column="0" ColumnDefinitions="Auto,*" VerticalAlignment="Center">
+                <TextBlock Grid.Column="0" VerticalAlignment="Center" Classes="slab" Text="Show hidden items"/>
+                <TextBlock Grid.Column="1" Classes="sdesc" Text="Items you've hidden via right-click, Hide from grid."/>
+              </Grid>
+              <ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowHiddenItems}" OnContent="" OffContent="" VerticalAlignment="Center"/>
+            </Grid>
+          </Border>
+          <Border Classes="srow last">
+            <Grid ColumnDefinitions="*,Auto">
+              <Grid Grid.Column="0" ColumnDefinitions="Auto,*" VerticalAlignment="Center">
+                <TextBlock Grid.Column="0" VerticalAlignment="Center" Classes="slab" Text="Hide mature content using GOG's rating"/>
+                <TextBlock Grid.Column="1" Classes="sdesc" Text="18+ games. Still backed up."/>
+              </Grid>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <!-- (09-26, owner) The same review list while the filter is on: change which games stay visible. -->
+                <Button Classes="ghost" Content="Review…" Padding="10,4" Command="{Binding ReviewMatureCommand}" IsVisible="{Binding HideMatureContent}"/>
+                <ToggleSwitch IsChecked="{Binding HideMatureContent}" OnContent="" OffContent="" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Grid>
+          </Border>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- WHAT GROG KEEPS (09-11). Retention is not SCOPE (it answers what happens to a file once it
+             has arrived), so it left "What gets backed up" with the scope rework. It is its own card
+             rather than a tail on DOWNLOADS because MEASURED at 1080p the right column had zero slack
+             (three gaps already at the 18px minimum, 100px over the viewport) while the left column was
+             stretching its gaps to 90px to fill 215px of surplus. The card spends the left column's
+             slack and takes the right column back under budget. -->
+        <Border Grid.Row="6" Classes="scard">
+          <StackPanel Spacing="0">
+            <Border Classes="shead">
+              <Grid ColumnDefinitions="Auto,*">
+                <TextBlock Grid.Column="0" Classes="sgh" Text="WHAT GROG KEEPS"/>
+                <Border Grid.Column="1" Classes="shrule" Background="{StaticResource NeutralRuleFade}"/>
+              </Grid>
+            </Border>
+            <StackPanel Classes="sbody" Spacing="0">
+          <!-- Old versions -->
+          <Border Classes="srow">
+            <Grid ColumnDefinitions="*,Auto">
+              <Grid Grid.Column="0" ColumnDefinitions="Auto,*" VerticalAlignment="Center">
+                <TextBlock Grid.Column="0" VerticalAlignment="Center" Classes="slab" Text="Keep the version an update replaces"/>
+                <TextBlock Grid.Column="1" Classes="sdesc" Text="Revert back if needed."/>
+              </Grid>
+              <ToggleSwitch Grid.Column="1" IsChecked="{Binding KeepOldVersions}" OnContent="" OffContent="" VerticalAlignment="Center"/>
+            </Grid>
+          </Border>
+          <!-- Cloud-save retention: mirrors old-versions, but for cloud-save localSaves. -->
+          <Border Classes="srow last">
+            <Grid ColumnDefinitions="*,Auto">
+              <Grid Grid.Column="0" ColumnDefinitions="Auto,*" VerticalAlignment="Center">
+                <!-- Trimming on BOTH: at 1366 the pills+spinner leave too little for the label. The caption goes
+                     first (ellipsis), the label only in the last few px. -->
+                <TextBlock Grid.Column="0" VerticalAlignment="Center" Classes="slab" Text="Keep previous cloud saves" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Grid.Column="1" Classes="sdesc" Text="Applies to future backups." TextTrimming="CharacterEllipsis"/>
+              </Grid>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                <!-- Ordered widest-to-narrowest retention: All, Latest only, bounded "Last N". The spinner is ALWAYS
+                     visible (it is the value "Last:" refers to); it disables instead of hiding, so the row
+                     never changes width between modes. -->
+                <Button Classes="spill" Classes.on="{Binding CloudKeepAll}" Content="All" Command="{Binding SetCloudKeepCommand}" CommandParameter="all"/>
+                <Button Classes="spill" Classes.on="{Binding CloudKeepLatest}" Content="Latest Only" Command="{Binding SetCloudKeepCommand}" CommandParameter="latest"/>
+                <Button Classes="spill" Classes.on="{Binding CloudKeepCount}" Content="Last:" Command="{Binding SetCloudKeepCommand}" CommandParameter="count"/>
+                <!-- 96 -> 72: two digits max (50); the reclaimed width is what lets the label
+                     survive at 1366. -->
+                <!-- Width 96: at 72 the spinner's arrows consumed the whole control and the NUMBER
+                     disappeared - an editor whose value cannot be seen. -->
+                <NumericUpDown Value="{Binding CloudKeepCountValue}" Minimum="2" Maximum="50" Width="96" Increment="1" FormatString="0"
+                               VerticalAlignment="Center" IsEnabled="{Binding CloudKeepCount}"
+                               Foreground="{StaticResource InkPrimary}" Background="{StaticResource SurfaceBg}"/>
+              </StackPanel>
+            </Grid>
+          </Border>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- (UX 09-08 #3) RESET & MAINTENANCE: ONE card in the slot the FIRST-RUN WALKTHROUGH / FRESH LIBRARY
+             pair used to split. Same footprint: the two items sit side by side inside one row so the card is
+             no taller than the pair it replaces (header 42 + body 12 + row 42 + edges 2 = ~98px vs ~99px before);
+             stacking them as two rows would add ~45px and push Settings past 1080p. Eyebrow subtitle rides in
+             the header strip so it costs no height. Nothing here deletes files: Start fresh is outline red. -->
+        <Border Grid.Row="8" Classes="scard">
+          <StackPanel Spacing="0">
+            <Border Classes="shead">
+              <Grid ColumnDefinitions="Auto,Auto,*">
+                <TextBlock Grid.Column="0" Classes="sgh" Text="RESET &amp; MAINTENANCE"/>
+                <TextBlock Grid.Column="1" Text="Nothing here deletes backed-up files." Foreground="{StaticResource InkDim}"
+                           FontSize="{StaticResource FontEyebrow}" VerticalAlignment="Center" Margin="0,2,14,0"/>
+                <Border Grid.Column="2" Classes="shrule" Background="{StaticResource NeutralRuleFade}"/>
+              </Grid>
+            </Border>
+            <StackPanel Classes="sbody" Spacing="0">
+              <Border Classes="srow last" Padding="0,3">
+                <Grid ColumnDefinitions="*,18,*">
+                  <!-- Restart first-run walkthrough -->
+                  <Grid Grid.Column="0" ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="0" VerticalAlignment="Center" Margin="0,0,12,0">
+                      <TextBlock Classes="slab" Text="Restart first-run walkthrough"/>
+                      <TextBlock Classes="sdesc" Margin="0" Text="Shows the guided tour again."/>
+                    </StackPanel>
+                    <!-- secondarybtn, not editpill: a named ACTION, same tier as Rescan GOG Library. -->
+                    <Button Grid.Column="1" Classes="secondarybtn" Content="Show me around" VerticalAlignment="Center"
+                            Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Guide.StartGuideCommand}"/>
+                  </Grid>
+                  <!-- Fresh library: untrack everything, keep accounts/settings/storage/bytes. Red text, OUTLINE
+                       tier - the one destructive-adjacent verb on the page; the typed-RESET dialog carries the contract. -->
+                  <Grid Grid.Column="2" ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="0" VerticalAlignment="Center" Margin="0,0,12,0">
+                      <TextBlock Classes="slab" Text="Start with a fresh library"/>
+                      <TextBlock Classes="sdesc" Margin="0" Text="Empties the grid and re-scans. All backed-up files stay on disk."/>
+                    </StackPanel>
+                    <Button Grid.Column="1" Classes="secondarybtn outline danger" Content="Start fresh…" VerticalAlignment="Center"
+                            Foreground="{StaticResource ErrorRed}" BorderBrush="{StaticResource StrokeErrorSoft}"
+                            Command="{Binding StartFreshLibraryCommand}"/>
+                  </Grid>
+                </Grid>
+              </Border>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- Grid, not StackPanel (owner call 09-01): the gap rows are stars with an 18px floor, so
+           the shorter right column stretches its gaps until its top and bottom cards align with
+           the left column's; on a short window both columns just keep the 18px spacing. -->
+      <Grid Grid.Column="2" Margin="0,69,0,4">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*" MinHeight="18"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*" MinHeight="18"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="*" MinHeight="18"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <!-- Bottom pad COPIES the left column's measured gap, so both columns end on the same
+             line (owner call 09-01: left sets the rule, right matches its bottom; the right
+             column's interior gaps absorb the height difference). -->
+        <Border Grid.Row="7" Height="{Binding #SettingsLeftGap.Bounds.Height}"/>
+
+        <!-- APP BEHAVIOR -->
+        <Border Grid.Row="0" Classes="scard">
+          <StackPanel Spacing="0">
+            <Border Classes="shead">
+              <Grid ColumnDefinitions="Auto,*">
+                <TextBlock Grid.Column="0" Classes="sgh" Text="APP BEHAVIOR"/>
+                <Border Grid.Column="1" Classes="shrule" Background="{StaticResource NeutralRuleFade}"/>
+              </Grid>
+            </Border>
+            <StackPanel Classes="sbody" Spacing="0">
+          <!-- ONE row governs the tray (owner call 08-30, replaced the separate toggle): picking the
+               tray pill enables the icon and minimize-to-tray with it; Ask/Quit turn both off. The
+               close-confirm dialog's one-off Minimize still forces the icon so a hidden window is
+               never unreachable. -->
+          <Border Classes="srow" ToolTip.Tip="Closing stops scheduled backups.">
+            <Grid ColumnDefinitions="Auto,*">
+              <TextBlock Grid.Column="0" VerticalAlignment="Center" Classes="slab" Text="When you close the window"/>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="7" HorizontalAlignment="Right">
+                <Button Classes="spill" Classes.on="{Binding CloseAsksOn}"  Content="Ask"              Command="{Binding SetCloseActionCommand}" CommandParameter="ask"/>
+                <Button Classes="spill" Classes.on="{Binding CloseTrayOn}"  Content="{Binding TrayPillLabel}" Command="{Binding SetCloseActionCommand}" CommandParameter="tray" IsEnabled="{Binding TrayAvailable}" ToolTip.Tip="{Binding TrayPillTip}"/>
+                <Button Classes="spill" Classes.on="{Binding CloseQuitsOn}" Content="Quit"             Command="{Binding SetCloseActionCommand}" CommandParameter="quit"/>
+              </StackPanel>
+            </Grid>
+          </Border>
+          <Border Classes="srow">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+              <TextBlock Grid.Column="0" Classes="slab" Text="Rescan GOG Library on startup" VerticalAlignment="Center"/>
+              <ToggleSwitch Grid.Column="2" IsChecked="{Binding SettingCheckOnLaunch}" OnContent="" OffContent="" VerticalAlignment="Center"/>
+            </Grid>
+          </Border>
+          <!-- Grog's OWN update check, same contract as the GOG row above: finds, never downloads
+               (the tooltips carry that promise; the rows dropped their descriptions, owner call
+               08-30). One line now that no description competes for width at 1366; a manual
+               Check Now that finds nothing still gets its reply line below - a pressed button
+               owes an answer, the startup check stays silent. -->
+          <Border Classes="srow">
+            <StackPanel Spacing="6">
+              <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                <TextBlock Grid.Column="0" Classes="slab" Text="Check for Grog app updates at startup" VerticalAlignment="Center"/>
+                <!-- ONE action slot: Check Now until a release is found, then View vX. -->
+                <Button Grid.Column="1" Classes="ghost" Content="Check Now" Padding="14,5"
+                        FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"
+                        IsVisible="{Binding !HasGrogUpdate}" Command="{Binding CheckGrogUpdatesNowCommand}"
+                        ToolTip.Tip="Ask GitHub whether a newer Grog exists. Nothing downloads."/>
+                <Button Grid.Column="1" Classes="amber-soft" Content="{Binding GrogUpdateButtonText}"
+                        Padding="14,5" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"
+                        IsVisible="{Binding HasGrogUpdate}" Command="{Binding OpenGrogReleaseCommand}"
+                        ToolTip.Tip="A newer Grog is out. Opens the release page in your browser; nothing downloads from here."/>
+                <ToggleSwitch Grid.Column="2" IsChecked="{Binding SettingCheckGrogUpdates}" OnContent="" OffContent="" VerticalAlignment="Center"/>
+              </Grid>
+              <TextBlock Classes="sdesc" Text="{Binding GrogUpdateRowDesc}" TextWrapping="Wrap"
+                         HorizontalAlignment="Left" IsVisible="{Binding ShowGrogUpdateRowDesc}"/>
+            </StackPanel>
+          </Border>
+          <Border Classes="srow last">
+            <StackPanel Spacing="0">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0" Classes="slab" Text="Desktop notifications" VerticalAlignment="Center"/>
+                <ToggleSwitch Grid.Column="1" IsChecked="{Binding DesktopNotifications}" OnContent="" OffContent="" VerticalAlignment="Center"/>
+              </Grid>
+              <Border Classes="dimwhenoff" IsEnabled="{Binding NotificationsEnabled}" Margin="0,7,0,0">
+                <StackPanel Spacing="6">
+                  <CheckBox Content="When a run completes cleanly" IsChecked="{Binding NotifyOnComplete}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" MinWidth="0"/>
+                  <CheckBox Content="When a run finishes with errors" IsChecked="{Binding NotifyOnErrors}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" MinWidth="0"/>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+          </Border>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- DOWNLOADS (split out of APP BEHAVIOR, owner call 08-30: transfer knobs are their own
+             concern, not window behavior) -->
+        <Border Grid.Row="2" Classes="scard">
+          <StackPanel Spacing="0">
+            <Border Classes="shead">
+              <Grid ColumnDefinitions="Auto,*">
+                <TextBlock Grid.Column="0" Classes="sgh" Text="DOWNLOADS"/>
+                <Border Grid.Column="1" Classes="shrule" Background="{StaticResource NeutralRuleFade}"/>
+              </Grid>
+            </Border>
+            <StackPanel Classes="sbody" Spacing="0">
+          <Border Classes="srow">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+              <Grid Grid.Column="0" ColumnDefinitions="Auto,*" VerticalAlignment="Center">
+                <TextBlock Grid.Column="0" Classes="slab" Text="Simultaneous downloads" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Classes="sdesc" Text="Auto picks from what is queued; 3-5 speeds up small files." VerticalAlignment="Center"/>
+              </Grid>
+              <!-- Auto (default on) overrides the number; while on, the box shows the live pick, grayed. -->
+              <CheckBox Grid.Column="1" Content="Auto" IsChecked="{Binding SettingAutoConcurrency}" VerticalAlignment="Center" Margin="0,0,14,0"
+                        ToolTip.Tip="Picks the worker count from the sizes at the head of the queue: 4 for small files, 3 for medium, 2 for big installers. Re-checked as each file lands."/>
+              <NumericUpDown Grid.Column="2" Value="{Binding ConcurrencyDisplay}" IsEnabled="{Binding ConcurrencyBoxEnabled}" Minimum="1" Maximum="5" Width="116" Increment="1" FormatString="0" VerticalAlignment="Center"/>
+            </Grid>
+          </Border>
+          <Border Classes="srow last">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+              <!-- The cap applies only while checked; unchecked hands the engine 0 = truly uncapped
+                   (never a leftover number). Changes apply to an in-flight download immediately. -->
+              <CheckBox Grid.Column="0" Content="Limit download speed" IsChecked="{Binding SettingLimitDownloadSpeed}"
+                        Foreground="{StaticResource InkPrimary}" MinWidth="0" VerticalAlignment="Center"/>
+              <Border Grid.Column="1" Classes="dimwhenoff" IsEnabled="{Binding SettingLimitDownloadSpeed}" VerticalAlignment="Center">
+                <NumericUpDown Value="{Binding SettingDownloadLimitKBps}" Minimum="32" Maximum="1000000" Width="130" Increment="64" FormatString="0"
+                               ToolTip.Tip="Applies immediately, even to a download already running."/>
+              </Border>
+              <TextBlock Grid.Column="2" Text="KB/s" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            </Grid>
+          </Border>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- APPEARANCE -->
+        <Border Grid.Row="4" Classes="scard">
+          <StackPanel Spacing="0">
+            <Border Classes="shead">
+              <Grid ColumnDefinitions="Auto,*">
+                <TextBlock Grid.Column="0" Classes="sgh" Text="APPEARANCE"/>
+                <Border Grid.Column="1" Classes="shrule" Background="{StaticResource NeutralRuleFade}"/>
+              </Grid>
+            </Border>
+            <StackPanel Classes="sbody" Spacing="0">
+          <!-- Tighter than a stock srow: the mode cards carry their own internal padding, so the
+               row needs less, and this card is what tipped Settings into a page scroll at 1080. -->
+          <Border Classes="srow" Padding="0,3,0,6">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Grid.Column="0" Classes="slab" Text="Theme" VerticalAlignment="Center"/>
+              <Grid Grid.Column="1" ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="8" VerticalAlignment="Center">
+                <Button Grid.Column="0" Classes="modecard" Classes.on="{Binding ThemeIsDefault}" Command="{Binding SetThemeCommand}" CommandParameter="default">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Border Width="16" Height="16" CornerRadius="{StaticResource RadiusChip}" Background="{StaticResource ThemeSwatchDefault}" VerticalAlignment="Center"/>
+                    <TextBlock Classes="mct" Text="Default" VerticalAlignment="Center" ToolTip.Tip="Grog amber"/>
+                  </StackPanel>
+                </Button>
+                <Button Grid.Column="1" Classes="modecard" Classes.on="{Binding ThemeIsGog}" Command="{Binding SetThemeCommand}" CommandParameter="gog">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Border Width="16" Height="16" CornerRadius="{StaticResource RadiusChip}" Background="{StaticResource ThemeSwatchOdeToGog}" VerticalAlignment="Center"/>
+                    <TextBlock Classes="mct" Text="Ode to GOG" VerticalAlignment="Center" ToolTip.Tip="GOG purple"/>
+                  </StackPanel>
+                </Button>
+                <!-- Tavern's swatch is TWO values - candle gold on near-black - because the theme's
+                     whole identity is that pairing, not a lone accent chip. -->
+                <Button Grid.Column="2" Classes="modecard" Classes.on="{Binding ThemeIsTavern}" Command="{Binding SetThemeCommand}" CommandParameter="tavern">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Border Width="16" Height="16" CornerRadius="{StaticResource RadiusChip}" Background="{StaticResource ThemeSwatchTavernFill}"
+                            BorderBrush="{StaticResource ThemeSwatchTavernStroke}" BorderThickness="1.5" VerticalAlignment="Center"/>
+                    <TextBlock Classes="mct" Text="Tavern" VerticalAlignment="Center" ToolTip.Tip="Candlelit dark"/>
+                  </StackPanel>
+                </Button>
+              </Grid>
+            </Grid>
+          </Border>
+          <Border Classes="srow" DataContext="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Library}" x:DataType="vm:LibraryViewModel">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Grid.Column="0" Classes="slab" Text="Show art in the detail pane" VerticalAlignment="Center"/>
+              <ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowDetailArt}" OnContent="" OffContent="" VerticalAlignment="Center"/>
+            </Grid>
+          </Border>
+          <Border Classes="srow last" DataContext="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Library}" x:DataType="vm:LibraryViewModel">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Grid.Column="0" Classes="slab" Text="Show art in the library grid" VerticalAlignment="Center"/>
+              <ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowGridArt}" OnContent="" OffContent="" VerticalAlignment="Center"/>
+            </Grid>
+          </Border>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- SCHEDULING -->
+        <!-- x:Name for the guide: the Settings milestone rings this, showing the schedule it talks about. -->
+        <!-- The scheduler card binds to ScheduleViewModel (09-02 split); bound names unchanged. -->
+        <Border x:Name="GuideScheduleCard" Grid.Row="6" Classes="scard" DataContext="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Schedule}" x:DataType="vm:ScheduleViewModel">
+          <StackPanel Spacing="0">
+            <Border Classes="shead">
+              <Grid ColumnDefinitions="Auto,*">
+                <TextBlock Grid.Column="0" Classes="sgh" Text="SCHEDULING"/>
+                <Border Grid.Column="1" Classes="shrule" Background="{StaticResource NeutralRuleFade}"/>
+              </Grid>
+            </Border>
+            <StackPanel Classes="sbody" Spacing="0">
+          <Border Classes="srow">
+            <Grid ColumnDefinitions="*,Auto">
+              <Grid Grid.Column="0" ColumnDefinitions="Auto,*" VerticalAlignment="Center">
+                <TextBlock Grid.Column="0" VerticalAlignment="Center" Classes="slab" Text="Back up on a schedule"/>
+                <TextBlock Grid.Column="1" Classes="sdesc" Text="When Grog is running or minimized"/>
+              </Grid>
+              <ToggleSwitch Grid.Column="1" IsChecked="{Binding ScheduleEnabled}" OnContent="" OffContent="" VerticalAlignment="Center"/>
+            </Grid>
+          </Border>
+          <Border Classes="dimwhenoff" IsEnabled="{Binding ScheduleEnabled}">
+            <StackPanel Spacing="0">
+              <Border Classes="srow">
+                <Grid ColumnDefinitions="Auto,*">
+                  <TextBlock Grid.Column="0" Classes="slab" Text="Repeats" VerticalAlignment="Center"/>
+                  <WrapPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <RadioButton GroupName="sched" Content="Daily"   IsChecked="{Binding IsFreqDaily}"   Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" Margin="0,0,16,0"/>
+                    <RadioButton GroupName="sched" Content="Weekly"  IsChecked="{Binding IsFreqWeekly}"  Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" Margin="0,0,16,0"/>
+                    <RadioButton GroupName="sched" Content="Monthly" IsChecked="{Binding IsFreqMonthly}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" Margin="0,0,16,0"/>
+                    <RadioButton GroupName="sched" Content="Custom"  IsChecked="{Binding IsFreqCustom}"  Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" Margin="0,0,0,0"/>
+                  </WrapPanel>
+                </Grid>
+              </Border>
+              <Border Classes="srow" IsVisible="{Binding ShowWeeklyDay}">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Grid.Column="0" Classes="slab" Text="On" VerticalAlignment="Center"/>
+                  <ComboBox Grid.Column="1" Width="160" VerticalAlignment="Center" ItemsSource="{Binding WeekdayChoices}" SelectedItem="{Binding SelectedWeeklyDay}">
+                    <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:WeekdayOption"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                  </ComboBox>
+                </Grid>
+              </Border>
+              <Border Classes="srow" IsVisible="{Binding ShowMonthlyDay}">
+                <Grid ColumnDefinitions="*,Auto">
+                  <Grid Grid.Column="0" ColumnDefinitions="Auto,*" VerticalAlignment="Center">
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Classes="slab" Text="Day of the month"/>
+                    <TextBlock Grid.Column="1" Classes="sdesc" Text="Months shorter than this run on their last day."/>
+                  </Grid>
+                  <NumericUpDown Grid.Column="1" Value="{Binding ScheduleMonthlyDay}" Minimum="1" Maximum="31" Width="116" Increment="1" FormatString="0" VerticalAlignment="Center"/>
+                </Grid>
+              </Border>
+              <Border Classes="srow" IsVisible="{Binding ShowCustomDays}">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Grid.Column="0" Classes="slab" Text="Repeat every (weeks)" VerticalAlignment="Center"/>
+                  <NumericUpDown Grid.Column="1" Value="{Binding ScheduleIntervalWeeks}" Minimum="1" Maximum="12" Width="116" Increment="1" FormatString="0" VerticalAlignment="Center"/>
+                </Grid>
+              </Border>
+              <Border Classes="srow" IsVisible="{Binding ShowCustomDays}">
+                <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
+                  <ToggleButton Classes="daycircle" Content="S" IsChecked="{Binding CustomSun}" ToolTip.Tip="Sunday"/>
+                  <ToggleButton Classes="daycircle" Content="M" IsChecked="{Binding CustomMon}" ToolTip.Tip="Monday"/>
+                  <ToggleButton Classes="daycircle" Content="T" IsChecked="{Binding CustomTue}" ToolTip.Tip="Tuesday"/>
+                  <ToggleButton Classes="daycircle" Content="W" IsChecked="{Binding CustomWed}" ToolTip.Tip="Wednesday"/>
+                  <ToggleButton Classes="daycircle" Content="T" IsChecked="{Binding CustomThu}" ToolTip.Tip="Thursday"/>
+                  <ToggleButton Classes="daycircle" Content="F" IsChecked="{Binding CustomFri}" ToolTip.Tip="Friday"/>
+                  <ToggleButton Classes="daycircle" Content="S" IsChecked="{Binding CustomSat}" ToolTip.Tip="Saturday"/>
+                </StackPanel>
+              </Border>
+              <Border Classes="srow last">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                  <TextBlock Grid.Column="0" Classes="slab" Text="At" VerticalAlignment="Center"/>
+                  <!-- The two schedule ANSWERS stack in one column so "Last run" lines up under "Next backup"
+                       structurally; margin alignment would drift with any label change. -->
+                  <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="6" Margin="24,0,0,0">
+                    <TextBlock Classes="sdesc" Margin="0" Text="{Binding NextFireLine}"/>
+                    <TextBlock Text="{Binding LastRunLine}" IsVisible="{Binding HasLastRunLine}" Foreground="White" FontSize="{StaticResource FontCaption}" TextWrapping="Wrap"/>
+                  </StackPanel>
+                  <!-- TimePicker (owner 09-02): spinners at ONE-MINUTE granularity - 11:58 PM is a valid backup
+                       time and the control says so; the value is the saved value, no parsing, no draft. -->
+                  <!-- 180 wide, not Fluent's 242 default (owner 09-02): three two-digit columns need no more. -->
+                  <TimePicker Grid.Column="2" VerticalAlignment="Center" MinuteIncrement="1" ClockIdentifier="12HourClock"
+                              MinWidth="0" Width="180" SelectedTime="{Binding ScheduleTime, Mode=TwoWay}"/>
+                </Grid>
+              </Border>
+            </StackPanel>
+          </Border>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+      </Grid>
+
+      </Grid>
+  </ScrollViewer>
+
+  <!-- LEAVE GUARD. The extras card stages its three choices, so a page change is the one action on this
+       page that can throw work away without saying so. An overlay, not a modal window, to match the move
+       prompt that Apply feeds into. -->
+  <Border IsVisible="{Binding ExtrasCard.ShowLeavePrompt}" Background="#C0000000">
+    <Border Classes="scard" MaxWidth="460" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="22,18">
+      <StackPanel Spacing="14">
+        <TextBlock Text="Apply the extras changes?" Foreground="White" FontWeight="SemiBold" FontSize="{StaticResource FontBody}"/>
+        <TextBlock Text="You chose where extras are stored but have not applied it yet. Leaving this page keeps your current setting."
+                   Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" TextWrapping="Wrap"/>
+        <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+          <Button Grid.Column="0" Classes="ghost" Content="Stay here" Command="{Binding ExtrasCard.StayHereCommand}" Padding="14,7"/>
+          <Button Grid.Column="2" Classes="ghost" Content="Discard" Command="{Binding ExtrasCard.DiscardAndLeaveCommand}" Padding="14,7"/>
+          <Button Grid.Column="3" Classes="primary" Content="Apply" Command="{Binding ExtrasCard.ApplyAndLeaveCommand}" Padding="16,7"/>
+        </Grid>
+      </StackPanel>
+    </Border>
+  </Border>
+  </Grid>
+</UserControl>

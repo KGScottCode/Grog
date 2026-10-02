@@ -1,0 +1,51 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Grog.App.App"
+             Name="Grog"
+             RequestedThemeVariant="Dark">
+    <!-- macOS app menu: without one, Avalonia injects an "About Avalonia" item. Grog's About page is
+         in-app, so the menu item surfaces the window and navigates there. No-op off macOS. -->
+    <NativeMenu.Menu>
+        <NativeMenu>
+            <NativeMenuItem Header="About Grog" Click="OnAboutMenuClick"/>
+        </NativeMenu>
+    </NativeMenu.Menu>
+    <Application.Resources>
+        <ResourceDictionary>
+        <ResourceDictionary.MergedDictionaries>
+            <ResourceInclude Source="avares://Grog/Styles/Palette.axaml"/>
+            <ResourceInclude Source="avares://Grog/Styles/ConfirmDialog.axaml"/>
+            <ResourceInclude Source="avares://Grog/Styles/FilterPanel.axaml"/>
+        </ResourceDictionary.MergedDictionaries>
+        <!-- Fluent TimePicker recolored into the palette (09-02). ALIASES of palette brushes, not new colors,
+             so ThemeService's in-place Color swap carries them to Ode to GOG / Tavern automatically. -->
+        <StaticResource x:Key="TimePickerFlyoutPresenterHighlightFill" ResourceKey="AccentAmber"/>
+        <StaticResource x:Key="TimePickerFlyoutPresenterBackground" ResourceKey="SurfacePanel"/>
+        <StaticResource x:Key="TimePickerFlyoutPresenterBorderBrush" ResourceKey="SurfaceStroke"/>
+        <StaticResource x:Key="TimePickerFlyoutPresenterSpacerFill" ResourceKey="StrokeSubtle"/>
+        <StaticResource x:Key="TimePickerButtonBackground" ResourceKey="SurfaceBg"/>
+        <StaticResource x:Key="TimePickerButtonBorderBrush" ResourceKey="SurfaceStroke"/>
+        <StaticResource x:Key="TimePickerSpacerFill" ResourceKey="StrokeSubtle"/>
+
+        <!-- Bundled so numeric columns match MRCompanion identically on Windows/Linux/macOS (OFL). -->
+        <FontFamily x:Key="MonoFont">avares://Grog/Assets/Fonts/CascadiaMono-Regular.ttf#Cascadia Mono</FontFamily>
+
+        <!-- Rail icons: Lucide (MIT), drawn as vector geometries (no external package). 24x24 viewBox. -->
+        <StreamGeometry x:Key="IconLibrary">M16 6 L20 20 M12 6 L12 20 M8 8 L8 20 M4 4 L4 20</StreamGeometry>
+        <!-- Feather "download-cloud": the cloud plus the arrow down into it, so the rail item says what the
+             page DOES (pull saves down) rather than just naming the cloud. -->
+        <StreamGeometry x:Key="IconCloud">M8 17 L12 21 L16 17 M12 12 L12 21 M20.88 18.09 A5 5 0 0 0 18 9 H16.74 A8 8 0 1 0 3 16.29</StreamGeometry>
+        <StreamGeometry x:Key="IconDrive">M22 12 L2 12 M5.45 5.11 L2 12 v6 a2 2 0 0 0 2 2 h16 a2 2 0 0 0 2 -2 v-6 l-3.45 -6.89 A2 2 0 0 0 16.76 4 H7.24 a2 2 0 0 0 -1.79 1.11 z M6 16 L6.01 16 M10 16 L10.01 16</StreamGeometry>
+        <StreamGeometry x:Key="IconUser">M19 21 v-2 a4 4 0 0 0 -4 -4 H9 a4 4 0 0 0 -4 4 v2 M8 7 a4 4 0 1 0 8 0 a4 4 0 1 0 -8 0</StreamGeometry>
+        <StreamGeometry x:Key="IconSettings">M12.22 2 h-.44 a2 2 0 0 0 -2 2 v.18 a2 2 0 0 1 -1 1.73 l-.43 .25 a2 2 0 0 1 -2 0 l-.15 -.08 a2 2 0 0 0 -2.73 .73 l-.22 .38 a2 2 0 0 0 .73 2.73 l.15 .1 a2 2 0 0 1 1 1.72 v.51 a2 2 0 0 1 -1 1.74 l-.15 .09 a2 2 0 0 0 -.73 2.73 l.22 .38 a2 2 0 0 0 2.73 .73 l.15 -.08 a2 2 0 0 1 2 0 l.43 .25 a2 2 0 0 1 1 1.73 V20 a2 2 0 0 0 2 2 h.44 a2 2 0 0 0 2 -2 v-.18 a2 2 0 0 1 1 -1.73 l.43 -.25 a2 2 0 0 1 2 0 l.15 .08 a2 2 0 0 0 2.73 -.73 l.22 -.39 a2 2 0 0 0 -.73 -2.73 l-.15 -.08 a2 2 0 0 1 -1 -1.74 v-.5 a2 2 0 0 1 1 -1.74 l.15 -.09 a2 2 0 0 0 .73 -2.73 l-.22 -.38 a2 2 0 0 0 -2.73 -.73 l-.15 .08 a2 2 0 0 1 -2 0 l-.43 -.25 a2 2 0 0 1 -1 -1.73 V4 a2 2 0 0 0 -2 -2 z M8 12 a4 4 0 1 0 8 0 a4 4 0 1 0 -8 0</StreamGeometry>
+        <StreamGeometry x:Key="IconCollapse">M11 17 L6 12 L11 7 M18 17 L13 12 L18 7</StreamGeometry>
+        <StreamGeometry x:Key="IconExpand">M6 17 L11 12 L6 7 M13 17 L18 12 L13 7</StreamGeometry>
+        <StreamGeometry x:Key="IconHealthPulse">M22 12 h-4 l-3 9 L9 3 l-3 9 H2</StreamGeometry>
+        </ResourceDictionary>
+    </Application.Resources>
+    <Application.Styles>
+        <StyleInclude Source="avares://Grog/Styles/Controls.axaml"/>
+        <FluentTheme />
+        <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml"/>
+    </Application.Styles>
+</Application>

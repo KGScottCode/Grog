@@ -1,0 +1,71 @@
+{
+  "sortBy": null,
+  "page": 1,
+  "totalProducts": 125,
+  "totalPages": 2,
+  "productsPerPage": 100,
+  "moviesCount": 0,
+  "products": [
+    {
+      "id": 1207658883,
+      "title": "Age of Wonders",
+      "url": "/en/game/age_of_wonders",
+      "slug": "age_of_wonders",
+      "category": "Strategy",
+      "isMovie": false,
+      "isGame": true,
+      "dlcCount": 0
+    },
+    {
+      "id": 1207660923,
+      "title": "Alone in the Dark 1",
+      "url": "/en/game/alone_in_the_dark_the_trilogy_123",
+      "slug": "alone_in_the_dark_1",
+      "category": "Action",
+      "isMovie": false,
+      "isGame": true,
+      "dlcCount": 0
+    },
+    {
+      "id": 1207660963,
+      "title": "Alone in the Dark 2",
+      "url": "/en/game/alone_in_the_dark_the_trilogy_123",
+      "slug": "alone_in_the_dark_2",
+      "category": "Action",
+      "isMovie": false,
+      "isGame": true,
+      "dlcCount": 0
+    },
+    {
+      "id": 1188533399,
+      "title": "KeeperFX",
+      "url": "/en/game/keeperfx",
+      "slug": "keeperfx",
+      "category": "Strategy",
+      "isMovie": false,
+      "isGame": true,
+      "dlcCount": 0
+    },
+    {
+      "id": 1432575012,
+      "title": "Eye of the Beholder",
+      "url": "/en/game/forgotten_realms_the_archives_collection_one",
+      "slug": "eye_of_the_beholder",
+      "category": "Role-playing",
+      "isMovie": false,
+      "isGame": true,
+      "dlcCount": 0
+    },
+    {
+      "id": 1207658893,
+      "title": "Baldur's Gate 2 Complete",
+      "url": "",
+      "slug": "baldurs_gate_2_complete",
+      "category": "Role-playing",
+      "isMovie": false,
+      "isGame": true,
+      "dlcCount": 0
+    }
+  ],
+  "hasHiddenProducts": true
+}

@@ -1,0 +1,53 @@
+<!-- The one modal theme (see Controls/ConfirmDialog.cs). Card chrome is the SurfaceCard vocabulary: panel
+     fill, 1px stroke, RadiusCard, 36,30 padding, 16 spacing. Danger swaps the confirm button to the
+     destructive tier; Alarm tints the title and stroke red. -->
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:ctl="using:Grog.App.Controls">
+  <ControlTheme x:Key="{x:Type ctl:ConfirmDialog}" TargetType="ctl:ConfirmDialog">
+    <Setter Property="Background" Value="{StaticResource ScrimBg}"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    <Setter Property="VerticalAlignment" Value="Stretch"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="{TemplateBinding Background}">
+          <Border Name="PART_Card" Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1"
+                  CornerRadius="{StaticResource RadiusCard}" Padding="36,30"
+                  HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="{TemplateBinding CardWidth}">
+            <StackPanel Spacing="16">
+              <TextBlock Name="PART_Title" Text="{TemplateBinding Title}" FontSize="{StaticResource FontTitle}" FontWeight="Bold"
+                         Foreground="{StaticResource InkPrimary}" TextWrapping="Wrap"/>
+              <TextBlock Name="PART_Body" Text="{TemplateBinding Body}" TextWrapping="Wrap" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontBody}"
+                         IsVisible="{TemplateBinding Body, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+              <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                                IsVisible="{TemplateBinding Content, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+              <TextBlock Text="{TemplateBinding Note}" TextWrapping="Wrap" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" Margin="0,-6,0,0"
+                         IsVisible="{TemplateBinding Note, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+              <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,4,0,0">
+                <Button Name="PART_Cancel" Classes="ghost" Content="{TemplateBinding CancelText}" Command="{TemplateBinding CancelCommand}"
+                        Padding="16,9" IsVisible="{TemplateBinding ShowCancel}"/>
+                <Button Name="PART_Alt" Content="{TemplateBinding AltText}" Command="{TemplateBinding AltCommand}" Padding="16,9"
+                        IsVisible="{TemplateBinding AltText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                        Classes.secondarybtn="{Binding !AltDanger, RelativeSource={RelativeSource TemplatedParent}}"
+                        Classes.ghost="{TemplateBinding AltDanger}" Classes.altdanger="{TemplateBinding AltDanger}"/>
+                <Button Name="PART_Confirm" Content="{TemplateBinding ConfirmText}" Command="{TemplateBinding ConfirmCommand}"
+                        Padding="16,9" IsEnabled="{TemplateBinding CanConfirm}"
+                        Classes.primary="{Binding !Danger, RelativeSource={RelativeSource TemplatedParent}}"
+                        Classes.dangerbtn="{TemplateBinding Danger}"/>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+    <!-- With a note the body is the statement: white, the note carries the dim reassurance. -->
+    <Style Selector="^:noted /template/ TextBlock#PART_Body"><Setter Property="Foreground" Value="{StaticResource InkPrimary}"/></Style>
+    <!-- Plain: the accent verb is the Enter default. -->
+    <Style Selector="^ /template/ Button#PART_Confirm"><Setter Property="IsDefault" Value="True"/></Style>
+    <!-- Danger: destructive tier on the verb, and Cancel takes Enter. Alarm: the card itself goes red. -->
+    <Style Selector="^:danger /template/ Button#PART_Confirm"><Setter Property="IsDefault" Value="False"/></Style>
+    <Style Selector="^:danger /template/ Button#PART_Cancel"><Setter Property="IsDefault" Value="True"/></Style>
+    <Style Selector="^:alarm /template/ TextBlock#PART_Title"><Setter Property="Foreground" Value="{StaticResource ErrorRedBright}"/></Style>
+    <Style Selector="^:alarm /template/ Border#PART_Card"><Setter Property="BorderBrush" Value="{StaticResource ErrorRed}"/></Style>
+  </ControlTheme>
+</ResourceDictionary>

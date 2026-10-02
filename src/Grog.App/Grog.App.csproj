@@ -1,0 +1,134 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- The shipped exe is Grog.exe; the project keeps its Grog.App name. Avalonia resource
+         URIs (avares://Grog/...) key off THIS name, so the two move together or assets vanish. -->
+    <AssemblyName>Grog</AssemblyName>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <!-- DEV BUILD NUMBER: the 4th part exists so a running copy can be matched to the commit it came
+         from, across machines. It is STAMPED FROM git rev-list (see GrogStampBuildNumber below) and is
+         not edited by hand; hand-bumping it failed twice, silently, and left the number stale for days
+         while it was believed accurate. No reset is needed before tagging: a global -p:Version from
+         release.yml wins over anything the project sets, so a tagged build takes the tag verbatim. -->
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <!-- Continuity offset. The hand-bumped counter reached 1133 at commit 538, so 595 makes the stamped
+         number pick up exactly where it stopped instead of jumping backwards. Monotonic from here; never
+         edit it again. -->
+    <GrogBuildOffset>595</GrogBuildOffset>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets/grog-amber.ico</ApplicationIcon>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+
+    <!-- Memory profile: Grog is a small desktop app meant to sit quietly in the tray, so favour a lean heap
+         over throughput. Workstation (not Server) GC uses one small heap instead of one-per-core; concurrent
+         GC keeps the UI responsive. TieredPGO trims steady-state JIT. See also System.GC.ConserveMemory below
+         and the working-set trim on minimize-to-tray in MainWindow.axaml.cs. -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <TieredPGO>true</TieredPGO>
+  </PropertyGroup>
+
+  <!-- Stamp the 4th version part with the repo's commit count, so the number in the About page names the
+       exact commit a copy was built from without anyone maintaining it. Degrades quietly: no git, no repo,
+       or a git that errors leaves the version at $(VersionPrefix), which is a valid 3-part version.
+       A release build is untouched: -p:Version on the command line is a GLOBAL property and MSBuild
+       refuses to let a project override one, so this assignment is ignored there rather than fighting it.
+       Set GrogSkipStamp=true to opt out locally. -->
+  <Target Name="GrogStampBuildNumber" BeforeTargets="GetAssemblyVersion;GenerateAssemblyInfo"
+          Condition="'$(GrogSkipStamp)' != 'true'">
+    <!-- IgnoreExitCode, not ContinueOnError: ContinueOnError turns a failing git into an MSBuild WARNING, which
+         -warnaserror (the CI gate) promotes straight back to an error, so a build from a source tarball or a
+         shallow export with no .git would fail instead of degrading (09-13). The exit code is still captured. -->
+    <Exec Command="git rev-list --count HEAD" WorkingDirectory="$(MSBuildProjectDirectory)"
+          ConsoleToMSBuild="true" StandardOutputImportance="low" StandardErrorImportance="low"
+          IgnoreExitCode="true" IgnoreStandardErrorWarningFormat="true" EchoOff="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_GrogCommitCount" />
+      <Output TaskParameter="ExitCode" PropertyName="_GrogGitExit" />
+    </Exec>
+    <PropertyGroup Condition="'$(_GrogGitExit)' == '0' AND '$(_GrogCommitCount)' != ''">
+      <Version>$(VersionPrefix).$([MSBuild]::Add($(_GrogCommitCount.Trim()), $(GrogBuildOffset)))</Version>
+    </PropertyGroup>
+  </Target>
+
+  <ItemGroup>
+    <!-- HeadlessShots seeds VM state (e.g. a refused file) to render states the idle app never shows. -->
+    <InternalsVisibleTo Include="HeadlessShots" />
+    <!-- GuideViewModelTests fakes the internal IGuideHost (09-02). -->
+    <InternalsVisibleTo Include="Grog.Core.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Belt-and-braces for the deletion-staging convention: retired files are moved to _to_delete/
+         at the REPO ROOT, which is outside this project's globs already. This also excludes any such
+         folder that lands INSIDE a project, because the SDK's default glob would otherwise compile
+         it - that is how a retired converter under Views/_to_delete/ kept shipping in the binary
+         while looking gone from the repo. The ROOT folder is the one to use. -->
+    <Compile Remove="**\_to_delete\**" />
+    <AvaloniaXaml Remove="**\_to_delete\**" />
+    <None Remove="**\_to_delete\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Ask the GC to trade a little CPU for a smaller footprint (0=off … 9=most aggressive). 5 is a modest
+         middle ground for a background tray app; tune down if GC CPU shows up during heavy downloads. -->
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" Trim="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Exact versions (09-08): a release build must be reproducible; floating 12.0.* pulled whatever NuGet had that day. -->
+    <PackageReference Include="Avalonia" Version="12.0.5" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.0.5" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.5" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.5" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.0.1" />
+    <!-- In-app OAuth login via native WebView (WebView2/WKWebView/WebKitGTK); no bundled Chromium -->
+    <PackageReference Include="Avalonia.Controls.WebView" Version="12.0.1" />
+    <!-- DevTools has no 12.x release yet, so this stays on 11.3 while everything else is 12.0 — that part is
+         unavoidable. What is NOT fine is a floating 11.3.*: it resolved 11.3.19 here while something else in
+         the graph pulled 11.3.20, which built with only an MSB3277 warning and then failed at RUNTIME
+         ("Could not load Avalonia.Diagnostics 11.3.20") the first time HeadlessShots opened the window.
+         Pinned exactly so the resolved assembly and the one the generated InitializeComponent binds to agree.
+         Debug-only, so it never reaches a release build. -->
+    <PackageReference Include="Avalonia.Diagnostics" Version="[11.3.20]" Condition="'$(Configuration)' == 'Debug'" />
+    <!-- XAML HOT RELOAD (dev only). VS's own XAML Hot Reload covers WPF/WinUI, never Avalonia, so Alt+F10
+         applies C# edits and silently does nothing for .axaml. HotAvalonia reloads the live window instead.
+         Debug-gated AND PrivateAssets=All: it cannot reach a packaged build, on any platform. Linux, macOS
+         and Windows are all supported, so this changes nothing for the Linux target. -->
+    <PackageReference Include="Avalonia.Markup.Xaml.Loader" Version="12.0.5" PrivateAssets="All" Condition="'$(Configuration)' == 'Debug'" />
+    <PackageReference Include="HotAvalonia" Version="3.*" PrivateAssets="All" Condition="'$(Configuration)' == 'Debug'" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+    <!-- Cross-platform desktop notifications: one API, per-OS backends (WinRT toast on Windows, freedesktop
+         D-Bus on Linux). No macOS backend yet — Notifier falls back to the in-app toast there. Restore in VS;
+         confirm the latest version if 1.3.1 has moved. -->
+    <PackageReference Include="DesktopNotifications" Version="1.3.1" />
+    <PackageReference Include="DesktopNotifications.Windows" Version="1.3.1" />
+    <PackageReference Include="DesktopNotifications.FreeDesktop" Version="1.3.1" />
+    <!-- SECURITY: DesktopNotifications.FreeDesktop 1.3.1 pulls Tmds.DBus 0.9.1 transitively, which has a known
+         HIGH-severity advisory (GHSA-xrw6-gwf8-vvr9, all versions < 0.92.0). The FreeDesktop dep range is open
+         (">= 0.9.1"), so this direct pin to the patched 0.92.0 wins and clears NU1903. Linux-only path (Windows
+         uses DesktopNotifications.Windows); the classic Tmds.DBus proxy API DesktopNotifications uses is retained
+         in 0.92.0, verified by an assembly-bind probe. -->
+    <PackageReference Include="Tmds.DBus" Version="0.92.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets/Fonts/*.ttf" />
+    <AvaloniaResource Include="Assets/*.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Grog.Core\Grog.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Ride beside the executable; the About page's License / Third-Party Notices buttons open them.
+         The license is the repo's point-in-time GPL-3.0 copy, not a link a website could move. -->
+    <None Include="..\..\THIRD-PARTY-NOTICES.txt" Link="THIRD-PARTY-NOTICES.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

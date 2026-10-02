@@ -1,0 +1,329 @@
+name: Release
+
+# Fires on a version tag. The tag is the ONLY source of the version number, so a release cannot
+# disagree with what it is called; workflow_dispatch is there to rehearse the whole thing without
+# tagging anything.
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (no leading v), e.g. 0.1.0'
+        required: true
+        default: '0.1.0'
+
+permissions:
+  contents: write        # needed to create the release and upload assets
+
+jobs:
+  # The suite gates the release. A tag that cannot pass its own tests must not produce downloads,
+  # and finding that out AFTER the artifacts are published is how a bad build reaches people.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet restore Grog.slnx
+      - run: dotnet build Grog.slnx --no-restore -c Release -warnaserror
+      # Custom reflection runner, not MSTest/xUnit/NUnit: `dotnet test` finds nothing here BY DESIGN.
+      # The exit code is the gate.
+      - run: dotnet run --project tests/Grog.Core.Tests -c Release
+
+  build:
+    needs: test
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+            asset: Grog-win-x64.zip
+          - os: ubuntu-latest
+            rid: linux-x64
+            asset: Grog-linux-x64.tar.gz
+          # Apple Silicon and Intel are separate RIDs. Each leg ships the SAME pair Windows does:
+          # a DMG with an /Applications shortcut (the "installer" - lands in Launchpad) and a tar.gz
+          # of the bare Grog.app (the portable option, run from anywhere). Both unsigned - Gatekeeper
+          # needs the Settings "Open Anyway" path, documented in docs/install/macOS.md.
+          - os: macos-latest
+            rid: osx-arm64
+            asset: Grog-macos-arm64.dmg
+            portable: Grog-macos-arm64.tar.gz
+          - os: macos-latest
+            rid: osx-x64
+            asset: Grog-macos-x64.dmg
+            portable: Grog-macos-x64.tar.gz
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          # A tag push carries refs/tags/v0.1.0; a manual run carries the input. Strip the leading v
+          # once, here, so nothing downstream has to care which way it was triggered.
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then V="${GITHUB_REF_NAME#v}"; else V="${{ inputs.version }}"; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Building Grog $V for ${{ matrix.rid }}"
+
+      # BOTH the app and the CLI, into ONE folder. They are one product: the CLI is the unattended
+      # face of the same engine, and shipping it separately would mean two downloads that must be
+      # kept in step. Each publishes SINGLE-FILE: the runtime is embedded twice (a bigger download,
+      # Libation-sized), bought deliberately so the shipped folder is a handful of readable files
+      # instead of three hundred DLLs around the exe.
+      - name: Publish app
+        shell: bash
+        run: |
+          dotnet publish src/Grog.App/Grog.App.csproj -c Release -r ${{ matrix.rid }} \
+            --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true \
+            -p:Version=${{ steps.ver.outputs.version }} -o publish
+
+      - name: Publish CLI
+        shell: bash
+        run: |
+          dotnet publish src/Grog.Cli/Grog.Cli.csproj -c Release -r ${{ matrix.rid }} \
+            --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true \
+            -p:Version=${{ steps.ver.outputs.version }} -o publish
+
+      # The licence and the notices ride WITH the binary, not just in the repo. The About page's
+      # buttons open these two files from beside the executable, so a download without them has
+      # dead buttons; GPL-3.0 also expects the licence to travel with the work.
+      - name: Stage licence and notices
+        shell: bash
+        run: |
+          cp LICENSE THIRD-PARTY-NOTICES.txt README.md publish/
+          rm -f publish/*.pdb
+
+      # PORTABLE MODE MARKER -- archives only, never the installer. A GrogData folder beside the executable
+      # makes the folder the whole install (settings, manifest, log all live in it); without one, state
+      # goes to the per-user profile dir as always. The installer's step below builds from this same
+      # publish folder, so GrogData/ must be added AFTER ISCC ran... it is not: ISCC runs later on Windows,
+      # so the .iss explicitly EXCLUDES GrogData (see packaging/windows/Grog.iss).
+      - name: Add portable marker (archives)
+        shell: bash
+        run: |
+          mkdir -p publish/GrogData
+          printf '%s\n' \
+            "This GrogData folder makes this copy of Grog PORTABLE: settings, the library manifest" \
+            "and the log live here, beside the executable, instead of in your user profile." \
+            "Keep the whole folder together when you move or back it up." \
+            "" \
+            "Delete the GrogData folder and Grog goes back to storing state in your user profile" \
+            "(%APPDATA%\\Grog on Windows, ~/.config/Grog on Linux, ~/Library/Application" \
+            "Support/Grog on macOS)." \
+            > publish/GrogData/README.txt
+
+      - name: Package (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: Compress-Archive -Path publish/* -DestinationPath ${{ matrix.asset }}
+
+      # The ZIP is the portable option; the installer is the one most people want. Per-user, no admin,
+      # %LocalAppData%\Grog. Both ship from the SAME publish folder so they can never disagree.
+      - name: Install Inno Setup
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
+      - name: Package installer (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          # Braces are required: $env:ProgramFiles(x86) does not parse without them.
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+            /DAppVersion=${{ steps.ver.outputs.version }} `
+            /DSourceDir=..\..\publish `
+            /DOutputDir=..\..\ `
+            packaging\windows\Grog.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed with $LASTEXITCODE" }
+
+      - name: Package (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          # The apphosts lose their executable bit through some archive/extract paths; set it in the
+          # tarball so a user does not have to chmod before the app will start.
+          chmod +x publish/Grog publish/grogcli 2>/dev/null || true
+          # The app-menu entry in docs/install/Linux.md points at this icon: the app's own copy is embedded, not a file.
+          cp src/Grog.App/Assets/grog-amber.png publish/grog.png
+          tar -czf ${{ matrix.asset }} -C publish .
+
+      # macOS ships a real .app bundle: a bare executable in a tarball has no Finder identity, no dock
+      # icon and a worse Gatekeeper story. The bundle is only a folder layout plus Info.plist, so the
+      # runner assembles it directly - no Xcode involved. Unsigned: first launch needs the Settings ->
+      # Privacy & Security -> "Open Anyway" path (right-click-Open no longer bypasses on Sequoia+).
+      # grogcli rides inside Contents/MacOS so one download carries both, reachable for a shell user at
+      # Grog.app/Contents/MacOS/grogcli.
+      - name: Package (macOS)
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          APP=Grog.app
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          cp -R publish/. "$APP/Contents/MacOS/"
+          # NO GrogData inside the bundle: a data folder beside the exe turns portable mode ON, and state
+          # written INSIDE Grog.app is the most un-mac-like thing an app can do. The .app behaves like the
+          # Windows installer (profile-dir state); portable-on-mac is a user putting GrogData there by hand.
+          rm -rf "$APP/Contents/MacOS/GrogData"
+          chmod +x "$APP/Contents/MacOS/Grog" "$APP/Contents/MacOS/grogcli" 2>/dev/null || true
+          # Icon: .icns built from the 512px PNG with the runner's own tooling.
+          mkdir iconset.iconset
+          for s in 16 32 128 256 512; do
+            sips -z $s $s src/Grog.App/Assets/grog-amber.png --out "iconset.iconset/icon_${s}x${s}.png" >/dev/null
+          done
+          iconutil -c icns iconset.iconset -o "$APP/Contents/Resources/grog.icns"
+          cat > "$APP/Contents/Info.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>CFBundleName</key><string>Grog</string>
+            <key>CFBundleDisplayName</key><string>Grog</string>
+            <key>CFBundleIdentifier</key><string>com.kgscottcode.grog</string>
+            <key>CFBundleVersion</key><string>${{ steps.ver.outputs.version }}</string>
+            <key>CFBundleShortVersionString</key><string>${{ steps.ver.outputs.version }}</string>
+            <key>CFBundleExecutable</key><string>Grog</string>
+            <key>CFBundleIconFile</key><string>grog.icns</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>NSHighResolutionCapable</key><true/>
+            <key>LSMinimumSystemVersion</key><string>14.0</string>
+          </dict></plist>
+          PLIST
+          # DMG, not tar.gz: the drag-to-Applications window is the mac install ritual, exec bits and
+          # the bundle layout survive the download exactly, and the result shows in Launchpad as a
+          # first-class app. UDZO = compressed read-only image. Grog.app stays in the workdir for the
+          # smoke steps below - the DMG gets its own copy.
+          mkdir dmgroot
+          cp -R "$APP" dmgroot/
+          ln -s /Applications dmgroot/Applications
+          # Unsigned-app escape hatch, IN the dmg where a blocked user is looking. A text file is the
+          # one thing that can carry the fix: any shipped script would be quarantined and blocked the
+          # same way, but a command the user pastes into Terminal themselves is not.
+          printf '%s\n' \
+            "If macOS says Grog is damaged or can't be opened:" \
+            "" \
+            "Grog is open source and not (yet) Apple-notarized, so the first launch is blocked." \
+            "" \
+            "Normal fix: open System Settings -> Privacy & Security, scroll to the message" \
+            "about Grog, and click \"Open Anyway\". One time only." \
+            "" \
+            "If that button doesn't appear (some managed Macs), paste this into Terminal" \
+            "after dragging Grog to Applications:" \
+            "" \
+            "  xattr -dr com.apple.quarantine /Applications/Grog.app" \
+            "" \
+            "More detail: https://github.com/KGScottCode/Grog/blob/master/docs/install/macOS.md" \
+            > "dmgroot/If blocked - read me.txt"
+          hdiutil create -volname "Grog" -srcfolder dmgroot -ov -format UDZO ${{ matrix.asset }}
+          # The portable twin: the same Grog.app in a tar.gz (preserves exec bits exactly), matching
+          # the Windows zip-beside-installer convention. THIS copy gets the GrogData marker back -
+          # portable means state lives beside the executable - while the DMG install stays profile-dir.
+          mkdir portableroot
+          cp -R "$APP" portableroot/
+          mkdir -p "portableroot/$APP/Contents/MacOS/GrogData"
+          cp publish/GrogData/README.txt "portableroot/$APP/Contents/MacOS/GrogData/"
+          tar -czf ${{ matrix.portable }} -C portableroot "$APP"
+
+      # SMOKE: launch the actual packaged app on the runner (macOS runners have a real UI session).
+      # Proves the bundle boots - native libs load, Avalonia opens a window, no instant crash - and
+      # uploads a real macOS screenshot to eyeball. This is the cheapest possible answer to the most
+      # expensive release-day failure. GROG_FIXED_WINDOW so the shot is deterministic.
+      - name: Smoke-launch (macOS)
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          # Direct exec, NOT `open`: LaunchServices strips the environment, so the fixed-window knob
+          # would silently not apply. The binary still gets a window from the runner's UI session.
+          GROG_FIXED_WINDOW=1 GROG_WINDOW_SIZE=1366x768 ./Grog.app/Contents/MacOS/Grog &
+          sleep 20
+          pgrep -x Grog >/dev/null || { echo "::error::Grog.app exited within 20s of launch"; exit 1; }
+          screencapture -x smoke-macos-${{ matrix.rid }}.png || true
+          pkill -x Grog || true
+      - name: Smoke the CLI (macOS)
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          CLI=Grog.app/Contents/MacOS/grogcli
+          "$CLI" help | grep -q "Usage:" || { echo "::error::help text missing"; exit 1; }
+          # An unknown verb must exit 2 (usage), proving arg parsing and the exit-code contract.
+          set +e; "$CLI" definitely-not-a-verb >/dev/null 2>&1; CODE=$?; set -e
+          [ "$CODE" = "2" ] || { echo "::error::unknown verb exited $CODE, expected 2"; exit 1; }
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'macos-latest'
+        with:
+          name: smoke-${{ matrix.rid }}
+          path: smoke-macos-${{ matrix.rid }}.png
+          if-no-files-found: ignore
+
+      # A backup tool that verifies every download against GOG's checksums should publish its own.
+      - name: Checksum
+        shell: bash
+        run: |
+          if command -v sha256sum > /dev/null; then sha256sum ${{ matrix.asset }} > ${{ matrix.asset }}.sha256
+          else shasum -a 256 ${{ matrix.asset }} > ${{ matrix.asset }}.sha256; fi
+          cat ${{ matrix.asset }}.sha256
+
+      - name: Checksum installer (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          sha256sum Grog-win-x64-setup.exe > Grog-win-x64-setup.exe.sha256
+          cat Grog-win-x64-setup.exe.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.rid }}
+          path: |
+            ${{ matrix.asset }}
+            ${{ matrix.asset }}.sha256
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'windows-latest'
+        with:
+          name: win-x64-setup
+          path: |
+            Grog-win-x64-setup.exe
+            Grog-win-x64-setup.exe.sha256
+
+      - name: Checksum (macOS portable)
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          shasum -a 256 ${{ matrix.portable }} > ${{ matrix.portable }}.sha256
+          cat ${{ matrix.portable }}.sha256
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'macos-latest'
+        with:
+          name: ${{ matrix.rid }}-portable
+          path: |
+            ${{ matrix.portable }}
+            ${{ matrix.portable }}.sha256
+
+  release:
+    needs: build
+    # Tags only: a workflow_dispatch rehearsal builds and uploads run ARTIFACTS to download and test,
+    # but must not draft a release named after a branch.
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      # DRAFT, deliberately. Wave 1 is a quiet release: the tag builds everything and then waits for
+      # a human to read the notes and press publish, rather than announcing itself.
+      - name: Draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          name: Grog ${{ github.ref_name }}
+          body_path: .github/RELEASE_NOTES.md
+          files: dist/*

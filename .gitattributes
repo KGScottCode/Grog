@@ -1,0 +1,20 @@
+# One line-ending policy: LF in the repo AND in the working tree, on every
+# platform. Paired with .editorconfig (end_of_line = lf) so Visual Studio
+# writes the same thing it reads and never shows the mixed-endings dialog.
+* text=auto eol=lf
+
+# Windows batch files are the one format that requires CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Shell scripts must stay LF regardless of platform - a CRLF shebang makes
+# Linux bash fail with "bad interpreter: /usr/bin/env bash^M".
+*.sh text eol=lf
+
+# Binary assets: never normalized.
+*.png binary
+*.jpg binary
+*.ico binary
+*.icns binary
+*.ttf binary
+*.otf binary

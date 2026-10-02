@@ -1,0 +1,516 @@
+<!-- MainWindow's styles, included from <Window.Styles> so their scope is unchanged: the window and
+     everything inside it, not App-wide. Moved out of MainWindow.axaml (480 lines) on 2026-09-02 so the
+     view file holds layout and the vocabulary lives here beside Controls.axaml and Palette.axaml. -->
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- TimePicker flyout matches its 180px button; Fluent's default presenter is 242 wide. -->
+    <Style Selector="TimePickerPresenter"><Setter Property="MinWidth" Value="0"/><Setter Property="Width" Value="180"/></Style>
+    <!-- Frameless window controls (custom chrome). Palette-matched; close goes red on hover (Windows convention). -->
+    <Style Selector="Button.winbtn"><Setter Property="Width" Value="46"/><Setter Property="Height" Value="34"/><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{StaticResource InkDim}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="CornerRadius" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
+    <Style Selector="Button.winbtn:pointerover"><Setter Property="Foreground" Value="{StaticResource InkPrimary}"/></Style>
+    <Style Selector="Button.winbtn:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{StaticResource SurfaceRaised}"/></Style>
+    <Style Selector="Button.winbtn.close:pointerover"><Setter Property="Foreground" Value="White"/></Style>
+    <Style Selector="Button.winbtn.close:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{StaticResource WinCloseHover}"/></Style>
+
+    <!-- palette matches the approved v2 mockup: slate + parchment + one amber accent -->
+    <!-- rail -->
+    <Style Selector="Button.nav">
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <!-- STRETCH, not Left: with Left the ContentPresenter sizes to content and a star column inside a nav
+           row collapses, so the row-state readout cannot right-align. -->
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{StaticResource InkDim}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="11,6"/>
+      <Setter Property="CornerRadius" Value="5"/>
+      <Setter Property="FontSize" Value="15"/>
+    </Style>
+    <Style Selector="Button.nav:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{StaticResource NavActiveTint}"/></Style>
+    <!-- All nav LABELS are white; selection is carried by the highlight (amber tint + left bar) and the amber
+         active ICON (Foreground drives the icon stroke) - not by the label color. -->
+    <Style Selector="Button.nav TextBlock"><Setter Property="Foreground" Value="White"/></Style>
+    <!-- Active nav: amber tint + 2px amber left edge + amber icon. -->
+    <Style Selector="Button.nav.on"><Setter Property="Background" Value="{StaticResource NavActiveTint}"/><Setter Property="Foreground" Value="{StaticResource InkDim}"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="BorderBrush" Value="{StaticResource AccentAmber}"/><Setter Property="BorderThickness" Value="2,0,0,0"/></Style>
+    <Style Selector="StackPanel.railcollapsed Button.nav"><Setter Property="HorizontalContentAlignment" Value="Center"/></Style>
+    <!-- amber primary -->
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="{StaticResource AccentAmber}"/><Setter Property="Foreground" Value="{StaticResource SurfaceNeutralDark}"/>
+      <Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="16,11"/>
+      <Setter Property="CornerRadius" Value="5"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="FontSize" Value="14"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/><Setter Property="HorizontalContentAlignment" Value="Center"/>
+    </Style>
+    <!-- Primary MODIFIERS + the Stop treatment live beside .primary so every page receives them. -->
+    <Style Selector="Button.primary.resume"><Setter Property="Background" Value="{StaticResource AccentAmber}"/></Style>
+    <!-- Neutral primary (Pause, while a run is going): no accent FILL while bytes move, but a soft accent
+         OUTLINE still outranks Stop at a fraction of amber's weight. -->
+    <Style Selector="Button.primary.neutral">
+      <Setter Property="Background" Value="{StaticResource SurfaceRaised}"/>
+      <Setter Property="Foreground" Value="{StaticResource InkPrimary}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource StrokeAmberSoft}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+    <!-- The stroke follows the WORD. Cancel Scan wore red text inside an amber outline, so the button said
+         "the action" and "stop the action" at the same time. -->
+    <Style Selector="Button.primary.dimmed"><Setter Property="Background" Value="{StaticResource SurfaceGreenDark}"/><Setter Property="Foreground" Value="{StaticResource SuccessGreen}"/><Setter Property="BorderBrush" Value="{StaticResource SuccessGreen}"/><Setter Property="BorderThickness" Value="1"/></Style>
+    <Style Selector="Button.stopbtn"><Setter Property="Foreground" Value="{StaticResource InkDim}"/></Style>
+    <Style Selector="Button.primary:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{StaticResource AccentAmberHover}"/></Style>
+    <Style Selector="Button.ghost">
+      <Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{StaticResource InkDim}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource SurfaceStroke}"/><Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="12,8"/><Setter Property="CornerRadius" Value="5"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/><Setter Property="HorizontalContentAlignment" Value="Center"/>
+    </Style>
+    <!-- The red-ink ghost: a dialog alternate that says what it costs ("Continue Without Moving"). Lives here at
+         Styles priority because a ControlTheme-nested setter loses to Button.ghost above. -->
+    <Style Selector="Button.ghost.altdanger"><Setter Property="Foreground" Value="{StaticResource ErrorRedBright}"/></Style>
+    <Style Selector="Button.ghost:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{StaticResource SurfacePanel}"/><Setter Property="BorderBrush" Value="{StaticResource StrokeStrong}"/><Setter Property="TextBlock.Foreground" Value="{StaticResource InkPrimary}"/></Style>
+    <!-- The guide's Done: a ghost promoted to the filled amber primary tier on the sign-off card only,
+         where finishing IS the card's one action. -->
+    <Style Selector="Button.ghost.done">
+      <Setter Property="Background" Value="{StaticResource AccentAmber}"/><Setter Property="Foreground" Value="{StaticResource SurfaceNeutralDark}"/>
+      <Setter Property="BorderThickness" Value="0"/><Setter Property="FontWeight" Value="Bold"/>
+    </Style>
+    <Style Selector="Button.ghost.done:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{StaticResource AccentAmberHover}"/></Style>
+    <!-- (09-19) Disabled ghost stays a READABLE outline: the theme's grey disabled fill under dark ink read as an error. -->
+    <Style Selector="Button.ghost:disabled"><Setter Property="Foreground" Value="{StaticResource InkMuted}"/><Setter Property="BorderBrush" Value="{StaticResource SurfaceStroke}"/></Style>
+    <Style Selector="Button.ghost:disabled /template/ ContentPresenter"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="{StaticResource SurfaceStroke}"/><Setter Property="TextBlock.Foreground" Value="{StaticResource InkMuted}"/></Style>
+    <!-- amber-soft: the middle tier (Rescan), filled but muted, between solid primary and outline ghost. -->
+    <!-- Outlined for the same reason secondarybtn is (09-11): this is the same ACTION tier under an older
+         name, and a filled one here would re-create the collision the other half just fixed. -->
+    <Style Selector="Button.amber-soft">
+      <Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{StaticResource AccentAmberSoft}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource StrokeAmberSoft}"/><Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="12,8"/><Setter Property="CornerRadius" Value="5"/><Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/><Setter Property="HorizontalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.amber-soft:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{StaticResource SurfaceAmberDark4}"/></Style>
+    <!-- Small rounded "pill" toggle used by the sortable headers (download queue + device inventory grids). -->
+    <Style Selector="Button.sortpill">
+      <Setter Property="Background" Value="{StaticResource SurfaceRaised}"/><Setter Property="Foreground" Value="White"/>
+      <Setter Property="BorderBrush" Value="{StaticResource StrokeStrong}"/><Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="10,3"/><Setter Property="CornerRadius" Value="10"/><Setter Property="FontSize" Value="12.5"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <!-- The Folders region's ONE control tier: one control vocabulary, with MEANING riding on text color
+         alone - red for the destructive one, amber for the actions. -->
+    <!-- (09-19) A dialog's destructive confirm is a BUTTON, the primary's shape in red: it wore the Storage page's
+         pill (outline, radius 10) and read as a tag beside a real Cancel button. -->
+    <Style Selector="Button.dangerbtn">
+      <Setter Property="Background" Value="{StaticResource ErrorRed}"/><Setter Property="Foreground" Value="White"/>
+      <Setter Property="BorderThickness" Value="0"/><Setter Property="CornerRadius" Value="5"/>
+      <Setter Property="FontWeight" Value="Bold"/><Setter Property="FontSize" Value="14"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.dangerbtn:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{StaticResource ErrorRedBright}"/><Setter Property="TextBlock.Foreground" Value="White"/></Style>
+    <Style Selector="Button.dangerbtn:disabled"><Setter Property="Opacity" Value="0.4"/></Style>
+    <Style Selector="Button.sortpill.danger"><Setter Property="Foreground" Value="{StaticResource ErrorRed}"/><Setter Property="BorderBrush" Value="{StaticResource ErrorRed}"/></Style>
+    <Style Selector="Button.sortpill.act"><Setter Property="Foreground" Value="{StaticResource AccentAmber}"/></Style>
+    <!-- The QUIET tier: view controls (Sort, Show, caret) take a dim stroke and no fill, so the amber .act
+         pills past the divider are the only lit things on the row - the color law working as intended. -->
+    <Style Selector="Button.sortpill.view">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderBrush" Value="{StaticResource StrokeSubtle}"/>
+    </Style>
+    <!-- Unavailability is OPACITY, like every other control in the app. Painting the idle state a dimmer
+         amber made a working button look faulty rather than merely not-yet-applicable. -->
+    <Style Selector="Button.sortpill:disabled"><Setter Property="Opacity" Value="0.38"/></Style>
+    <Style Selector="Button.sortpill:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{StaticResource SurfaceRaisedAlt2}"/><Setter Property="BorderBrush" Value="{StaticResource AccentAmberSoft}"/><Setter Property="TextBlock.Foreground" Value="{StaticResource InkPrimary}"/></Style>
+    <!-- Activity queue "Order by" pills: selected = NEUTRAL emphasis only; amber is reserved for the
+         direction arrow, so a sort choice never competes with the page's one amber action. -->
+    <Style Selector="Button.qsort">
+      <Setter Property="Background" Value="{StaticResource SurfaceRaised}"/><Setter Property="Foreground" Value="{StaticResource InkDim}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource SurfaceStroke}"/><Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="9,2"/><Setter Property="CornerRadius" Value="9"/><Setter Property="FontSize" Value="10"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Button.qsort:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{StaticResource SurfaceRaisedAlt2}"/><Setter Property="TextBlock.Foreground" Value="{StaticResource InkBright}"/></Style>
+    <Style Selector="Button.qsort.sel"><Setter Property="Background" Value="{StaticResource SurfaceRaisedAlt2}"/><Setter Property="BorderBrush" Value="{StaticResource StrokeStrong}"/><Setter Property="Foreground" Value="{StaticResource InkPrimary}"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+    <!-- Circular weekday toggle for the scheduler's Custom recurrence (Google-Calendar style). Amber when on. -->
+    <Style Selector="ToggleButton.daycircle">
+      <Setter Property="Width" Value="30"/><Setter Property="Height" Value="30"/><Setter Property="CornerRadius" Value="15"/>
+      <Setter Property="Padding" Value="0"/><Setter Property="FontSize" Value="12"/><Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Background" Value="{StaticResource SurfaceRaised}"/><Setter Property="Foreground" Value="{StaticResource InkMuted}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource StrokeStrong}"/><Setter Property="BorderThickness" Value="1"/>
+    </Style>
+    <Style Selector="ToggleButton.daycircle:checked /template/ ContentPresenter"><Setter Property="Background" Value="{StaticResource AccentAmber}"/><Setter Property="TextBlock.Foreground" Value="{StaticResource SurfaceNeutralDark}"/><Setter Property="BorderBrush" Value="{StaticResource AccentAmber}"/></Style>
+    <!-- segmented transport cluster: one shared look for Pause/Resume/Stop on the Library run box AND
+         each Backups queue header, so the two tabs read as one control family. -->
+    <!-- separate transport buttons (Library, above Details): equal width, stretch to fill the pane. -->
+    <!-- ONE secondary tier across the app: Rescan / Open Folder / Check for new saves read as one class.
+         STOP is not one.
+         OUTLINED, NOT FILLED (09-11). The app had ONE face - faint amber fill, amber edge, amber label -
+         carrying two different meanings: an ACTION you press (this tier) and the OPTION IN FORCE (the
+         selected pill). Owner spotted it with two screenshots side by side and could not tell them apart.
+         The vocabulary is now: amber FILL = the thing in force, amber OUTLINE = a verb you press, SOLID
+         amber = the commit (Button.primary). Removing the fill here is what frees "filled" to mean
+         selected everywhere, so a pill and a button can never again be the same picture. -->
+    <Style Selector="Button.secondarybtn">
+      <Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="{StaticResource StrokeAmberSoft}"/>
+      <Setter Property="Foreground" Value="{StaticResource AccentAmberSoft}"/>
+      <Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="8"/><Setter Property="Padding" Value="10,7"/>
+      <Setter Property="FontSize" Value="13"/><Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/><Setter Property="HorizontalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.secondarybtn:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{StaticResource SurfaceAmberSoft}"/></Style>
+    <!-- Kept as an explicit alias: the base tier is outlined as of 09-11, so this is now a no-op. Call
+         sites that say ".outline" still read correctly, and removing it would be a rename with no gain. -->
+    <Style Selector="Button.secondarybtn.outline">
+      <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <!-- "Nothing to do" wears the same green-dimmed treatment as the primary tier: on a backup tool the
+         all-clear is the product, and a grayed-out button would report it as an absence. -->
+    <Style Selector="Button.secondarybtn.dimmed">
+      <Setter Property="Background" Value="{StaticResource SurfaceGreenDark}"/>
+      <Setter Property="Foreground" Value="{StaticResource SuccessGreen}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource SuccessGreen}"/>
+    </Style>
+    <!-- Stop is a transport control, not a secondary action: it stays neutral so it never borrows the accent. -->
+    <Style Selector="Button.secondarybtn.stopbtn">
+      <Setter Property="Background" Value="{StaticResource SurfaceRaised}"/><Setter Property="BorderBrush" Value="{StaticResource StrokeStrong}"/>
+      <Setter Property="Foreground" Value="{StaticResource InkDim}"/>
+    </Style>
+    <Style Selector="Button.secondarybtn.stopbtn:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{StaticResource SurfaceRaisedAlt2}"/></Style>
+    <!-- idle transport: buttons stay in place but ghost out (still readable as Pause/Stop) so the zone's
+         purpose is clear without drawing the eye, and a run just re-lights them with no layout shift. -->
+    <Style Selector="Button.secondarybtn:disabled"><Setter Property="Opacity" Value="0.34"/></Style>
+    <!-- selectable card (onboarding scope + layout choice) -->
+    <!-- Inside a section card the tiles recess rather than look like cards on cards; the card owns the
+         border. The wizard keeps the raised form, where the tiles stand alone. -->
+
+    <!-- Settings sections: one card each, matching Backups and the dashboard. -->
+    <Style Selector="Border.settingCard">
+      <Setter Property="Background" Value="{StaticResource SurfacePanel}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource SurfaceStroke}"/>
+      <Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="10"/>
+      <Setter Property="Padding" Value="16,14"/>
+    </Style>
+    <!-- FLATTENED section (Status): no fill, outline or corner - a hairline rule above and room around it,
+         matching the Library Details pane where headings + whitespace carry the structure. -->
+    <Style Selector="Border.section">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderBrush" Value="{StaticResource StrokeSubtle}"/>
+      <Setter Property="BorderThickness" Value="0,1,0,0"/><Setter Property="CornerRadius" Value="0"/>
+      <Setter Property="Padding" Value="20,16,20,16"/>
+    </Style>
+    <!-- The band PANEL: on a dashboard it does real work - it groups a lede with the findings and data
+         that explain it, and gives the rows a shared edge to align to. -->
+    <!-- Dashboard card: NO stroke, darker fill - the fill difference separates the card from the canvas
+         and the internal hairlines do the structural work. -->
+    <!-- Top-edge highlight: a 1px white whisper along the top only, so the card reads as lit from above;
+         a full outline would be the stroke this card system drops. -->
+    <!-- Status card blend (matches the Library bottom bar): transparent fill on the page surface with a 1px
+         FlatEdge outline. TO REVERT: Background CardSurface, BorderBrush CardTopHighlight, Thickness 0,1,0,0. -->
+    <!-- In-card eyebrow: 11px (the readability floor) with legibility bought back by tracking, 0.14em at
+         11px = 1.54px. A class so all such labels move together. -->
+    <!-- About's acknowledgement rows: a NAME column and a ROLE column, so the list reads as a table of
+         credits rather than a paragraph of names. -->
+    <!-- About runs one step larger throughout; these classes are used nowhere else so they carry the bump
+         directly (bumping FontCaption would move every caption in the app). 15 = FontCaption(14) + 1. -->
+    <Style Selector="TextBlock.ackname">
+      <Setter Property="Foreground" Value="{StaticResource White}"/>
+      <Setter Property="FontSize" Value="15"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Margin" Value="0,0,16,5"/>
+    </Style>
+    <!-- A link in the credits list: no chrome at all, so the row still reads as text; the AMBER on the
+         label is the only affordance, matching every other link in the app. -->
+    <Style Selector="Button.acklink">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="VerticalAlignment" Value="Top"/>
+    </Style>
+    <Style Selector="Button.acklink /template/ ContentPresenter"><Setter Property="Background" Value="Transparent"/></Style>
+    <!-- UNDERLINED, like the white ones: amber alone is emphasis, not an affordance. One rule on this
+         page - if it is underlined it goes somewhere. -->
+    <Style Selector="TextBlock.acklinktext">
+      <Setter Property="Foreground" Value="{StaticResource AccentAmberSoft}"/>
+      <Setter Property="TextDecorations" Value="Underline"/>
+    </Style>
+    <Style Selector="Button.acklink:pointerover TextBlock.acklinktext"><Setter Property="Foreground" Value="{StaticResource AccentAmberHover}"/></Style>
+    <Style Selector="TextBlock.ackrole">
+      <Setter Property="Foreground" Value="{StaticResource InkMuted}"/>
+      <Setter Property="FontSize" Value="15"/>
+      <Setter Property="Margin" Value="0,0,0,5"/>
+    </Style>
+    <!-- A person's name inside a role line: white plus underline is the one treatment that says "clickable"
+         in running text. MUST be declared AFTER .ackrole - equal specificity means the last match wins. -->
+    <Style Selector="TextBlock.personlink">
+      <Setter Property="Foreground" Value="{StaticResource White}"/>
+      <Setter Property="TextDecorations" Value="Underline"/>
+    </Style>
+    <Style Selector="Button.acklink:pointerover TextBlock.personlink"><Setter Property="Foreground" Value="{StaticResource AccentAmberHover}"/></Style>
+    <!-- About's section eyebrows run one larger than the app's 11px; see the ackname note. -->
+    <!-- 13, not 12: these two ARE About's section headings (the page has no header strip), so they take a
+         second step up where the rest of the page moves one. -->
+    <Style Selector="TextBlock.abouteyebrow"><Setter Property="FontSize" Value="13"/></Style>
+    <Style Selector="TextBlock.eyebrow">
+      <Setter Property="Foreground" Value="{StaticResource White}"/>
+      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="LetterSpacing" Value="1.54"/>
+    </Style>
+    <!-- Checkboxes are AMBER, not Fluent's stock blue: every control takes its "on" color from the accent.
+         Window level, so the language flyouts and the Folders type flyout can never drift apart. -->
+    <Style Selector="CheckBox:checked /template/ Border#NormalRectangle">
+      <Setter Property="Background" Value="{StaticResource AccentAmber}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource AccentAmber}"/>
+    </Style>
+    <Style Selector="CheckBox:checked /template/ Path#CheckGlyph">
+      <Setter Property="Fill" Value="{StaticResource CanvasGlow}"/>
+    </Style>
+    <!-- Toggles are amber too, via the ToggleSwitch* resource overrides in Palette.axaml (ThemeService
+         re-tints them); their colors are resource lookups, so nothing to style here. -->
+    <!-- Stock chrome pockets: NumericUpDown and ComboBox take property-level setters onto the surface/stroke
+         tokens (no template surgery), so they ride every theme like the rest of the page. -->
+    <Style Selector="NumericUpDown">
+      <Setter Property="Background" Value="{StaticResource SurfaceSunken}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource StrokeSubtle}"/>
+      <Setter Property="Foreground" Value="{StaticResource InkPrimary}"/>
+    </Style>
+    <Style Selector="ComboBox">
+      <Setter Property="Background" Value="{StaticResource SurfaceSunken}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource StrokeSubtle}"/>
+      <Setter Property="Foreground" Value="{StaticResource InkPrimary}"/>
+    </Style>
+    <!-- Container pass: a section is a CARD - fill above the page, 1px edge, accent-tinted header strip.
+         Three values (page -> card -> strip) is what survives at a distance. -->
+    <Style Selector="Border.scard">
+      <Setter Property="Background" Value="{StaticResource SurfaceSection}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource FlatEdge}"/>
+      <Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="12"/>
+    </Style>
+    <!-- Header strip: SurfaceAmberSoft, i.e. the accent at ~14% - keyed and in ThemeService's swap
+    table, so the tint follows the theme to purple instead of stranding amber on a purple page. -->
+    <!-- No fill: chrome is never a card. One header treatment everywhere - gold small-caps + a hairline to
+         the right edge - is what lets a cardless page read as a sibling of a card page. -->
+    <Style Selector="Border.shead">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="16,14,16,4"/>
+    </Style>
+    <!-- ONE rule, running right from a LEFT-ANCHORED title to the card edge, fading away from the words. -->
+    <Style Selector="Border.shrule"><Setter Property="Height" Value="1"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
+    <Style Selector="StackPanel.sbody"><Setter Property="Margin" Value="18,6,18,6"/></Style>
+    <!-- BARE SECTION (the card rule): a card means several unlike things on a page, never chrome or a lone
+         object. These classes keep the section's NAME and RULE but drop the fill and frame. -->
+    <Style Selector="Border.barecard">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="0"/>
+    </Style>
+    <Style Selector="Border.sheadbare">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="2,0,2,10"/>
+    </Style>
+    <!-- Section-card STATE edges (Folders): the container carries the drive's condition. Fixed drive missing
+         = red alarm; removable unplugged = orange warning, not an error; just came back = brief green flash. -->
+    <Style Selector="Border.scard.problem"><Setter Property="BorderBrush" Value="{StaticResource ErrorRed}"/></Style>
+    <Style Selector="Border.scard.disconnected"><Setter Property="BorderBrush" Value="{StaticResource WarnOrange}"/></Style>
+    <Style Selector="Border.scard.reattached"><Setter Property="BorderBrush" Value="{StaticResource SuccessGreen}"/></Style>
+    <Style Selector="Border.scard.droptarget"><Setter Property="BorderBrush" Value="{StaticResource AccentAmber}"/></Style>
+    <!-- SECTION LABEL: left-anchored small caps, tracked wide, ONE rule to the right edge - what lets a
+         cardless page read as a sibling of a card page. Size comes off the ramp; readability first. -->
+    <Style Selector="TextBlock.sgh"><Setter Property="FontSize" Value="{StaticResource FontSection}"/><Setter Property="Foreground" Value="{StaticResource AccentAmber}"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="LetterSpacing" Value="{StaticResource TrackSection}"/><Setter Property="HorizontalAlignment" Value="Left"/><Setter Property="Margin" Value="0,0,14,0"/></Style>
+    <!-- first section under a band heading needs no rule: the heading already separates it. -->
+    <Style Selector="Border.section.top"><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="20,18,20,16"/></Style>
+    <!-- one setting per row: label + why on the left, control on the right -->
+    <!-- onboarding ToC row -->
+    <Style Selector="Button.toc">
+      <Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="10,7"/><Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/><Setter Property="HorizontalContentAlignment" Value="Left"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Button.toc:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{StaticResource SurfacePanel}"/></Style>
+    <!-- dashboard stat -->
+    <!-- wizard chrome -->
+    <!-- detail-pane tabs: sit at the pane's foot, so they read as a footer strip, not chrome -->
+    <!-- selected: same "you are here" language as the rail (raised fill + white + semibold), plus an amber
+         edge on the side touching the panel, so the tab reads as attached to its content -->
+    <!-- Avalonia's default selected-tab underline would fight the amber edge -->
+    <!-- errors announce themselves: the tab shouldn't rely on the user thinking to look -->
+    <!-- One card system (matches Status): SurfaceCard fill, no visible stroke, radius 10. The border is a
+         top-edge highlight only, so the state classes below can light it red/orange/green. -->
+    <!-- The device card sits INSIDE the section card, so it carries no outline of its own; its STATE tints
+         stay (fill only) and the colored edge moves to Border.scard so a bad drive frames the whole section. -->
+    <Style Selector="Button.devicecard">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/><Setter Property="CornerRadius" Value="0"/>
+    </Style>
+    <!-- The card body is not a click target (the actions are the inner buttons), so it holds its normal look
+         on hover/press; drop-target/problem/selected states are class-driven and keep their border. -->
+    <Style Selector="Button.devicecard:not(.problem):not(.disconnected):not(.reattached):pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource SurfacePanel}"/>
+    </Style>
+    <Style Selector="Button.devicecard:not(.problem):not(.disconnected):not(.reattached):pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource SurfacePanel}"/>
+    </Style>
+    <Style Selector="Button.devicecard.on"><Setter Property="Background" Value="Transparent"/></Style>
+    <!-- device error: a FIXED drive that should be present is offline (red alarm) -->
+    <Style Selector="Button.devicecard.problem"><Setter Property="Background" Value="{StaticResource SurfaceErrorDark2}"/></Style>
+    <!-- removable drive unplugged: a warning, not an error (orange + dimmed-orange fill) -->
+    <Style Selector="Button.devicecard.disconnected"><Setter Property="Background" Value="{StaticResource SurfaceWarnDark2}"/></Style>
+    <!-- removable drive just came back: a brief green "reconnected" flash before settling to normal -->
+    <Style Selector="Button.devicecard.reattached"><Setter Property="Background" Value="{StaticResource SurfaceOkDark2}"/></Style>
+    <!-- Removable flag ON: the ticked Removable button reads as an active toggle (accent-soft fill + accent
+         border/text) so "this folder is marked removable" is obvious at a glance, not just a tiny checkmark. -->
+    <!-- Amber GHOST: "this is the action here" without a fill, for rows whose remedy must stand out but
+         cannot all take the one filled primary (e.g. Log In on each signed-out secondary account). -->
+    <Style Selector="Button.ghost.attn"><Setter Property="BorderBrush" Value="{StaticResource StrokeAmberSoft}"/><Setter Property="Foreground" Value="{StaticResource AccentAmber}"/></Style>
+    <Style Selector="Button.ghost.attn:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{StaticResource SurfaceAmberSoft}"/><Setter Property="BorderBrush" Value="{StaticResource AccentAmber}"/><Setter Property="TextBlock.Foreground" Value="{StaticResource AccentAmber}"/></Style>
+    <Style Selector="Button.linky"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="Foreground" Value="{StaticResource AccentAmber}"/><Setter Property="FontSize" Value="12"/><Setter Property="Cursor" Value="Hand"/></Style>
+    <!-- THE VERDICT CLICK TARGET: no hover fill - interactivity rides the WORDS (headline warms to the
+         accent, numeral brightens) so the action reads without adding a shape to the page. -->
+    <!-- The resting color lives HERE, not on the TextBlock: a locally-set Foreground outranks every style
+         setter, so an inline Foreground would silently defeat the hover rule below. -->
+    <Style Selector="TextBlock.ledehead">
+      <Setter Property="Foreground" Value="{StaticResource InkPrimary}"/>
+    </Style>
+    <!-- (Details) is a LINK, and a link's color is not a status: white + underline, the settled link
+         treatment - the underline is what makes it read as a link rather than an aside. -->
+    <Style Selector="Button.ledebtn"><Setter Property="Cursor" Value="Hand"/></Style>
+    <Style Selector="Button.ledebtn TextBlock.ledelink">
+      <Setter Property="TextDecorations" Value="Underline"/>
+      <Setter Property="Opacity" Value="0.75"/>
+      <Setter Property="Transitions"><Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.12"/></Transitions></Setter>
+    </Style>
+    <!-- Hover brightens the LINK and nothing else. The headline is not a control and must not react. -->
+    <Style Selector="Button.ledebtn:pointerover TextBlock.ledelink"><Setter Property="Opacity" Value="1"/></Style>
+    <Style Selector="Button.ledebtn:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="Transparent"/></Style>
+    <Style Selector="Button.link"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="{StaticResource InkMuted}"/><Setter Property="BorderThickness" Value="0"/><Setter Property="FontSize" Value="12"/><Setter Property="Padding" Value="8,6"/></Style>
+    <Style Selector="Button.link:pointerover /template/ ContentPresenter"><Setter Property="TextBlock.Foreground" Value="{StaticResource InkPrimary}"/><Setter Property="Background" Value="Transparent"/></Style>
+    <!-- Rail bottom utility controls (collapse toggle + quit): borderless muted ghosts lifting a faint
+         surface on hover. The collapse chevron is amber (brand accent); Exit is NOT destructive, no red. -->
+    <!-- Vortex-style full-width collapse bar (V2 amber tint). Flat, stretches, deepens on hover. -->
+    <Style Selector="Button.railbar"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="CornerRadius" Value="5"/><Setter Property="Padding" Value="11,9"/><Setter Property="HorizontalAlignment" Value="Stretch"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Cursor" Value="Hand"/></Style>
+    <Style Selector="Button.railbar:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{StaticResource SurfaceRaised}"/></Style>
+    <!-- Rail section header (ON GOG / ON DISK), expanded only. -->
+    <!-- Flat search field (in the filter card): stays transparent through hover/focus instead of showing the
+         default dark box + hard border. Editing is signaled only by a soft amber underline, not a stark box. -->
+    <Style Selector="TextBox.flatsearch /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
+    <Style Selector="TextBox.flatsearch:pointerover /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/></Style>
+    <Style Selector="TextBox.flatsearch:focus /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="{StaticResource StrokeAmberSoft}"/>
+      <Setter Property="BorderThickness" Value="0,0,0,1"/></Style>
+    <!-- Type badge on the rare non-Game grid row (Type column dropped) -->
+    <!-- Type badge (rare Mod/Movie title rows): border + text tint come from the per-row TypeBadgeBrush
+         (the shared content-type color), so it matches that type's chip/square/legend. -->
+    <Style Selector="Border.typebadge"><Setter Property="Background" Value="{StaticResource SurfaceRaised}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="4"/><Setter Property="Padding" Value="5,1"/></Style>
+    <Style Selector="Border.typebadge TextBlock"><Setter Property="FontSize" Value="9.5"/><Setter Property="FontWeight" Value="Bold"/></Style>
+    <!-- per-file OS badge in the Details pane (Win/Mac/Linux) -->
+    <!-- Account disc: the Owner-column badge, the Accounts card legend and the Cloud Saves header wear the
+         SAME disc (three copies before 09-02). No ring: the disc is just its fill; a dark separation ring
+         reads as a black stroke. Stretch + TextAlignment (not HorizontalAlignment=Center): centering the
+         TextBlock centers its layout box and the glyph sits off inside it; the -1 lifts to the optical center. -->
+    <Style Selector="Border.acctdisc"><Setter Property="Width" Value="22"/><Setter Property="Height" Value="22"/><Setter Property="CornerRadius" Value="11"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
+    <Style Selector="Border.acctdisc TextBlock"><Setter Property="FontSize" Value="11.5"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="HorizontalAlignment" Value="Stretch"/><Setter Property="TextAlignment" Value="Center"/><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="Margin" Value="0,-1,0,0"/></Style>
+    <!-- Type chip: ONE treatment at every site (details file row, download pill, queue row, device grid).
+         Colour binds per row (fill/stroke/ink from the type); the shape lives here so the four never drift. -->
+    <Style Selector="Border.typechip"><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="{StaticResource RadiusCard}"/><Setter Property="Padding" Value="10,3"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
+    <Style Selector="Border.typechip TextBlock"><Setter Property="FontSize" Value="{StaticResource FontCaption}"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+    <Style Selector="Border.osbadge"><Setter Property="Background" Value="{StaticResource SurfaceRaised}"/><Setter Property="BorderBrush" Value="{StaticResource StrokeStrong}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="3"/><Setter Property="Padding" Value="4,0"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
+    <Style Selector="Border.osbadge TextBlock"><Setter Property="FontSize" Value="9.5"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="Foreground" Value="{StaticResource InkMuted}"/></Style>
+    <!-- Filter chips (Type + Extras): inactive = neutral outline; active = amber-tinted. The color swatch
+         (extras) always shows; only active chips carry the highlight fill. -->
+    <Style Selector="Border.chipdiv"><Setter Property="Width" Value="1"/><Setter Property="Height" Value="24"/><Setter Property="Background" Value="{StaticResource StrokeStrong}"/><Setter Property="Margin" Value="3,0"/></Style>
+    <!-- Chip tile: the color swatch grown into a rounded tile that carries a white type glyph inside. -->
+    <Style Selector="Border.chipcard"><Setter Property="Padding" Value="8,5"/></Style>
+    <!-- Icon-only tier is COMPACT: at 1366 the nine chips otherwise overflow by ~half a chip and the
+         row clips into its scroll fallback, which reads as broken. Trimmed padding fits all nine. -->
+    <Style Selector="Button.chipbtn.compact Border.chipcard"><Setter Property="Padding" Value="5,5"/></Style>
+    <Style Selector="Border.chiptile"><Setter Property="Width" Value="16"/><Setter Property="Height" Value="16"/><Setter Property="CornerRadius" Value="4"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
+    <!-- chip = a bare (invisible) button wrapping a Border we fully control, so the button theme never
+         fights the per-chip bound colors on hover/press. -->
+    <Style Selector="Button.chipbtn"><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="0"/><Setter Property="Cursor" Value="Hand"/></Style>
+    <Style Selector="Button.chipbtn /template/ ContentPresenter"><Setter Property="Background" Value="Transparent"/></Style>
+    <Style Selector="Button.chipbtn:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="Transparent"/></Style>
+    <Style Selector="Button.chipbtn:pressed /template/ ContentPresenter"><Setter Property="Background" Value="Transparent"/></Style>
+    <Style Selector="Button.chipbtn:pointerover Border"><Setter Property="Opacity" Value="0.82"/></Style>
+    <!-- extras square dimmed when an Extras filter is active and this type isn't the matched one -->
+    <Style Selector="StackPanel.exdim"><Setter Property="Opacity" Value="0.3"/></Style>
+    <Style Selector="TextBlock.filteron"><Setter Property="FontWeight" Value="Bold"/><Setter Property="Foreground" Value="{StaticResource InkPrimary}"/></Style>
+    <Style Selector="Button.filterarrow"><Setter Property="Foreground" Value="{StaticResource AccentAmber}"/><Setter Property="Opacity" Value="0.5"/></Style>
+    <Style Selector="Button.filterarrow:pointerover"><Setter Property="Opacity" Value="1"/></Style>
+    <Style Selector="Button.filterarrow.filteron"><Setter Property="Foreground" Value="{StaticResource AccentAmber}"/><Setter Property="Opacity" Value="1"/><Setter Property="FontWeight" Value="Bold"/></Style>
+    <Style Selector="RadioButton:checked /template/ Ellipse#CheckGlyph"><Setter Property="Fill" Value="{StaticResource SurfaceNeutralDark}"/></Style>
+    <Style Selector="RadioButton:checked /template/ Ellipse#CheckOuterEllipse"><Setter Property="Fill" Value="{StaticResource AccentAmber}"/><Setter Property="Stroke" Value="{StaticResource AccentAmber}"/></Style>
+    <Style Selector="RadioButton:checked /template/ Ellipse#OuterEllipse"><Setter Property="Stroke" Value="{StaticResource AccentAmber}"/></Style>
+    <Style Selector="RadioButton:checked:pointerover /template/ Ellipse#CheckOuterEllipse"><Setter Property="Fill" Value="{StaticResource AccentAmber}"/><Setter Property="Stroke" Value="{StaticResource AccentAmber}"/></Style>
+    <Style Selector="RadioButton:checked:pointerover /template/ Ellipse#CheckGlyph"><Setter Property="Fill" Value="{StaticResource SurfaceNeutralDark}"/></Style>
+    <Style Selector="Button.filedl"><Setter Property="Background" Value="{StaticResource SurfaceRaised}"/><Setter Property="BorderBrush" Value="{StaticResource AccentAmber}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="4"/><Setter Property="Cursor" Value="Hand"/></Style>
+    <Style Selector="Button.filedl:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="{StaticResource SurfaceAmberDark2}"/></Style>
+
+    <!-- Shared draggable-divider look: thin center line + grip that brightens to amber on hover, plus the
+         resize cursor; every adjustable vertical splitter reads the same way. -->
+    <!-- Flat variant (softening pass): no continuous line, just the resize grip. Used between the grid card and
+         the Details pane so they connect via a resize selector, not a hard divider. -->
+    <!-- Barely-there hint at rest: a short, faint gray grip signals the seam is grabbable without drawing the
+         eye; on hover it brightens to amber + full opacity (with the resize cursor). Draggable for long filenames. -->
+    <Style Selector="GridSplitter.dividerflat">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Cursor" Value="SizeWestEast"/>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Panel Background="Transparent">
+            <Border x:Name="grip" Width="3" Height="30" CornerRadius="2" HorizontalAlignment="Center"
+                    VerticalAlignment="Center" Background="{StaticResource StrokeSubtle}" Opacity="0.22">
+              <Border.Transitions>
+                <Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.12"/></Transitions>
+              </Border.Transitions>
+            </Border>
+          </Panel>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="GridSplitter.dividerflat:pointerover /template/ Border#grip">
+      <Setter Property="Background" Value="{StaticResource AccentAmber}"/>
+      <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <!-- COLUMN divider: dividerflat's 3x30 grip is too weak between two PEER REGIONS, so this variant adds
+         a full-height neutral rule and the columns read as two objects. -->
+    <Style Selector="GridSplitter.dividercol">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Cursor" Value="SizeWestEast"/>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Panel Background="Transparent">
+            <Border Width="1" HorizontalAlignment="Center" VerticalAlignment="Stretch"
+                    Background="{StaticResource ColumnDividerBrush}"/>
+            <Border x:Name="grip" Width="3" Height="34" CornerRadius="2" HorizontalAlignment="Center"
+                    VerticalAlignment="Center" Background="{StaticResource StrokeStronger}" Opacity="0.5">
+              <Border.Transitions>
+                <Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.12"/></Transitions>
+              </Border.Transitions>
+            </Border>
+          </Panel>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="GridSplitter.dividercol:pointerover /template/ Border#grip">
+      <Setter Property="Background" Value="{StaticResource AccentAmber}"/>
+      <Setter Property="Opacity" Value="1"/>
+    </Style>
+
+    <!-- Horizontal variant of the same grip look, for splitters that resize rows (e.g. Moving/Downloading). -->
+    <Style Selector="GridSplitter.dividerh">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Cursor" Value="SizeNorthSouth"/>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Panel Background="Transparent">
+            <Border Height="1" VerticalAlignment="Center" HorizontalAlignment="Stretch" Background="{StaticResource SurfaceStroke}"/>
+            <Border x:Name="grip" Height="4" Width="42" CornerRadius="2" VerticalAlignment="Center"
+                    HorizontalAlignment="Center" Background="{StaticResource StrokeSubtle}"/>
+          </Panel>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="GridSplitter.dividerh:pointerover /template/ Border#grip"><Setter Property="Background" Value="{StaticResource AccentAmber}"/></Style>
+</Styles>

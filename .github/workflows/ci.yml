@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  # Run the paid-multiplier legs (Windows 2x, macOS 10x) on demand only - see the job-level ifs.
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore Grog.slnx
+
+      - name: Build (warnings as errors)
+        run: dotnet build Grog.slnx --no-restore --configuration Release -warnaserror
+
+      # Grog uses a custom reflection-based test runner (no test NuGet packages),
+      # so tests are executed by running the test project rather than `dotnet test`.
+      - name: Run tests
+        run: dotnet run --project tests/Grog.Core.Tests --configuration Release
+
+  # Windows build is where the WebView login and native bits matter most.
+  # Kept build-only for now (no display for GUI tests in CI); the Core tests
+  # above are the cross-platform correctness gate.
+  build-windows:
+    # MANUAL ONLY (owner call 08-30): Windows minutes bill at 2x, and every push was burning them.
+    # The ubuntu job stays the per-push correctness gate; run this from the Actions tab near release.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        run: dotnet restore Grog.slnx
+      - name: Build
+        run: dotnet build Grog.slnx --no-restore --configuration Release
+      - name: Run tests
+        run: dotnet run --project tests/Grog.Core.Tests --configuration Release
+
+  # macOS is a first-class release target; compile + suite proof on every push, same as Windows.
+  build-macos:
+    # MANUAL ONLY (owner call 08-30): macOS minutes bill at 10x - this job alone drained August's
+    # included pool. Run it from the Actions tab when release feels close, and on the free public repo.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        run: dotnet restore Grog.slnx
+      - name: Build
+        run: dotnet build Grog.slnx --no-restore --configuration Release
+      - name: Run tests
+        run: dotnet run --project tests/Grog.Core.Tests --configuration Release

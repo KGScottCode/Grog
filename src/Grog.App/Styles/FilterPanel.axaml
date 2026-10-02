@@ -1,0 +1,37 @@
+<!-- Column-header filter popup body (see Controls/FilterPanel.cs). -->
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:ctl="using:Grog.App.Controls"
+                    xmlns:vm="using:Grog.App.ViewModels">
+  <ControlTheme x:Key="{x:Type ctl:FilterPanel}" TargetType="ctl:FilterPanel">
+    <Setter Property="MinWidth" Value="170"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource StrokeSubtle}" BorderThickness="1"
+                CornerRadius="{StaticResource RadiusChip}" Padding="6" MinWidth="{TemplateBinding MinWidth}">
+          <StackPanel Spacing="1">
+            <TextBlock Text="{TemplateBinding Heading}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontEyebrow}" Margin="6,3,6,5"/>
+            <ItemsControl ItemsSource="{TemplateBinding ItemsSource}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:FilterOption">
+                  <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" Margin="4,1" Padding="6,0,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                      <!-- The extras column's legend square; collapsed for options without one. -->
+                      <Border Width="10" Height="10" CornerRadius="2" Background="{Binding Swatch}" IsVisible="{Binding HasSwatch}" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding Label}" Foreground="{StaticResource InkPrimary}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </CheckBox>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Border Height="1" Background="{StaticResource SurfaceStroke}" Margin="4,5"/>
+            <Grid ColumnDefinitions="*,*" Margin="4,0,4,2">
+              <Button Grid.Column="0" Content="All" Classes="link" Command="{TemplateBinding AllCommand}" CommandParameter="{TemplateBinding FilterKey}" HorizontalAlignment="Left"/>
+              <Button Grid.Column="1" Content="None" Classes="link" Command="{TemplateBinding NoneCommand}" CommandParameter="{TemplateBinding FilterKey}" HorizontalAlignment="Right"/>
+            </Grid>
+          </StackPanel>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </ControlTheme>
+</ResourceDictionary>

@@ -1,0 +1,43 @@
+{
+  "profiles": {
+    "all tests": {
+      "commandName": "Project"
+    },
+    "cloud saves only (2a reconciler)": {
+      "commandName": "Project",
+      "commandLineArgs": "cloud"
+    },
+    "reorg only": {
+      "commandName": "Project",
+      "commandLineArgs": "reorg"
+    },
+    "integration only": {
+      "commandName": "Project",
+      "commandLineArgs": "integration"
+    },
+    "spill only (PlacementPolicy)": {
+      "commandName": "Project",
+      "commandLineArgs": "spill"
+    },
+    "fit-check only (BackupFitCheck)": {
+      "commandName": "Project",
+      "commandLineArgs": "fit"
+    },
+    "device/tracking only": {
+      "commandName": "Project",
+      "commandLineArgs": "tracking"
+    },
+    "exit codes only (CliExit)": {
+      "commandName": "Project",
+      "commandLineArgs": "exitcode"
+    },
+    "backup config only": {
+      "commandName": "Project",
+      "commandLineArgs": "backupconfig"
+    },
+    "token freshness only": {
+      "commandName": "Project",
+      "commandLineArgs": "freshness"
+    }
+  }
+}

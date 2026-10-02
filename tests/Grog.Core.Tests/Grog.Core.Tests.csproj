@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <!-- Custom framework (Framework/TestRunner.cs), MRServer-style: no test packages.
+         Run with F5 (startup project) or dotnet run (optional trait arg); exit code gates CI. -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Grog.Core\Grog.Core.csproj" />
+    <ProjectReference Include="..\..\src\Grog.App\Grog.App.csproj" />
+  </ItemGroup>
+
+</Project>

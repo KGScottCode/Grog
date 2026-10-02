@@ -1,0 +1,58 @@
+{
+  "profiles": {
+    "01  backup --show-config   (SAFE: plan + sources, nothing runs)": {
+      "commandName": "Project",
+      "commandLineArgs": "backup --show-config"
+    },
+    "02  download --dry-run   (SAFE: selection only, nothing queued)": {
+      "commandName": "Project",
+      "commandLineArgs": "download --dry-run"
+    },
+    "03  download --largest 2   (FETCHES the 2 biggest: settles, journals, checkpoints; Ctrl-C = exit 1)": {
+      "commandName": "Project",
+      "commandLineArgs": "download --largest 2"
+    },
+    "04  runs   (the journal 03 just wrote)": {
+      "commandName": "Project",
+      "commandLineArgs": "runs"
+    },
+    "05  --json backup --extras-only --extra-type manuals --largest 2   (scan + FETCH 2 manuals + verify: one JSON doc, exit 0/4/7/8)": {
+      "commandName": "Project",
+      "commandLineArgs": "--json backup --extras-only --extra-type manuals --largest 2"
+    },
+    "06  --json download --extras-only --extra-type manuals --largest 2   (the next 2 manuals: JSON shape with failures list)": {
+      "commandName": "Project",
+      "commandLineArgs": "--json download --extras-only --extra-type manuals --largest 2"
+    },
+    "07  ordersprobe   (SAFE: read-only research -- order shape + how many products it can date)": {
+      "commandName": "Project",
+      "commandLineArgs": "ordersprobe",
+      "environmentVariables": {
+        "GROG_DEV_VERBS": "1"
+      }
+    },
+    "08  list --new   (SAFE: just the items flagged New)": {
+      "commandName": "Project",
+      "commandLineArgs": "list --new"
+    },
+    "09  clear-new --all   (clears the New flag on every item: the baseline reset)": {
+      "commandName": "Project",
+      "commandLineArgs": "clear-new --all"
+    },
+    "10  mark-new --all   (DEV: re-arms every item as New, to replay the New-items test)": {
+      "commandName": "Project",
+      "commandLineArgs": "mark-new --all",
+      "environmentVariables": {
+        "GROG_DEV_VERBS": "1"
+      }
+    },
+    "11  --json dates   (fills in acquisition dates: 4 requests the first time, 1 after, 0 once all dated)": {
+      "commandName": "Project",
+      "commandLineArgs": "--json dates"
+    },
+    "12  dates --force   (re-walks EVERY order page, ignoring the top-up shortcut: use only if 11 left a gap)": {
+      "commandName": "Project",
+      "commandLineArgs": "dates --force"
+    }
+  }
+}

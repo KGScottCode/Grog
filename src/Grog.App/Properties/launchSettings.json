@@ -1,0 +1,26 @@
+{
+  "profiles": {
+    "app remembered window": {
+      "commandName": "Project"
+    },
+    "app 1920x1080": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "GROG_FIXED_WINDOW": "1"
+      }
+    },
+    "app 1366x768": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "GROG_FIXED_WINDOW": "1",
+        "GROG_WINDOW_SIZE": "1366x768"
+      }
+    },
+    "app update-check rehearsal": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "GROG_UPDATE_API": "https://api.github.com/repos/AvaloniaUI/Avalonia/releases/latest"
+      }
+    }
+  }
+}

@@ -1,0 +1,1807 @@
+<!-- Startup size is fixed at 1920x1080 (the smallest screen Grog claims to support, matching the render
+     harness). REVISIT BEFORE RELEASE: must become a remembered size or a work-area fraction. -->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Grog.App.ViewModels"
+        xmlns:ctl="using:Grog.App.Controls"
+        xmlns:pages="using:Grog.App.Views.Pages"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1180" d:DesignHeight="760"
+        x:Class="Grog.App.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title=""
+        Width="1920" Height="1080"
+        MinWidth="900" MinHeight="560"
+        Background="{StaticResource SurfaceBg}">
+
+  <!-- Theme hot-switch: Ctrl+1/2/3 = Default / Ode to GOG / Tavern from anywhere; same command the
+       Settings cards use, so persistence and the live re-tint come for free. -->
+  <Window.KeyBindings>
+    <KeyBinding Gesture="Ctrl+D1" Command="{Binding Settings.SetThemeCommand}" CommandParameter="default"/>
+    <KeyBinding Gesture="Ctrl+D2" Command="{Binding Settings.SetThemeCommand}" CommandParameter="gog"/>
+    <KeyBinding Gesture="Ctrl+D3" Command="{Binding Settings.SetThemeCommand}" CommandParameter="tavern"/>
+    <KeyBinding Gesture="Ctrl+NumPad1" Command="{Binding Settings.SetThemeCommand}" CommandParameter="default"/>
+    <KeyBinding Gesture="Ctrl+NumPad2" Command="{Binding Settings.SetThemeCommand}" CommandParameter="gog"/>
+    <KeyBinding Gesture="Ctrl+NumPad3" Command="{Binding Settings.SetThemeCommand}" CommandParameter="tavern"/>
+  </Window.KeyBindings>
+
+  <Window.Resources>
+    <!-- Kill the white current-cell/focus box so selection reads as full-row only (these are the brushes
+         the DataGridCell template paints that box with). -->
+    <SolidColorBrush x:Key="DataGridCellFocusVisualPrimaryBrush" Color="Transparent"/>
+    <SolidColorBrush x:Key="DataGridCellFocusVisualSecondaryBrush" Color="Transparent"/>
+    <SolidColorBrush x:Key="DataGridCurrencyVisualPrimaryBrush" Color="Transparent"/>
+
+    <!-- THE details file row (game files and extras shared it as two copies before 09-02). -->
+    <DataTemplate x:Key="DetailFileRowTemplate" x:DataType="vm:DetailFileRow">
+      <!-- Background=Transparent: a panel with no brush is not hit-testable in its gaps, so the right-click
+           menu only opened on the text itself (owner-hit 09-17). The whole row is the target now. -->
+      <StackPanel Margin="0,0,0,7" Spacing="3" Background="Transparent">
+        <StackPanel.ContextMenu>
+          <ContextMenu>
+            <MenuItem Header="Confirm downloaded" IsVisible="{Binding ShowStateActions}"
+                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Library.ConfirmFileCommand}"
+                      CommandParameter="{Binding}"/>
+            <MenuItem Header="Mark as Not Backed Up" IsVisible="{Binding ShowStateActions}"
+                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Library.MarkFileNotBackedUpCommand}"
+                      CommandParameter="{Binding}"/>
+            <MenuItem Header="Mark as Missing" IsVisible="{Binding ShowStateActions}"
+                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Library.MarkFileMissingCommand}"
+                      CommandParameter="{Binding}"/>
+            <Separator IsVisible="{Binding ShowStateActions}"/>
+            <MenuItem Header="Delete downloaded file" Foreground="{StaticResource ErrorRedBright}"
+                      Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Library.DeleteFileCommand}"
+                      CommandParameter="{Binding}"/>
+          </ContextMenu>
+        </StackPanel.ContextMenu>
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+            <!-- Badge column: slim for an OS badge (WIN/MAC/LINUX), wide for a type chip ("Soundtracks"),
+                 so the filename keeps the width the badge does not need. Measured widths, per row kind. -->
+            <ColumnDefinition Width="Auto" MinWidth="{Binding BadgeColumnMinWidth}"/><ColumnDefinition Width="58"/>
+          </Grid.ColumnDefinitions>
+          <Button Grid.Column="0" Classes="filedl" Padding="0" Width="20" Height="20" Margin="0,0,7,0"
+                  IsVisible="{Binding ShowDownloadButton}" IsEnabled="{Binding ArrowEnabled}" BorderBrush="{Binding ArrowBrush}"
+                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DownloadFileCommand}"
+                  CommandParameter="{Binding}" ToolTip.Tip="Download just this file">
+            <TextBlock Text="↓" Foreground="{Binding ArrowBrush}" FontWeight="Bold" FontSize="{StaticResource FontCaption}" HorizontalAlignment="Center"/>
+          </Button>
+          <!-- x:Name for the guide: once the demo file lands, its download arrow is hidden and
+               the ring had nothing to hold, so the caption fell to its no-target corner. The guide
+               moves to THIS tick on the same row instead. Data-matched like the arrow, since every
+               file row carries one. -->
+          <TextBlock x:Name="GuideFileDone" Grid.Column="0" Text="✓" Foreground="{StaticResource SuccessGreen}" FontWeight="Bold" FontSize="{StaticResource FontCaption}" Width="20" Margin="0,0,7,0"
+                     HorizontalAlignment="Center" IsVisible="{Binding ShowHaveIt}"/>
+          <!-- Paused: gray double bars, matching the Pause button glyph. -->
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="2" Width="20" Margin="0,0,7,0"
+                      HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding ShowPauseGlyph}">
+            <Rectangle Width="3" Height="11" RadiusX="1" RadiusY="1" Fill="{StaticResource InkMuted}"/>
+            <Rectangle Width="3" Height="11" RadiusX="1" RadiusY="1" Fill="{StaticResource InkMuted}"/>
+          </StackPanel>
+          <Border Grid.Column="1" Width="7" Height="7" CornerRadius="{StaticResource RadiusChip}" Background="{Binding StateBrush}" VerticalAlignment="Center" Margin="0,0,7,0"
+                  IsVisible="{Binding !ShowHaveIt}" ToolTip.Tip="{Binding VerifyTooltip}"/>
+          <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="0">
+            <TextBlock Text="{Binding RowTitle}" Foreground="White" FontSize="{StaticResource FontBody}" TextTrimming="CharacterEllipsis"/>
+            <TextBlock Text="{Binding RowSubtitle}" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}" IsVisible="{Binding ShowSubtitle}" TextTrimming="CharacterEllipsis"/>
+          </StackPanel>
+          <Border Grid.Column="3" Classes="osbadge" HorizontalAlignment="Right" Margin="0,0,8,0" IsVisible="{Binding ShowOsBadge}" BorderBrush="{Binding OsBadgeBrush}"><TextBlock Text="{Binding OsBadge}" Foreground="{Binding OsBadgeBrush}"/></Border>
+          <Border Grid.Column="3" Classes="typechip" Background="{Binding ExtraTypeFill}" BorderBrush="{Binding ExtraTypeBorder}" Margin="0,0,8,0" HorizontalAlignment="Right"
+                  IsVisible="{Binding Descriptor, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+            <TextBlock Text="{Binding Descriptor}" Foreground="{Binding ExtraTypeText}"/>
+          </Border>
+          <TextBlock Grid.Column="4" Text="{Binding SizeText}" Foreground="White" FontSize="{StaticResource FontBody}" TextAlignment="Right" VerticalAlignment="Center"/>
+        </Grid>
+        <ProgressBar Classes="slim" Margin="27,0,0,0"
+                     Value="{Binding InlinePercent}" IsVisible="{Binding ShowInlineBar}"
+                     Foreground="{StaticResource AccentAmber}" Background="{StaticResource SurfaceRaised}"/>
+      </StackPanel>
+    </DataTemplate>
+  </Window.Resources>
+
+  <Window.Styles>
+    <StyleInclude Source="avares://Grog/Styles/MainWindow.axaml"/>
+  </Window.Styles>
+
+  <!-- root: a Panel wrapping the whole window so the corner light (last child) sits ABOVE the title bar
+       too - one frameless surface lit from its own top-left. SurfaceBg is a fallback; BASE SURFACE fills. -->
+  <Panel Background="{StaticResource SurfaceBg}">
+
+  <!-- BASE SURFACE (full-height, column-aware): rail fill left of the rail-width boundary, canvas fill
+       right, both running BEHIND the transparent title bar - this is what kills the horizontal seam at y=34.
+       The rail column tracks RailWidth (OneWay) so the boundary follows the rail expand/collapse. -->
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="{Binding RailWidth}"/>
+      <ColumnDefinition Width="*"/>
+    </Grid.ColumnDefinitions>
+    <!-- ONE fill spanning BOTH columns: two side-by-side ramps quantise their 8-bit bands on different rows
+         and the staggered edges read as a ragged staircase down the rail edge; one fill makes a seam impossible.
+         The rail's identity is its brand glow, foot shadow and nav highlight, not a separate fill. -->
+    <Border Grid.ColumnSpan="2" Background="{StaticResource CanvasGlow}"/>
+    <!-- About's scene at WINDOW level: spans BOTH columns on the base fill so it runs continuously under the
+         rail; the rail's glow, shadow and highlights sit on top. IsHitTestVisible=False - light is not
+         clickable. GATED TO ABOUT; every other page is a working surface. -->
+    <Panel Grid.ColumnSpan="2" IsHitTestVisible="False" ClipToBounds="True"
+           IsVisible="{Binding ShowAboutView}">
+      <!-- Fades to BLACK, not to the page: the source art bottoms out at #000000, so About gets its own black
+           base and the scrim and vignette resolve to black too - the one page allowed to leave the canvas color. -->
+      <Border Background="#000000"/>
+      <!-- x:Name for ApplyAboutScene: the source follows the theme (purple-graded variant in Ode to GOG). -->
+      <Image x:Name="AboutScene" Source="avares://Grog/Assets/tavern-landscape.png" Stretch="UniformToFill" Opacity="0.92"
+             HorizontalAlignment="Stretch" VerticalAlignment="Center"
+             RenderTransformOrigin="50%,55%" RenderTransform="scale(1.30)"/>
+      <Border Background="#000000" Opacity="0.30"/>
+      <!-- Radii 50%: the ellipse touches the window's sides exactly, so full page color lands ON the edges and
+           the corners sit past the last stop and clamp to it. Gentleness is the STOP SPACING, not the radius. -->
+      <Border>
+        <Border.Background>
+          <RadialGradientBrush Center="50%,50%" GradientOrigin="50%,50%" RadiusX="50%" RadiusY="50%">
+            <GradientStop Offset="0.34" Color="#00000000"/>
+            <GradientStop Offset="0.58" Color="#33000000"/>
+            <GradientStop Offset="0.80" Color="#99000000"/>
+            <GradientStop Offset="1.0"  Color="#FF000000"/>
+          </RadialGradientBrush>
+        </Border.Background>
+      </Border>
+    </Panel>
+  </Grid>
+  <!-- FLOOR shadow: full window width so the foot darkens uniformly under BOTH rail and canvas, reaching
+       the bottom-right. Behind the app content; click-through. -->
+  <Border Height="120" VerticalAlignment="Bottom" IsHitTestVisible="False"
+          Background="{StaticResource RailFootShadow}"/>
+
+  <DockPanel LastChildFill="True">
+
+    <!-- CUSTOM TITLE BAR (frameless chrome): the whole strip is a drag region (OnTitleBarPressed: move +
+         double-click maximize); left is empty (identity lives in the rail); right = own min/max/close. -->
+    <Border DockPanel.Dock="Top" x:Name="TitleBar" Height="34" Background="Transparent"
+            PointerPressed="OnTitleBarPressed">
+      <Grid ColumnDefinitions="*,Auto">
+        <!-- Hidden on macOS (code-behind): the native traffic lights stay with the extended client area
+             there, so these would DUPLICATE them - and the native ones minimize/close correctly where the
+             custom pair misbehaved (MacinCloud 2026-08-28: minimize bounced back, close did nothing). The
+             red light still routes through Closing, so the close-confirm logic is untouched. -->
+        <StackPanel Grid.Column="1" Orientation="Horizontal" x:Name="CustomCaptionButtons">
+          <Button Classes="winbtn" Click="OnMinimize" ToolTip.Tip="Minimize">
+            <Path Width="11" Height="11" Data="M1,6 H10" Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.3"/>
+          </Button>
+          <Button Classes="winbtn" Click="OnMaxRestore" ToolTip.Tip="Maximize / Restore">
+            <Path Width="10" Height="10" Data="M0.6,0.6 H9.4 V9.4 H0.6 Z" Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.2" Fill="Transparent"/>
+          </Button>
+          <Button Classes="winbtn close" Click="OnClose" ToolTip.Tip="Close (Exit Grog)">
+            <Path Width="11" Height="11" Data="M1,1 L10,10 M10,1 L1,10" Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.3"/>
+          </Button>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- everything else (app + full-window overlays) fills below the title bar -->
+    <Panel>
+
+    <!-- ===================== FULL APP (rail + main) ===================== -->
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <!-- Rail: TwoWay so the splitter's drag writes back + persists. Min/Max pin the collapsed rail to a
+             fixed 60px strip (min == max) and give the expanded rail a drag range. -->
+        <ColumnDefinition Width="{Binding RailWidth, Mode=TwoWay}"
+                          MinWidth="{Binding RailMinWidth}" MaxWidth="{Binding RailMaxWidth}"/>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+
+      <!-- LEFT RAIL: sits a shade back from the canvas with a soft right edge, separating by LIGHT rather
+           than a stroke. Warm at the head (brand), shadow at the foot: ONE light source, from above. -->
+      <!-- GuideRail: the whole rail column. The finish step spotlights this rather than one nav item because
+           its two stops (Cloud Saves, Settings) sit in different groups. -->
+      <Panel x:Name="GuideRail" Grid.Column="0">
+        <!-- Rail fill, foot shadow and right edge live in the BASE SURFACE (full-height, behind the title bar);
+             this panel is just the rail's content. -->
+        <DockPanel Margin="5,14,0,0">
+          <!-- Brand at the top; the collapse toggle lives in the bottom utility strip. Wordmark: amber "R"
+               dropped a few px off the baseline as intentional flair, echoing GOG's own R-quirk. -->
+          <StackPanel DockPanel.Dock="Top" Margin="0,-6,0,14">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" IsVisible="{Binding RailExpanded}">
+              <TextBlock Text="G" FontSize="40" FontWeight="Bold" Foreground="{StaticResource InkPrimary}"/>
+              <TextBlock Text="R" FontSize="40" FontWeight="Bold" Foreground="{StaticResource AccentAmber}" Margin="0,7,0,0"/>
+              <TextBlock Text="OG" FontSize="40" FontWeight="Bold" Foreground="{StaticResource InkPrimary}"/>
+            </StackPanel>
+            <!-- Collapsed: the amber G tile (matches the app/taskbar icon). Solid accent so it follows the theme
+                 (purple in Ode to GOG) just like the window icon. -->
+            <Border Width="42" Height="42" CornerRadius="{StaticResource RadiusCard}" HorizontalAlignment="Center" IsVisible="{Binding RailCollapsed}"
+                    Background="{StaticResource BrandTileBrush}">
+              <TextBlock Text="G" FontWeight="Bold" FontSize="27" Foreground="{StaticResource BrandTileInk}"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+          </StackPanel>
+
+
+          <StackPanel DockPanel.Dock="Top" Spacing="2" Margin="0,30,0,0" Classes.railcollapsed="{Binding RailCollapsed}">
+            <!-- Overview is ungrouped and FIRST: it answers "am I protected?", so it is not filed under a
+                 location. Its icon carries live state, useful even with the rail collapsed. -->
+            <Button x:Name="GuideNavOverview" Classes="nav" Classes.on="{Binding NavOverviewOn}" Command="{Binding NavigateCommand}" CommandParameter="Overview" ToolTip.Tip="{Binding Overview.HealthVerdict}">
+              <!-- Grid with a star spacer, matching Library/Cloud/Folders: every rail readout's RIGHT edge
+                   aligns to the same inset. -->
+              <Grid ColumnDefinitions="Auto,*,Auto,Auto" RowDefinitions="Auto,Auto,Auto" HorizontalAlignment="Stretch">
+                <Path Grid.Column="0" Grid.RowSpan="3" Width="19" Height="19" Stretch="Uniform" StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                      VerticalAlignment="Top" Margin="0,1,0,0"
+                      Stroke="{Binding Overview.HealthDotBrush}" Data="{StaticResource IconHealthPulse}"/>
+                <TextBlock Grid.Column="1" Text="Overview" VerticalAlignment="Center" Margin="12,0,0,0" IsVisible="{Binding RailExpanded}"
+                           HorizontalAlignment="Left" TextTrimming="CharacterEllipsis"/>
+                <!-- (Rail exceptions 09-09) The two count pills that sat here are GONE. The red "N issues"
+                     badge duplicated Library's own missing/corrupt lines, and the queue pill painted a count
+                     red for "blocked" ; but red means loss or breakage, never "not done yet" (owner). Both
+                     now speak through the exception stack below, in the rail's one style. -->
+                <!-- (UX 09-08 #6) Second line: the verb, quiet monospace. Only when the rail is expanded and
+                     status is shown; InkDim (6.5:1 on the rail) - InkMuted would fail 4.5:1. -->
+                <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding Overview.RailOverviewSub}" Foreground="{Binding Overview.RailOverviewSubBrush}"
+                           FontSize="{StaticResource FontEyebrow}" FontFamily="{StaticResource MonoFont}" FontWeight="Normal"
+                           Margin="12,0,4,0" TextTrimming="CharacterEllipsis" IsVisible="{Binding ShowRailCounts}"/>
+                <!-- (09-22) Two verbs at once (downloading AND moving) sit on two lines; the row grows with them. -->
+                              <!-- (Rail exceptions 09-09) Same stack as Library and Storage; see Library for the rationale. -->
+                <ItemsControl Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" ItemsSource="{Binding RailOverviewExceptions}"
+                              Margin="12,1,4,0" IsVisible="{Binding ShowRailCounts}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:RailException">
+                      <TextBlock Text="{Binding Text}" Foreground="{Binding Brush}"
+                                 FontSize="{StaticResource FontEyebrow}" FontFamily="{StaticResource MonoFont}"
+                                 TextTrimming="CharacterEllipsis"/>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </Grid>
+            </Button>
+            <!-- The direction groups start BELOW it. -->
+            <!-- FROM GOG / TO DISK say DIRECTION, not location: they teach the pipeline GOG -> Grog -> disk and
+                 settle the cloud-saves ambiguity (saves come FROM GOG even though they land on disk). -->
+            <Grid ColumnDefinitions="Auto,*" Margin="6,26,2,4" IsVisible="{Binding RailExpanded}">
+              <TextBlock Grid.Column="0" Text="GOG" Foreground="White" FontSize="{StaticResource FontEyebrow}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              <Border Grid.Column="1" Height="2" Background="{StaticResource AmberRuleFade}" Margin="10,0,0,0" VerticalAlignment="Center"/>
+            </Grid>
+            <Button x:Name="GuideNavLibrary" Classes="nav" Classes.on="{Binding NavLibraryOn}" Command="{Binding NavigateCommand}" CommandParameter="Library" ToolTip.Tip="{Binding Overview.RailLibraryTip}">
+              <!-- A GRID, not a horizontal StackPanel: the row state is RIGHT-ALIGNED, and a StackPanel has no
+                   way to push a child to the far edge. Star column between label and stat does it. -->
+              <!-- LABEL wears the star and TRIMS; the stat is Auto with a fixed inset, so a long label can never
+                   push the stat past the inset. -->
+              <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto" HorizontalAlignment="Stretch">
+                <Path Grid.Column="0" Grid.RowSpan="3" Width="19" Height="19" Stretch="Uniform" StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                      VerticalAlignment="Top" Margin="0,1,0,0"
+                      Stroke="{Binding $parent[Button].Foreground}" Data="{StaticResource IconLibrary}"/>
+                <TextBlock Grid.Column="1" Text="Library" VerticalAlignment="Center" Margin="12,0,0,0" IsVisible="{Binding RailExpanded}"
+                           HorizontalAlignment="Left" TextTrimming="CharacterEllipsis"/>
+                <!-- Row state the count lives here so the rail is the summary. -->
+                <!-- (UX 09-08 #6) The "n/N Games" fraction retired: the second line below says the same thing with its
+                     verb, and "Games" was the wrong word for a count that includes movies (owner, Items rule). -->
+                <!-- (UX 09-08 #6) Second line: the verb, quiet monospace. Only when the rail is expanded and
+                     status is shown; InkDim (6.5:1 on the rail) - InkMuted would fail 4.5:1. -->
+                <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding Overview.RailLibrarySub}" Foreground="{StaticResource InkDim}"
+                           FontSize="{StaticResource FontEyebrow}" FontFamily="{StaticResource MonoFont}" FontWeight="Normal"
+                           Margin="12,0,4,0" TextTrimming="CharacterEllipsis" IsVisible="{Binding ShowRailCounts}"/>
+                <!-- (Rail exceptions 09-09) One line per outstanding item, worst first, colour from the SAME
+                     grading Core uses. The rail has vertical room to spare (owner), so a truncated "..." is the
+                     wrong trade: an exception that does not fit is an exception you never see. Empty when
+                     healthy, so the rail stays quiet by default. -->
+                <ItemsControl Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" ItemsSource="{Binding Overview.RailLibraryExceptions}"
+                              Margin="12,1,4,0" IsVisible="{Binding ShowRailCounts}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:RailException">
+                      <TextBlock Text="{Binding Text}" Foreground="{Binding Brush}"
+                                 FontSize="{StaticResource FontEyebrow}" FontFamily="{StaticResource MonoFont}"
+                                 TextTrimming="CharacterEllipsis"/>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </Grid>
+            </Button>
+            <Button x:Name="GuideNavCloud" Classes="nav" Classes.on="{Binding NavCloudOn}" Command="{Binding NavigateCommand}" CommandParameter="CloudSaves" ToolTip.Tip="Cloud Saves">
+              <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" HorizontalAlignment="Stretch">
+                <Path Grid.Column="0" Grid.RowSpan="2" Width="19" Height="19" Stretch="Uniform" StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                      Stroke="{Binding $parent[Button].Foreground}" Data="{StaticResource IconCloud}"/>
+                <TextBlock Grid.Column="1" Text="Cloud Saves" VerticalAlignment="Center" Margin="12,0,0,0" IsVisible="{Binding RailExpanded}"
+                           HorizontalAlignment="Left" TextTrimming="CharacterEllipsis"/>
+                <!-- Same fraction shape as Library. This is the rail's longest label: it trims before it may
+                     shove the readout past the shared inset. -->
+                <!-- (UX 09-08 #6) The "n/N Games" fraction retired: the second line below says the same thing with its
+                     verb, and "Games" was the wrong word for a count that includes movies (owner, Items rule). -->
+                <!-- (UX 09-08 #6) Second line: the verb, quiet monospace. Only when the rail is expanded and
+                     status is shown; InkDim (6.5:1 on the rail) - InkMuted would fail 4.5:1. -->
+                <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding CloudVm.RailCloudSub}" Foreground="{StaticResource InkDim}"
+                           FontSize="{StaticResource FontEyebrow}" FontFamily="{StaticResource MonoFont}" FontWeight="Normal"
+                           Margin="12,0,4,0" TextTrimming="CharacterEllipsis" IsVisible="{Binding ShowRailCounts}"/>
+              </Grid>
+            </Button>
+            <!-- ON DISK: your local backup (where it's stored + how healthy it is). Header when expanded;
+                 a quiet divider when collapsed so the grouping is still felt icon-only. -->
+            <Grid ColumnDefinitions="Auto,*" Margin="6,26,2,4" IsVisible="{Binding RailExpanded}">
+              <TextBlock Grid.Column="0" Text="LOCAL" Foreground="White" FontSize="{StaticResource FontEyebrow}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              <Border Grid.Column="1" Height="2" Background="{StaticResource AmberRuleFade}" Margin="10,0,0,0" VerticalAlignment="Center"/>
+            </Grid>
+            <Border Height="1" Background="{StaticResource SurfaceStroke}" Margin="12,14" IsVisible="{Binding RailCollapsed}"/>
+            <Button x:Name="GuideNavFolders" Classes="nav" Classes.on="{Binding NavDrivesOn}" Command="{Binding NavigateCommand}" CommandParameter="Drives" ToolTip.Tip="Storage">
+              <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto" HorizontalAlignment="Stretch">
+                <Path Grid.Column="0" Grid.RowSpan="3" Width="19" Height="19" Stretch="Uniform" StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                      VerticalAlignment="Top" Margin="0,1,0,0"
+                      Stroke="{Binding $parent[Button].Foreground}" Data="{StaticResource IconDrive}"/>
+                <TextBlock Grid.Column="1" Text="Storage" VerticalAlignment="Center" Margin="12,0,0,0" IsVisible="{Binding RailExpanded}"
+                           HorizontalAlignment="Left" TextTrimming="CharacterEllipsis"/>
+                <!-- ROW STATE: one dot per folder answers "is my storage there right now"; StateBrush already encodes
+                     all four states (green connected, orange safely unplugged, red missing fixed drive, gray unknown). -->
+                <ItemsControl Grid.Column="2" ItemsSource="{Binding Storage.BackupLocations}" VerticalAlignment="Center"
+                              Margin="8,0,4,0" IsVisible="{Binding ShowRailCounts}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="5"/></ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:BackupLocationRow">
+                      <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{Binding StateBrush}"
+                               ToolTip.Tip="{Binding Label}"/>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <!-- Dots KEPT: they carry all four connectivity states; the line below is now the drive COUNT
+                     only, and trouble gets its own coloured line under it. -->
+                <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding Storage.RailStorageSub}" Foreground="{StaticResource InkDim}"
+                           FontSize="{StaticResource FontEyebrow}" FontFamily="{StaticResource MonoFont}" FontWeight="Normal"
+                           Margin="12,0,4,0" TextTrimming="CharacterEllipsis" IsVisible="{Binding ShowRailCounts}"/>
+                <!-- (Rail exceptions 09-09) Same stack as Library's; see that entry for why it is a line each. -->
+                <ItemsControl Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" ItemsSource="{Binding Storage.RailStorageExceptions}"
+                              Margin="12,1,4,0" IsVisible="{Binding ShowRailCounts}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:RailException">
+                      <TextBlock Text="{Binding Text}" Foreground="{Binding Brush}"
+                                 FontSize="{StaticResource FontEyebrow}" FontFamily="{StaticResource MonoFont}"
+                                 TextTrimming="CharacterEllipsis"/>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </Grid>
+            </Button>
+            <!-- OTHER STORAGE (09-14): the one nested rail entry. A drive Grog knows about that holds no slot is
+                 not a problem, so it is not an exception line under Storage; it is a place, so it gets an entry.
+                 Only shown when there is one. -->
+            <Button Classes="nav" Classes.on="{Binding Storage.ShowOtherStorageSection}" Command="{Binding NavigateToOtherStorageCommand}" ToolTip.Tip="Drives Grog knows about that hold no slot"
+                    IsVisible="{Binding Storage.HasOtherStorage}" Padding="42,3,11,5" FontSize="{StaticResource FontCaption}">
+              <TextBlock Text="{Binding Storage.OtherStorageRailText}" Foreground="{StaticResource InkDim}" IsVisible="{Binding RailExpanded}"
+                         TextTrimming="CharacterEllipsis"/>
+            </Button>
+          </StackPanel>
+          <StackPanel DockPanel.Dock="Bottom">
+            <StackPanel>
+              <!-- T3 footer: a bare amber fade capping the account/Settings/About tray. No label (no honest umbrella
+                   for account+settings+about). Opposite direction to the top rules (amber pooled RIGHT) - mirror. -->
+              <Border Height="2" Margin="6,0,2,10" Background="{StaticResource AmberRuleFade}" IsVisible="{Binding RailExpanded}"/>
+              <StackPanel Spacing="2" Classes.railcollapsed="{Binding RailCollapsed}">
+                <Button x:Name="GuideNavAccounts" Classes="nav" Classes.on="{Binding NavAccountsOn}" Command="{Binding NavigateCommand}" CommandParameter="Accounts" ToolTip.Tip="{Binding AccountFootText}">
+                  <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" HorizontalAlignment="Stretch" ToolTip.Tip="{Binding AccountStatusText}">
+                    <Path Grid.Column="0" Grid.RowSpan="2" Width="19" Height="19" Stretch="Uniform" StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                          Stroke="{Binding AccountStatusBrush}" Data="{StaticResource IconUser}"/>
+                    <TextBlock Grid.Column="1" Text="{Binding AccountFootText}" VerticalAlignment="Center" Margin="12,0,0,0" IsVisible="{Binding RailExpanded}"
+                               TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding AccountFootText}"/>
+                    <!-- One dot per account (first five), the Folders vocabulary: green signed in, orange
+                         signed out; each dot names its account on hover. -->
+                    <ItemsControl Grid.Column="2" ItemsSource="{Binding Accounts.RailAccountDots}" VerticalAlignment="Center"
+                                  Margin="8,0,4,0" IsVisible="{Binding ShowRailCounts}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="5"/></ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:AccountsViewModel+AccountDot">
+                          <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{Binding Brush}" ToolTip.Tip="{Binding Tip}"/>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                        <!-- (UX 09-08 #6) Second line: the verb, quiet monospace. Only when the rail is expanded and
+                         status is shown; InkDim (6.5:1 on the rail) - InkMuted would fail 4.5:1. -->
+                    <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding AccountRailSub}" Foreground="{StaticResource InkDim}"
+                               FontSize="{StaticResource FontEyebrow}" FontFamily="{StaticResource MonoFont}" FontWeight="Normal"
+                               Margin="12,0,4,0" TextTrimming="CharacterEllipsis" IsVisible="{Binding ShowRailCounts}"/>
+                  </Grid>
+                </Button>
+                <Button x:Name="GuideNavSettings" Classes="nav" Classes.on="{Binding NavSettingsOn}" Command="{Binding NavigateCommand}" CommandParameter="Settings" ToolTip.Tip="Settings">
+                  <StackPanel Orientation="Horizontal" Spacing="12">
+                    <Path Width="19" Height="19" Stretch="Uniform" StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                          Stroke="{Binding $parent[Button].Foreground}" Data="{StaticResource IconSettings}"/>
+                    <TextBlock Text="Settings" VerticalAlignment="Center" IsVisible="{Binding RailExpanded}"/>
+                  </StackPanel>
+                </Button>
+                <!-- About is not a rail row: reference material, one visit ever, and rails earn rows with recurring
+                     visits. Reached from the version line below and the wordmark. -->
+                </StackPanel>
+            </StackPanel>
+            <!-- Full-width collapse bar: amber double-chevrons left, version tag pinned right (expanded only).
+                 No fill or separator; ~28px, edge to edge. Top margin marks it as a view toggle, not navigation. -->
+            <Border Margin="0,28,0,12" Background="Transparent">
+              <!-- Half and half while expanded: collapse and About each own a real target half the rail wide, hover
+                   fill showing which. Collapsed, the chevron takes the whole strip. -->
+              <!-- Not 50/50: "v0.1.0 - About" needs ~120px and half a 205px rail clips it, so the chevron takes a
+                   fixed 64px and About takes the rest. -->
+              <Grid ColumnDefinitions="64,*">
+                <Button Grid.Column="0" Grid.ColumnSpan="{Binding RailBarSpan}"
+                        Classes="railbar" Command="{Binding ToggleRailCommand}" ToolTip.Tip="Toggle sidebar">
+                  <Panel>
+                    <!-- expanded: double-chevron only, left-aligned under the nav icon column (18px in from the edge) -->
+                    <Path Width="18" Height="18" Stretch="Uniform" StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                          Stroke="{StaticResource AccentAmber}" Data="{StaticResource IconCollapse}"
+                          VerticalAlignment="Center" HorizontalAlignment="Left" IsVisible="{Binding RailExpanded}"/>
+                    <!-- collapsed: expand double-chevron, centered (matches the centered nav icons) -->
+                    <Path Width="18" Height="18" Stretch="Uniform" StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                          Stroke="{StaticResource AccentAmber}" Data="{StaticResource IconExpand}"
+                          VerticalAlignment="Center" HorizontalAlignment="Center" IsVisible="{Binding RailCollapsed}"/>
+                  </Panel>
+                </Button>
+                <Button Grid.Column="1" Classes="railbar" Command="{Binding NavigateCommand}" CommandParameter="About"
+                        ToolTip.Tip="About Grog" IsVisible="{Binding RailExpanded}"
+                        HorizontalContentAlignment="Right">
+                  <!-- The whole string is the About link, version included: "v0.1.0" alone gave no hint it was
+                       clickable, and About left the rail (v2 rail point 05) so this is its only entry. -->
+                  <!-- NORMAL weight. SemiBold gave the footer more presence than a version stamp earns; it
+                       should be findable, not attention-seeking. Amber and hover still say it is a link. -->
+                  <StackPanel HorizontalAlignment="Right" Margin="0,0,12,0" Spacing="1">
+                    <!-- Portable marker: dim, above the version, shown only when running portable. Not
+                         branding - it answers "which copy is this?" when a portable and an installed copy
+                         are on the same machine and look identical. -->
+                    <!-- Left-aligned inside a right-aligned panel, so its left edge sits under the "v". -->
+                    <TextBlock Text="(portable)" IsVisible="{Binding IsPortableCopy}" HorizontalAlignment="Left"
+                               Foreground="{StaticResource AccentAmberSoft}" FontSize="{StaticResource FontCaption}"/>
+                    <TextBlock Foreground="{StaticResource AccentAmberSoft}" HorizontalAlignment="Left"
+                               FontSize="{StaticResource FontCaption}"
+                               Text="{Binding RailVersionText, StringFormat={}{0} - About}"/>
+                  </StackPanel>
+                </Button>
+              </Grid>
+            </Border>
+          </StackPanel>
+          <Panel/>
+        </DockPanel>
+      </Panel>
+
+      <!-- No rail resizer: the rail width is owned by expand/collapse now, so the drag handle is gone
+           (cleaner). The spacer column collapses to 0. -->
+
+      <!-- MAIN -->
+      <DockPanel Grid.Column="2" Background="Transparent" IsVisible="{Binding !Initializing}">
+
+
+        <!-- No page-title bar: the rail already says which page you are on. -->
+
+
+        <!-- Library summary cards (Games/Extras + Folders) removed: completeness now lives on
+             Activity & Health, folder storage on Local Backups. Library leads with search + filters. -->
+
+        <!-- filters now live in the Type/Status grid-column headers (the dropdown arrow) -->
+
+        <!-- selection now surfaces via the primary button label + amber status hint (no full-width bar) -->
+
+        <!-- LEDGER + detail pane + empty-state overlays -->
+        <Panel Background="Transparent">
+
+
+
+
+          <!-- location rejected: a modal, because a status-bar line is too easy to miss -->
+          <Border DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowLocationErrorModal}" ZIndex="70" Background="{StaticResource ScrimSunkenSoft}">
+            <Border VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="520"
+                    Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1" CornerRadius="{StaticResource RadiusCard}" Padding="30,26">
+              <StackPanel Spacing="16">
+                <TextBlock Text="Can't use that folder" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontTitle}" FontWeight="Bold"/>
+                <TextBlock Text="{Binding LocationErrorText}" Foreground="{StaticResource InkBright}" FontSize="{StaticResource FontCaption}" TextWrapping="Wrap"/>
+                <Button Classes="primary" Content="OK" Command="{Binding CloseLocationErrorCommand}" HorizontalAlignment="Right"/>
+              </StackPanel>
+            </Border>
+          </Border>
+
+          <!-- ACCOUNT GATE: raised by an action, not by arriving on a page - every rail page renders signed
+               out. Says what the ACTION needs and offers the one place accounts are managed. App-modal tier. -->
+          <Border IsVisible="{Binding ShowAccountGate}" ZIndex="100" Background="{StaticResource ScrimSunkenSoft}">
+            <Border VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="460"
+                    Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1" CornerRadius="{StaticResource RadiusCard}" Padding="30,26">
+              <StackPanel Spacing="16">
+                <TextBlock Text="This needs a GOG account" Foreground="{StaticResource InkPrimary}"
+                           FontSize="{StaticResource FontTitle}" FontWeight="Bold"/>
+                <TextBlock Foreground="{StaticResource InkBright}" FontSize="{StaticResource FontRow}" TextWrapping="Wrap"
+                           Text="{Binding AccountGateWhat, StringFormat=Grog needs a connected GOG account to {0}.}"/>
+                <!-- Inline runs, so the page name carries the accent: the same amber the guide uses for a
+                     destination, and this sentence is naming exactly that. -->
+                <TextBlock Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" TextWrapping="Wrap">
+                  <Run Text="The "/><Run Text="Accounts" Foreground="{StaticResource AccentAmber}" FontWeight="SemiBold"/><Run Text=" page is where you connect one, and where you manage them later. Everything else in Grog stays available without one."/>
+                </TextBlock>
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                  <Button Grid.Column="0" Classes="ghost" Content="Not now" Padding="14,6"
+                          Command="{Binding DismissAccountGateCommand}"/>
+                  <Button Grid.Column="2" Content="Open Accounts" Command="{Binding AccountGateGoCommand}"
+                          Background="{StaticResource AccentAmber}" Foreground="{StaticResource SurfaceNeutralDark}"
+                          FontWeight="Bold" BorderThickness="0" CornerRadius="{StaticResource RadiusChip}"
+                          Padding="20,8" Cursor="Hand"/>
+                </Grid>
+              </StackPanel>
+            </Border>
+          </Border>
+
+          <!-- SCAN SUMMARY: the reconciliation shown after a scan the user asked for. The three rows MUST add
+               to what GOG reported - a count that does not add up reads as missing files. -->
+          <Border DataContext="{Binding Library}" x:DataType="vm:LibraryViewModel" IsVisible="{Binding ShowCompositionModal}" ZIndex="100" Background="{StaticResource ScrimSunkenSoft}">
+            <Border x:Name="GuideItemCountCard" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="520"
+                    Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1" CornerRadius="{StaticResource RadiusCard}" Padding="30,26">
+              <StackPanel Spacing="16">
+                <TextBlock Text="Scan Summary" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontTitle}" FontWeight="Bold"/>
+
+                <!-- Simplified: only the items with nothing to download, and errors WHEN they exist - the error row
+                     appears only when nonzero, since a standing "0 could not be read" is reassurance-by-clutter. -->
+                <StackPanel Spacing="10" Margin="4,2,0,0">
+                  <Grid ColumnDefinitions="64,*">
+                    <TextBlock Grid.Column="0" Text="{Binding ScanNoFilesCount}" Foreground="{StaticResource AccentAmber}"
+                               FontSize="{StaticResource FontRow}" FontWeight="Bold" HorizontalAlignment="Right" Margin="0,0,14,0"/>
+                    <StackPanel Grid.Column="1" Spacing="2">
+                      <TextBlock Text="items have nothing of their own to download" Foreground="{StaticResource InkBright}"
+                                 FontSize="{StaticResource FontRow}" TextWrapping="Wrap"/>
+                      <TextBlock Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" TextWrapping="Wrap"
+                                 Text="DLC that ships inside a base game, bundle and collection entries, claims from platform promotions, and the occasional item GOG's servers currently can't describe. None of these are missing from your backup. Click the View details button below to review the list - every item is named, with a link you can open to check for yourself."/>
+                    </StackPanel>
+                  </Grid>
+                  <Grid ColumnDefinitions="64,*" IsVisible="{Binding ScanHadErrors}">
+                    <TextBlock Grid.Column="0" Text="{Binding ScanErrorCount}" Foreground="{StaticResource AccentAmber}"
+                               FontSize="{StaticResource FontRow}" FontWeight="Bold" HorizontalAlignment="Right" Margin="0,0,14,0"/>
+                    <StackPanel Grid.Column="1" Spacing="2">
+                      <TextBlock Text="could not be read" Foreground="{StaticResource InkBright}"
+                                 FontSize="{StaticResource FontRow}" TextWrapping="Wrap"/>
+                      <TextBlock Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" TextWrapping="Wrap"
+                                 Text="Grog could not understand GOG's answer for these, so they are NOT backed up. Click the View details button below for a link to each one."/>
+                    </StackPanel>
+                  </Grid>
+
+                  <!-- Multi-account runs name who was scanned and who was skipped; single-account
+                       scans show nothing here (badge the exception, not the rule). -->
+                  <!-- Empty account: say it, so a page with nothing on it after a scan is not a mystery. -->
+                  <TextBlock IsVisible="{Binding ShowScanEmptyLibrary}" TextWrapping="Wrap" Foreground="{StaticResource InkBright}"
+                             FontSize="{StaticResource FontBody}"
+                             Text="No games were found in this account. Games you buy or claim on GOG will appear after the next scan; there is nothing to back up yet."/>
+
+                  <!-- Rescan that found something new: name it, and offer to back up just that. -->
+                  <TextBlock IsVisible="{Binding ShowScanNewGames}" TextWrapping="Wrap" Foreground="{StaticResource InkBright}"
+                             FontSize="{StaticResource FontBody}" Text="{Binding ScanNewGamesLine}"/>
+
+                  <StackPanel Spacing="4" IsVisible="{Binding ShowScanAccountsLine}">
+                    <TextBlock Text="BY ACCOUNT" Foreground="{StaticResource InkDim}"
+                               FontSize="{StaticResource FontEyebrow}" FontWeight="SemiBold" LetterSpacing="1"/>
+                    <!-- MonoFont + padded names in the VM: the colons line up as a column. -->
+                    <TextBlock Text="{Binding ScanAccountsLine}" Foreground="{StaticResource InkBright}"
+                               FontFamily="{StaticResource MonoFont}" LineHeight="20"
+                               FontSize="{StaticResource FontCaption}" TextWrapping="Wrap"/>
+                  </StackPanel>
+
+                  <!-- Neutral rule, per the two-tier chrome law: divides a card's internals. -->
+                  <Border Height="1" Background="{StaticResource NeutralRuleFade}" Margin="0,4,0,2"/>
+
+                  <!-- THE SCOPE COST BLOCK: what the current selection costs against everything, with real numbers at
+                       the one moment they are fresh. Collapses when the delta is under a gigabyte. -->
+                  <StackPanel Spacing="6" IsVisible="{Binding ShowScanScopeBlock}">
+                    <TextBlock Text="YOUR LIBRARY, DEFAULT SELECTION" Foreground="{StaticResource InkDim}"
+                               FontSize="{StaticResource FontEyebrow}" FontWeight="SemiBold" LetterSpacing="1"/>
+                    <!-- Bulleted rows: two label+value lines read as a LIST, not a wrapped sentence. -->
+                    <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2,0,0">
+                      <TextBlock Grid.Column="0" Text="•" Foreground="{StaticResource InkDim}"
+                                 FontSize="{StaticResource FontCaption}" Margin="2,0,8,0"/>
+                      <TextBlock Grid.Column="1" Text="Everything (all platforms and languages)"
+                                 Foreground="{StaticResource InkBright}" FontSize="{StaticResource FontCaption}"/>
+                      <TextBlock Grid.Column="2" Text="{Binding ScanEverythingLine}" Foreground="{StaticResource InkPrimary}"
+                                 FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                      <TextBlock Grid.Column="0" Text="•" Foreground="{StaticResource InkDim}"
+                                 FontSize="{StaticResource FontCaption}" Margin="2,0,8,0"/>
+                      <TextBlock Grid.Column="1" Text="{Binding ScanSelectionLabel}"
+                                 Foreground="{StaticResource InkBright}" FontSize="{StaticResource FontCaption}"/>
+                      <TextBlock Grid.Column="2" Text="{Binding ScanSelectionLine}" Foreground="{StaticResource InkPrimary}"
+                                 FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+                    </Grid>
+                    <!-- The subtraction, drawn as one: a rule under the two figures, then the result. Green: space
+                         you keep is the one good number on this card (colour law: green = healthy only). -->
+                    <Border Height="1" Background="{StaticResource NeutralRuleFade}" Margin="14,2,0,0"/>
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                      <TextBlock Grid.Column="0" Text="•" Foreground="Transparent"
+                                 FontSize="{StaticResource FontCaption}" Margin="2,0,8,0"/>
+                      <TextBlock Grid.Column="1" Text="Saves" Foreground="{StaticResource SuccessGreen}"
+                                 FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+                      <TextBlock Grid.Column="2" Text="{Binding ScanSavingsLine}" Foreground="{StaticResource SuccessGreen}"
+                                 FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+                    </Grid>
+                    <TextBlock Text="{Binding ScanSavingsText}" Foreground="{StaticResource InkDim}"
+                               FontSize="{StaticResource FontCaption}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                  </StackPanel>
+                </StackPanel>
+
+                <!-- Both exits together: every control in one place, and nothing sits inside the sum block above,
+                     which is the card's argument. -->
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                  <Button Grid.Column="0" Classes="secondarybtn outline" Content="Back Up New Now" Padding="12,5"
+                          IsVisible="{Binding ShowScanNewGames}" Command="{Binding BackUpNewCommand}"/>
+                  <Button Grid.Column="1" Classes="secondarybtn outline" Content="View details" Padding="12,5"
+                          Command="{Binding ViewScanReportCommand}" HorizontalAlignment="Right" Margin="0,0,10,0"/>
+                  <Button x:Name="GuideItemCountOk" Grid.Column="2" Content="OK" Command="{Binding DismissCompositionCommand}"
+                          Background="{StaticResource AccentAmber}" Foreground="{StaticResource SurfaceNeutralDark}" FontWeight="Bold" BorderThickness="0"
+                          CornerRadius="{StaticResource RadiusChip}" Padding="24,8" Cursor="Hand"/>
+                </Grid>
+              </StackPanel>
+            </Border>
+          </Border>
+
+
+          <!-- FILES & ISSUES, on demand. Scrolls inside the dialog, so any number of issues with any number
+               of expanded files is bounded by the window instead of by the page. -->
+          <Border DataContext="{Binding Overview}" x:DataType="vm:OverviewViewModel" IsVisible="{Binding ShowIssuesModal}" ZIndex="100" Background="{StaticResource ScrimSunkenSoft}">
+            <!-- Sizes to its CONTENT: the floor keeps the title and buttons from crowding, and the file lists
+                 push it out to MaxWidth when there is something to list. -->
+            <!-- MinWidth 560: the gap rows carry "N files · XXX.XX GB" values at three indents; at 400 a
+                 larger library's no-space row ran out of room (owner 08-31). -->
+            <!-- MaxHeight 940: on a 1080p screen the full ledger + checks + one issue card fits WITHOUT
+                 scrolling (owner 08-31); smaller windows still scroll via the ScrollViewer inside. -->
+            <Border VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="880" MinWidth="560" MaxHeight="940"
+                    Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1" CornerRadius="{StaticResource RadiusCard}" Padding="26,22">
+              <Grid RowDefinitions="Auto,*,Auto">
+                <StackPanel Grid.Row="0" Spacing="3" Margin="0,0,0,14">
+                  <TextBlock Text="Files &amp; issues" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontTitle}" FontWeight="Bold"/>
+                  <TextBlock Text="{Binding IssuesTriggerText}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}"/>
+                </StackPanel>
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                  <StackPanel Spacing="10" Margin="0,0,6,0">
+                  <!-- LEDGER MODEL (owner-picked v3, 08-31): white eyebrow headers OUTSIDE the cards, detail
+                       rows inside, each card closing with a hairline + its own SUM - rows over the line,
+                       total under it, so the addition is visible. Red only when non-zero. -->
+                  <!-- v4 (owner 08-31): the SUM is a full-bleed RAISED BAND - lighter surface edge to edge
+                       across the card bottom, topped by a light hairline, so the total reads as a different
+                       tier without any rule inside the data rows. -->
+                  <TextBlock Text="TO BACK UP" Foreground="White" FontSize="{StaticResource FontEyebrow}" FontWeight="SemiBold" LetterSpacing="1.2" Margin="2,0,0,-4"/>
+                  <Border Classes="settingCard" Padding="0" ClipToBounds="True">
+                    <StackPanel>
+                      <StackPanel Spacing="1" Margin="14,8,14,8">
+                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,4">
+                          <Ellipse Grid.Column="0" Width="8" Height="8" Fill="{StaticResource AccentAmber}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                          <TextBlock Grid.Column="1" Text="Queued" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"/>
+                          <TextBlock Grid.Column="2" Text="{Binding GapQueuedText}" Foreground="{StaticResource AccentAmber}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="18,4,0,4" IsVisible="{Binding HasUnplaceableQueue}">
+                          <Ellipse Grid.Column="0" Width="8" Height="8" Fill="{StaticResource ErrorRed}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                          <TextBlock Grid.Column="1" Text="Not enough free space" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"/>
+                          <TextBlock Grid.Column="2" Text="{Binding GapUnplaceableText}" Foreground="{StaticResource ErrorRed}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,4">
+                          <Ellipse Grid.Column="0" Width="8" Height="8" Fill="{StaticResource InkMuted}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                          <TextBlock Grid.Column="1" Text="Not yet queued" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"/>
+                          <TextBlock Grid.Column="2" Text="{Binding GapNotQueuedText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </Grid>
+                      </StackPanel>
+                      <Border Background="{StaticResource SurfaceRaised}" BorderBrush="{StaticResource InkDim}" BorderThickness="0,1,0,0" Padding="14,7">
+                        <Grid ColumnDefinitions="*,Auto">
+                          <TextBlock Grid.Column="0" Text="To back up" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontWeight="SemiBold"/>
+                          <TextBlock Grid.Column="1" Text="{Binding GapLineText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontWeight="SemiBold"/>
+                        </Grid>
+                      </Border>
+                    </StackPanel>
+                  </Border>
+                  <!-- BACKED UP SO FAR section removed (owner 08-31): redundant with the Overview's own
+                       coverage table right behind this dialog. -->
+                  <!-- GRAND TOTAL: outside the card, over its own heavier amber rule. Extra bottom air
+                       before the checks section (owner 08-31). -->
+                  <StackPanel Margin="2,2,2,10" Spacing="0">
+                    <Border Height="2" Background="{StaticResource AmberRuleFade}"/>
+                    <Grid ColumnDefinitions="*,Auto" Margin="12,8,12,0">
+                      <TextBlock Grid.Column="0" Text="Library total" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontWeight="SemiBold"/>
+                      <TextBlock Grid.Column="1" Text="{Binding LibraryTotalLineText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontWeight="SemiBold"/>
+                    </Grid>
+                  </StackPanel>
+                  <TextBlock Text="HEALTH CHECKS" Foreground="White" FontSize="{StaticResource FontEyebrow}" FontWeight="SemiBold" LetterSpacing="1.2" Margin="2,0,0,-4"/>
+                  <!-- The checks: the FAULT rows, same order pass or fail - a column of label/value pairs is
+                       confirmed at a glance. The lighter surface marks VERDICTS, not arithmetic (v4);
+                       hairline stroke to match the sum bands. The cards below add detail only where a check failed. -->
+                  <Border Classes="settingCard" Padding="12,10" Background="{StaticResource SurfaceRaised}" BorderBrush="{StaticResource InkDim}" BorderThickness="1">
+                    <ItemsControl ItemsSource="{Binding HealthChecks}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:HealthCheckRow">
+                          <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,3" Background="Transparent" ToolTip.Tip="{Binding Tip}" ToolTip.ShowDelay="400">
+                            <Ellipse Grid.Column="0" Width="8" Height="8" Fill="{Binding DotBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Label}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Text="{Binding Value}" Foreground="{Binding ValueBrush}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                          </Grid>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </Border>
+<Border Classes="settingCard" Padding="12,10" IsVisible="{Binding HasCorrupt}">
+                    <StackPanel Spacing="8">
+                      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                        <Ellipse Grid.Column="0" Width="10" Height="10" Fill="{StaticResource ErrorRed}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <Button Grid.Column="1" Classes="linky" HorizontalAlignment="Left" Padding="0" VerticalAlignment="Center"
+                                Command="{Binding ToggleCorruptListCommand}" ToolTip.Tip="{Binding CorruptExpandTip}">
+                          <StackPanel Orientation="Horizontal" Spacing="7">
+                            <TextBlock Text="{Binding CorruptExpandGlyph}" FontSize="{StaticResource FontCaption}" Foreground="{StaticResource InkDim}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding CorruptIssueText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                          </StackPanel>
+                        </Button>
+                        <Button Grid.Column="2" Content="Acknowledge &amp; Clear" FontSize="{StaticResource FontCaption}" Padding="12,5" CornerRadius="{StaticResource RadiusCard}" VerticalAlignment="Center" Margin="0,0,8,0"
+                                Background="{StaticResource SurfaceRaised}" BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1"
+                                Foreground="{StaticResource InkPrimary}" IsEnabled="{Binding !$parent[Window].((vm:MainWindowViewModel)DataContext).Busy}" Command="{Binding AcknowledgeCorruptCommand}"
+                                ToolTip.Tip="Forget these files - reset them to not-backed-up so they stop counting. Survives restart."/>
+                        <Button Grid.Column="3" Content="Re-download" FontSize="{StaticResource FontCaption}" Padding="12,5" CornerRadius="{StaticResource RadiusCard}" VerticalAlignment="Center"
+                                Background="{StaticResource SurfaceRaised}" BorderBrush="{StaticResource StrokeAmberSoft}" BorderThickness="1"
+                                Foreground="{StaticResource AccentAmber}" IsEnabled="{Binding !$parent[Window].((vm:MainWindowViewModel)DataContext).Busy}" Command="{Binding FixCorruptCommand}"
+                                ToolTip.Tip="Mark these files not-backed-up and re-queue them for a clean re-download."/>
+                      </Grid>
+                      <ItemsControl ItemsSource="{Binding HealthCorruptFiles}" IsVisible="{Binding CorruptExpanded}" Margin="22,0,0,0">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:HealthFileRow">
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,3">
+                              <StackPanel Grid.Column="0">
+                                <TextBlock Text="{Binding Title}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}"/>
+                                <TextBlock Text="{Binding Name}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontEyebrow}" TextTrimming="CharacterEllipsis"/>
+                              </StackPanel>
+                              <TextBlock Grid.Column="1" Text="{Binding SizeText}" Foreground="{StaticResource InkFaint}" FontSize="{StaticResource FontEyebrow}" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                            </Grid>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
+                  </Border>
+                  <Border Classes="settingCard" Padding="12,10" IsVisible="{Binding HasGone}">
+                    <StackPanel Spacing="8">
+                      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                        <Ellipse Grid.Column="0" Width="10" Height="10" Fill="{StaticResource ErrorRed}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <Button Grid.Column="1" Classes="linky" HorizontalAlignment="Left" Padding="0" VerticalAlignment="Center"
+                                Command="{Binding ToggleGoneListCommand}" ToolTip.Tip="{Binding GoneExpandTip}">
+                          <StackPanel Orientation="Horizontal" Spacing="7">
+                            <TextBlock Text="{Binding GoneExpandGlyph}" FontSize="{StaticResource FontCaption}" Foreground="{StaticResource InkDim}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding GoneIssueText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                          </StackPanel>
+                        </Button>
+                        <Button Grid.Column="2" Content="Acknowledge &amp; Clear" FontSize="{StaticResource FontCaption}" Padding="12,5" CornerRadius="{StaticResource RadiusCard}" VerticalAlignment="Center" Margin="0,0,8,0"
+                                Background="{StaticResource SurfaceRaised}" BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1"
+                                Foreground="{StaticResource InkPrimary}" IsEnabled="{Binding !$parent[Window].((vm:MainWindowViewModel)DataContext).Busy}" Command="{Binding AcknowledgeGoneCommand}"
+                                ToolTip.Tip="Forget these files - reset them to not-backed-up so they stop counting. Survives restart."/>
+                        <Button Grid.Column="3" Content="Re-download" FontSize="{StaticResource FontCaption}" Padding="12,5" CornerRadius="{StaticResource RadiusCard}" VerticalAlignment="Center"
+                                Background="{StaticResource SurfaceRaised}" BorderBrush="{StaticResource StrokeAmberSoft}" BorderThickness="1"
+                                Foreground="{StaticResource AccentAmber}" IsEnabled="{Binding !$parent[Window].((vm:MainWindowViewModel)DataContext).Busy}" Command="{Binding FixGoneCommand}"
+                                ToolTip.Tip="Re-queue these files so the next Back up re-fetches them."/>
+                      </Grid>
+                      <!-- Signpost the CHEAP cure (owner 08-30): files "gone" because a folder moved or was
+                           re-pointed are recoverable without re-downloading a byte. -->
+                      <TextBlock Classes="sdesc" Margin="22,0,0,0" TextWrapping="Wrap"
+                                 Text="If they still exist somewhere (moved or re-pointed folder), fix it on the Storage page - Grog re-adopts them without re-downloading."/>
+                      <ItemsControl ItemsSource="{Binding HealthGoneFiles}" IsVisible="{Binding GoneExpanded}" Margin="22,0,0,0">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:HealthFileRow">
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,3">
+                              <StackPanel Grid.Column="0">
+                                <TextBlock Text="{Binding Title}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}"/>
+                                <TextBlock Text="{Binding Name}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontEyebrow}" TextTrimming="CharacterEllipsis"/>
+                              </StackPanel>
+                              <TextBlock Grid.Column="1" Text="{Binding SizeText}" Foreground="{StaticResource InkFaint}" FontSize="{StaticResource FontEyebrow}" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                            </Grid>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
+                  </Border>
+                  <Border Classes="settingCard" Padding="12,10" IsVisible="{Binding HasDeviceIssue}">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                      <Ellipse Grid.Column="0" Width="10" Height="10" Fill="{StaticResource ErrorRed}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                      <TextBlock Grid.Column="1" Text="{Binding DeviceIssueText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                      <Button Grid.Column="2" Content="Manage Storage" FontSize="{StaticResource FontCaption}" Padding="12,5" CornerRadius="{StaticResource RadiusCard}" VerticalAlignment="Center"
+                              Background="{StaticResource SurfaceRaised}" BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1"
+                              Foreground="{StaticResource InkPrimary}" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).NavigateCommand}" CommandParameter="Drives"
+                              ToolTip.Tip="Open Storage to reconnect this folder or mark it removable."/>
+                    </Grid>
+                  </Border>
+                  <!-- Last run failed. Distinct from corrupt/missing: those describe files, this describes an
+                       ATTEMPT that did not finish, read from the run journal so it survives a crash. -->
+                  <Border Classes="settingCard" Padding="12,10" IsVisible="{Binding HasRunFailure}">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                      <Ellipse Grid.Column="0" Width="10" Height="10" Fill="{StaticResource ErrorRed}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                      <TextBlock Grid.Column="1" Text="{Binding RunFailureIssueText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                      <Button Grid.Column="2" Content="Try Again" FontSize="{StaticResource FontCaption}" Padding="12,5" CornerRadius="{StaticResource RadiusCard}" VerticalAlignment="Center"
+                              Background="{StaticResource SurfaceRaised}" BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1"
+                              Foreground="{StaticResource InkPrimary}" Command="{Binding RetryRunFailureCommand}"
+                              ToolTip.Tip="Re-queue the files that failed at the top of the queue and forget this failure. Anything already downloaded is kept. During a run, the file being fetched may be set aside for these."/>
+                    </Grid>
+                  </Border>
+                  <!-- RECENT ERRORS moved here from the Overview (owner 08-31): this session's failure
+                       lines, with the Copy button the bug-report flow documents. Hidden when clean. -->
+                  <StackPanel Spacing="4" IsVisible="{Binding HasErrorEntries}">
+                    <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="2,4,0,0">
+                      <TextBlock Grid.Column="0" Text="RECENT ERRORS" Foreground="White" FontSize="{StaticResource FontEyebrow}" FontWeight="SemiBold" LetterSpacing="1.2" VerticalAlignment="Center"/>
+                      <Button Grid.Column="2" Classes="linky" Content="Copy" FontSize="{StaticResource FontEyebrow}" Foreground="{StaticResource InkDim}" Margin="0,0,12,0"
+                              Command="{Binding CopyErrorLogCommand}" ToolTip.Tip="Copy these lines to the clipboard (account names masked)"/>
+                      <Button Grid.Column="3" Classes="linky" Content="Clear" FontSize="{StaticResource FontEyebrow}" Foreground="{StaticResource InkMuted}"
+                              Command="{Binding ClearActivityLogCommand}"/>
+                    </Grid>
+                    <Border Classes="settingCard" Padding="0" Background="{StaticResource SurfaceRaised}" BorderBrush="{StaticResource InkDim}" BorderThickness="1">
+                      <ItemsControl ItemsSource="{Binding ErrorLogEntries}" Margin="0,6">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:LogEntry">
+                            <Grid ColumnDefinitions="66,74,*" Margin="14,5">
+                              <TextBlock Grid.Column="0" Text="{Binding TimeText}" Foreground="{StaticResource InkFaint}" FontSize="{StaticResource FontEyebrow}"
+                                         FontFamily="Consolas,monospace" VerticalAlignment="Top"/>
+                              <TextBlock Grid.Column="1" Text="{Binding CategoryText}" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}"
+                                         VerticalAlignment="Top" IsVisible="{Binding HasCategory}"/>
+                              <TextBlock Grid.Column="2" Text="{Binding Message}" Foreground="{Binding SeverityBrush}" FontSize="{StaticResource FontCaption}"
+                                         TextWrapping="Wrap" VerticalAlignment="Top"/>
+                            </Grid>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </Border>
+                  </StackPanel>
+                  </StackPanel>
+                </ScrollViewer>
+                <Button Grid.Row="2" Content="Close" Command="{Binding DismissIssuesCommand}" HorizontalAlignment="Right" Margin="0,16,0,0"
+                        Background="{StaticResource AccentAmber}" Foreground="{StaticResource SurfaceNeutralDark}" FontWeight="Bold" BorderThickness="0"
+                        CornerRadius="{StaticResource RadiusChip}" Padding="24,8" Cursor="Hand"/>
+              </Grid>
+            </Border>
+          </Border>
+          <!-- overlay reserved for explicitly-modal ops only (currently none - all sync/download
+               progress shows via the slim line under the logo + status bar) -->
+          <Border IsVisible="{Binding ActivityModal}" ZIndex="50" Background="{StaticResource ScrimBgStrong}">
+            <Border VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="560" MinWidth="440"
+                    Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1" CornerRadius="{StaticResource RadiusCard}" Padding="30,26">
+              <StackPanel Spacing="16">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="{Binding ActivityTitle}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontTitle}" FontWeight="Bold"/>
+                  <TextBlock Text="{Binding ActivityDetail}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}"/>
+                </StackPanel>
+                <ProgressBar Classes="prominent"
+                             Value="{Binding ActivityValue}" IsIndeterminate="{Binding ActivityIndeterminate}"
+                             Foreground="{StaticResource AccentAmber}" Background="{StaticResource SurfaceBg}"/>
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"/>
+                  <Button Content="Pause" Classes="ghost" Padding="12,5" FontSize="{StaticResource FontCaption}"
+                          Command="{Binding CancelWorkCommand}" IsVisible="{Binding CanCancel}"
+                          HorizontalAlignment="Right"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </Border>
+
+          <pages:LibraryPage IsVisible="{Binding ShowDashboard}"/>
+
+          <!-- SETTINGS view -->
+          <pages:SettingsPage IsVisible="{Binding ShowSettingsView}"/>
+
+          <!-- ABOUT: its own destination on the rail (moved out of Settings). -->
+          <!-- ================= HEALTH ================= -->
+          <!-- Scroll with a floor: the page keeps exactly the viewport's height while there is room (regions
+               shrink, queue lists scroll inside themselves); below the floor it renders at DESIGN HEIGHT and
+               scrolls. Height, not MinHeight - unconstrained, the star-sized lists grow to full content and
+               kill their own scrollbars. The floor is the 1080p design viewport (1080 minus the 34px title
+               bar minus slack); lower floors clip WITHOUT a scrollbar (content == viewport). Measured. -->
+          <!-- The grid's MinHeight IS the viewport (fills when roomy, star rows stretch) and content may
+               exceed it, which is what makes the scrollbar exist; the ACTIVITY column pins its own height so
+               its star lists cannot grow unbounded. -->
+          <!-- The PAGE no longer scrolls as one surface: ACTIVITY is live status and must stay pinned to
+               the viewport (its queue footer was riding away with the page scroll - owner, mac resize pass
+               2026-08-29). Only the LEFT region scrolls, in its own ScrollViewer below. -->
+          <pages:OverviewPage IsVisible="{Binding ShowHealthView}"/>
+
+          <!-- ================= ABOUT ================= -->
+          <pages:AboutPage IsVisible="{Binding ShowAboutView}"/>
+
+          <!-- placeholder views for Drives / Cloud saves (full implementations land in M13/M14) -->
+          <!-- Backups = two columns: left holds the spread control, device cards and the growing
+               inventory; the (previously empty) right half is the full-height Activity rail. -->
+          <!-- SCROLL WITH A FLOOR - same construction and 1080p-design floor as Overview above. -->
+          <pages:StoragePage IsVisible="{Binding ShowBackupLocations}"/>
+          <pages:AccountsPage IsVisible="{Binding ShowAccountsContent}"/>
+
+          <!-- Cloud Saves: header (folder + summary + sort) stays put; the game list is a framed scrollable
+               grid that FILLS the rest - the device-inventory shell, so it reads as one grid even nearly empty. -->
+          <pages:CloudSavesPage IsVisible="{Binding ShowCloudContent}"/>
+
+
+          <!-- phase NoLocation -> choose a backup folder first (token + manifest live under it) -->
+          <StackPanel IsVisible="{Binding ShowLocationPrompt}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                      Spacing="14" MaxWidth="440">
+            <TextBlock Text="Choose where backups go" FontSize="22" FontWeight="Bold" Foreground="{StaticResource InkPrimary}" HorizontalAlignment="Center"/>
+            <TextBlock TextWrapping="Wrap" TextAlignment="Center" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontBody}"
+                       Text="Pick the folder for your GOG backups. Your account and library live here too, so this comes first."/>
+            <Button Classes="primary" Content="Choose Backup Folder" Command="{Binding ShowLocationPickerCommand}"
+                    HorizontalAlignment="Center" Width="240"/>
+          </StackPanel>
+        </Panel>
+
+      </DockPanel>
+
+    </Grid>
+
+    <!-- ===================== WELCOME (first-run scrim; defaults already applied) ===================== -->
+    <!-- FIRST-RUN WELCOME, deliberately thin: the guide says each fact on the real control it belongs
+         to. Button pattern, set here and followed app-wide: filled amber primary, secondarybtn beneath. -->
+    <Border ZIndex="100" IsVisible="{Binding ShowWelcomeOverlay}" Background="{StaticResource ScrimBg}">
+      <!-- Padding moved off the card onto the content: a Border's padding insets its CHILD, so the art
+           could never reach the card's edges. No card padding, art corner to corner, words carry the inset. -->
+      <Border Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1" CornerRadius="{StaticResource RadiusCard}"
+              HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="560" ClipToBounds="True">
+        <Panel>
+          <!-- THE ONE NOD, and the only two places that carry it: this card and About - moments you are
+               LOOKING at Grog rather than working in it. Bounded by the CARD, never the page; the scrim is not
+               optional, because the words are the only thing a first-time user has to read. -->
+          <!-- An IMAGE BRUSH, not an Image element: an Image child reports its SOURCE size as desired size and
+               drives the card's height; a background brush does not participate in layout, so the card is
+               measured by its text and the art fills whatever that comes to. -->
+          <Border Opacity="0.45">
+            <Border.Background>
+              <ImageBrush Source="avares://Grog/Assets/tavern-portrait.png" Stretch="UniformToFill"
+                          AlignmentX="Center" AlignmentY="Center"/>
+            </Border.Background>
+          </Border>
+          <Border Background="{StaticResource SurfacePanel}" Opacity="0.45"/>
+
+          <StackPanel Spacing="22" Margin="44,36">
+          <StackPanel Spacing="10" HorizontalAlignment="Center">
+            <TextBlock FontSize="55" FontWeight="Bold" HorizontalAlignment="Center" Foreground="{StaticResource InkPrimary}">G<Run Foreground="{StaticResource AccentAmber}">R</Run>OG</TextBlock>
+            <Border Height="3" Width="162" Background="{StaticResource AccentAmber}" CornerRadius="2" HorizontalAlignment="Center"/>
+          </StackPanel>
+
+          <!-- TWO LINES, deliberately parallel: theirs, then ours. GOG itself is the link, since the word is
+               already the subject of the sentence and nothing extra has to be added to carry it. -->
+          <StackPanel Spacing="4">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="0">
+              <Button Classes="acklink" Padding="0" Command="{Binding OpenUrlCommand}"
+                      CommandParameter="https://www.gog.com" ToolTip.Tip="gog.com">
+                <TextBlock Classes="personlink" Text="GOG" FontSize="{StaticResource FontTitle}" FontWeight="Bold"/>
+              </Button>
+              <TextBlock Text=" lets you keep what you buy." Foreground="{StaticResource InkPrimary}"
+                         FontSize="{StaticResource FontTitle}" FontWeight="Bold" VerticalAlignment="Center"/>
+            </StackPanel>
+            <!-- The r carries the wordmark's amber, so the second line is visibly the same name. -->
+            <TextBlock TextAlignment="Center" Foreground="{StaticResource InkPrimary}"
+                       FontSize="{StaticResource FontTitle}" FontWeight="Bold" TextWrapping="Wrap"
+                       HorizontalAlignment="Center">G<Run Foreground="{StaticResource AccentAmber}">r</Run>og helps you make that happen.</TextBlock>
+          </StackPanel>
+
+          <!-- Order: the reassurance FIRST, then the heading whose colon leads into the list it sits above.
+               The hairline separates the two and starts the card's amber rule vocabulary. -->
+          <StackPanel Spacing="12">
+            <!-- BOLD even though it is the quiet line: every other line on this card is bold, and regular weight
+                 thins out against the artwork; the gray still separates it from the headline. -->
+            <TextBlock TextAlignment="Center" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}"
+                       FontWeight="Bold" TextWrapping="Wrap"
+                       Text="Defaults have already been set, but you can change them as we review each step."/>
+            <Border Height="2" Background="{StaticResource AmberRuleFade}" Margin="40,2,40,0"/>
+            <!-- LEFT, not centered: it heads the numbered list below, and shares the numerals' left margin. -->
+            <TextBlock TextAlignment="Left" HorizontalAlignment="Left" Margin="14,0,0,0"
+                       Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontRow}"
+                       FontWeight="SemiBold" TextWrapping="Wrap"
+                       Text="Four quick steps to get you started:"/>
+          </StackPanel>
+
+          <StackPanel Spacing="9" Margin="14,0,0,0">
+            <Grid ColumnDefinitions="Auto,*">
+              <TextBlock Grid.Column="0" Text="1." Foreground="{StaticResource AccentAmber}" FontSize="{StaticResource FontRow}" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,12,0"/>
+              <TextBlock Grid.Column="1" Text="Connect your GOG account" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontRow}" TextWrapping="Wrap"/>
+            </Grid>
+            <Grid ColumnDefinitions="Auto,*">
+              <TextBlock Grid.Column="0" Text="2." Foreground="{StaticResource AccentAmber}" FontSize="{StaticResource FontRow}" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,12,0"/>
+              <TextBlock Grid.Column="1" Text="Choose where your backups go" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontRow}" TextWrapping="Wrap"/>
+            </Grid>
+            <Grid ColumnDefinitions="Auto,*">
+              <TextBlock Grid.Column="0" Text="3." Foreground="{StaticResource AccentAmber}" FontSize="{StaticResource FontRow}" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,12,0"/>
+              <TextBlock Grid.Column="1" Text="Scan your GOG library" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontRow}" TextWrapping="Wrap"/>
+            </Grid>
+            <Grid ColumnDefinitions="Auto,*">
+              <TextBlock Grid.Column="0" Text="4." Foreground="{StaticResource AccentAmber}" FontSize="{StaticResource FontRow}" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,12,0"/>
+              <TextBlock Grid.Column="1" Text="Back up your first game" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontRow}" TextWrapping="Wrap"/>
+            </Grid>
+          </StackPanel>
+
+          <StackPanel Spacing="10" Margin="0,4,0,0">
+            <Button Classes="primary" Content="Show me around" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                    Command="{Binding WelcomeGetStartedCommand}"/>
+            <Button Classes="secondarybtn" Content="Skip for now" HorizontalAlignment="Center"
+                    Command="{Binding SkipToAppCommand}"/>
+          </StackPanel>
+          </StackPanel>
+        </Panel>
+      </Border>
+    </Border>
+
+    <!-- ===================== FIX CONFIRM (re-download missing/corrupt files) ===================== -->
+    <ctl:ConfirmDialog DataContext="{Binding Overview}" x:DataType="vm:OverviewViewModel" IsVisible="{Binding ShowFixConfirm}" Title="{Binding FixConfirmTitle}" Body="{Binding FixConfirmText}"
+                       CancelText="Dismiss" CancelCommand="{Binding CancelFixCommand}" ConfirmText="Fix It Now" ConfirmCommand="{Binding ConfirmFixCommand}" CardWidth="540"/>
+
+    <!-- Remove the won't-fit rows (09-11): only those rows go, the rest keep their order. Asks once, with
+         "Don't ask again" in app settings; it is the user's click, never something a run pops up. -->
+    <ctl:ConfirmDialog DataContext="{Binding Overview}" x:DataType="vm:OverviewViewModel" IsVisible="{Binding ShowRemoveWontFitConfirm}" Title="Remove the files that won't fit?" Body="{Binding RemoveWontFitConfirmText}"
+                       CancelText="Cancel" CancelCommand="{Binding CancelRemoveWontFitCommand}" ConfirmText="Remove Them" ConfirmCommand="{Binding ConfirmRemoveWontFitCommand}" Danger="True" CardWidth="520">
+<CheckBox IsChecked="{Binding DontAskRemoveWontFitAgain}" Content="Don't ask again" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}"/>
+    </ctl:ConfirmDialog>
+
+    <!-- ===================== LAYOUT MIGRATION (flat -> category folders) ===================== -->
+    <ctl:ConfirmDialog DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowMigratePrompt}" Title="Reorganize your backup storage?" Body="{Binding MigrateSummary}"
+                       CancelText="Not Now" CancelCommand="{Binding SkipMigrateCommand}" ConfirmText="Reorganize Now" ConfirmCommand="{Binding MigrateNowCommand}" CardWidth="480">
+<CheckBox Content="Don't ask again" IsChecked="{Binding MigrateDontAskAgain}"
+                    Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" MinWidth="0"
+                    ToolTip.Tip="Stops this offer at startup. You can still reorganize any time by changing the layout in Settings."/>
+          
+    </ctl:ConfirmDialog>
+
+    <!-- ===================== REORG RESUME (interrupted reorganize; Resume is default) ===================== -->
+    <ctl:ConfirmDialog DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowReorgResumePrompt}" Title="Finish reorganizing your backups?" Body="{Binding ReorgResumeSummary}"
+                       CancelText="Cancel" CancelCommand="{Binding CancelReorgResumeCommand}" ConfirmText="Resume" ConfirmCommand="{Binding ResumeReorgCommand}" CardWidth="480"/>
+
+    <!-- reorg cancel confirm: abandoning a mid-move reorg needs a deliberate second step -->
+    <ctl:ConfirmDialog DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowReorgCancelConfirm}" Title="Cancel the reorganize?" Body="The previous reorganize was interrupted mid-move. Canceling leaves already-moved files in their new place and stops the rest. Nothing is deleted."
+                       CancelText="Keep It" CancelCommand="{Binding BackFromReorgCancelCommand}" ConfirmText="Yes, Cancel" ConfirmCommand="{Binding ConfirmCancelReorgCommand}" CardWidth="460"/>
+
+    <!-- STOPPED MOVE: real files may sit where the manifest does not expect, so both honest ways out are
+         offered plainly; "Put Files Back" is the default because it is the reversible one. -->
+    <ctl:ConfirmDialog DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowMoveStopChoice}" Title="This move was stopped in-progress" Body="{Binding MoveStopSummary}"
+                       CancelText="Leave Them" CancelCommand="{Binding RequestAcceptOrphansCommand}" ConfirmText="Put Files Back" ConfirmCommand="{Binding RevertStoppedMoveCommand}"/>
+
+    <!-- FIRST-RUN GUIDE (spotlight): FOUR rects around the target, not an opacity mask, so the hole is a
+         genuine gap in the hit-test tree - the target is really clickable and everything else really is not.
+         All coordinates come from the target control (MeasureGuideTarget), so geometry follows resolution,
+         DPI and rail state. Exit sits ABOVE the scrim and is always live: a guide you cannot leave is a trap. -->
+    <!-- Z-ORDER LAW: guide = 80, above the app chrome; every app-modal DIALOG = 100, above the guide.
+         A dialog is a question the user must answer; nothing outranks it. -->
+    <!-- The overlay binds to the GuideViewModel (09-02 split): the two inner panels rebase their DataContext to
+         it, so every Guide* name below is unchanged; the scan bar keeps the window context for its Catalog* readouts. -->
+    <Panel x:Name="GuideOverlayRoot" IsVisible="{Binding Guide.GuideActive}" ZIndex="80">
+      <!-- The scrim + ring. Gated on GuideShowScrim, not just "is there a target": a WAIT step keeps its
+           caption and dims nothing, because the thing being waited on is on the page behind it. -->
+      <Panel DataContext="{Binding Guide}" x:DataType="vm:GuideViewModel" IsVisible="{Binding GuideShowScrim}">
+        <!-- top -->
+        <Border Background="{StaticResource ScrimBg}" HorizontalAlignment="Stretch" VerticalAlignment="Top"
+                Height="{Binding GuideHoleY}"/>
+        <!-- Left of the hole. Its margin must NOT carry the hole's X: with Width=X as well, the rect runs
+             from X to 2X and sits straight on top of the target. -->
+        <Border Background="{StaticResource ScrimBg}" HorizontalAlignment="Left" VerticalAlignment="Top"
+                Width="{Binding GuideHoleX}" Height="{Binding GuideHoleH}" Margin="{Binding GuideHoleLeftMargin}"/>
+        <!-- right of the hole -->
+        <Border Background="{StaticResource ScrimBg}" HorizontalAlignment="Stretch" VerticalAlignment="Top"
+                Height="{Binding GuideHoleH}" Margin="{Binding GuideHoleRightMargin}"/>
+        <!-- below -->
+        <Border Background="{StaticResource ScrimBg}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                Margin="{Binding GuideHoleBottomMargin}"/>
+        <!-- THE RING, two-tone: the inner dark line separates it from an amber target, so the ring stays
+             legible on a target of ANY color without knowing what it points at. -->
+        <Border BorderBrush="{StaticResource AccentAmber}" BorderThickness="2" CornerRadius="9"
+                HorizontalAlignment="Left" VerticalAlignment="Top" IsHitTestVisible="False"
+                Width="{Binding GuideHoleW}" Height="{Binding GuideHoleH}" Margin="{Binding GuideHoleTopMargin}">
+          <Border BorderBrush="{StaticResource SurfaceSunken}" BorderThickness="2" CornerRadius="7"
+                  Background="Transparent" IsHitTestVisible="False"/>
+        </Border>
+      </Panel>
+
+      <!-- Scan progress, inside the overlay so it is never dimmed; runs from the caption's left edge to
+           the spotlit button's right edge, so the numbers and the stop button read as one band. -->
+      <Border x:Name="GuideScanBar" DataContext="{Binding Library}" x:DataType="vm:LibraryViewModel" IsVisible="{Binding ShowGuideScanPanel}" HorizontalAlignment="Left" VerticalAlignment="Top"
+              Margin="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Guide.GuideScanBarMargin}" Width="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Guide.GuideScanBarWidth}"
+              Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource StrokeAmberSoft}"
+              BorderThickness="1" CornerRadius="{StaticResource RadiusCard}" Padding="18,12">
+        <StackPanel Spacing="9">
+          <Grid ColumnDefinitions="*,Auto,Auto">
+            <TextBlock Grid.Column="0" Text="{Binding ScanPanelTitle}" Classes="eyebrow" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="1" Text="{Binding CatalogCountText}" Foreground="White"
+                       FontSize="{StaticResource FontRow}" FontFamily="{StaticResource MonoFont}"
+                       VerticalAlignment="Center" Margin="0,0,14,0"/>
+            <TextBlock Grid.Column="2" Text="{Binding CatalogPercentText}" Foreground="{StaticResource AccentAmber}"
+                       FontSize="{StaticResource FontRow}" FontWeight="Bold" VerticalAlignment="Center"/>
+          </Grid>
+          <ProgressBar Classes="prominent" Height="8"
+                       Value="{Binding CatalogProgress}" IsIndeterminate="{Binding CatalogIndeterminate}"
+                       Foreground="{StaticResource AccentAmber}" Background="{StaticResource PlotRecess}"/>
+        </StackPanel>
+      </Border>
+
+      <!-- Caption. Parked beside the hole, never at a fixed spot. x:Name'd because the view MEASURES it every
+           layout pass and feeds its real size back to the placement maths. -->
+      <Border x:Name="GuideCaptionBox" Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource StrokeAmberSoft}" BorderThickness="1"
+              CornerRadius="{StaticResource RadiusCard}" Padding="18,14" MaxWidth="430"
+              DataContext="{Binding Guide}" x:DataType="vm:GuideViewModel"
+              HorizontalAlignment="Left" VerticalAlignment="Top" Margin="{Binding GuideCaptionMargin}">
+        <StackPanel Spacing="8">
+          <!-- TITLE of the bubble and the biggest type in it: where you are, out of how many, and what this
+               milestone is for. -->
+          <TextBlock Text="{Binding GuideCounter}" Foreground="{StaticResource AccentAmber}"
+                     FontSize="{StaticResource FontSection}" FontWeight="Bold" TextWrapping="Wrap"/>
+          <!-- INLINES, not Text: destination names are picked out in amber so a fast reader sees where a step
+               sends them. A bound Text cannot carry per-word color; the runs are built in code-behind. -->
+          <TextBlock x:Name="GuideCaptionText" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" TextWrapping="Wrap"/>
+          <!-- The "why", when a step has one: its own titled block, separated from the instruction by real
+               vertical space so it reads as a distinct reassurance rather than a run-on second sentence. -->
+          <StackPanel Spacing="4" Margin="0,6,0,0" IsVisible="{Binding HasGuideDetail}">
+            <TextBlock Text="{Binding GuideDetailTitle}" IsVisible="{Binding HasGuideDetailTitle}"
+                       Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+            <TextBlock x:Name="GuideDetailText"
+                       Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" TextWrapping="Wrap"/>
+          </StackPanel>
+          <!-- FOOTER: navigation left, exit right. Back is a plain amber link - a way to re-read, not an
+               action. Next only appears once Back has been used; it can never go past where the user really is. -->
+          <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,4,0,0">
+            <!-- Back is VerticalAlignment=Center as a LOCAL value: Button.acklink sets Top, and a local value
+                 outranks a style setter. Padding matches the two real buttons so the baselines line up. -->
+            <!-- Back is a BUTTON, not a bare amber word: a link beside two bordered controls reads as chrome
+                 with an invisible hit area. Quieter than Next (the `view` tier) but visibly pressable. -->
+            <Button Grid.Column="0" Classes="sortpill view" Command="{Binding GuideBackCommand}"
+                    IsVisible="{Binding CanGuideBack}" Margin="0,0,14,0" Padding="12,5"
+                    VerticalAlignment="Center" VerticalContentAlignment="Center"
+                    ToolTip.Tip="Re-read the previous step">
+              <TextBlock Text="&#171; Back" Foreground="{StaticResource AccentAmber}" FontSize="{StaticResource FontCaption}"
+                         VerticalAlignment="Center"/>
+            </Button>
+            <!-- Next is a real BUTTON, not a bare link: on an optional step it is the way forward, and the one
+                 action a step offers has to look like an action. -->
+            <Button Grid.Column="1" Classes="secondarybtn" Command="{Binding GuideNextCommand}"
+                    IsVisible="{Binding ShowGuideNext}" IsEnabled="{Binding CanGuideNext}"
+                    FontSize="{StaticResource FontCaption}" Padding="12,5"
+                    VerticalAlignment="Center" Content="Next &#187;" ToolTip.Tip="{Binding GuideNextTip}"/>
+            <!-- No special finish-line button: the setup-done card takes the SAME secondarybtn Next as every
+                 other step. The old filled variant was the early-out, and its unique tier was the tell that
+                 the card was pretending to be an ending (owner review 2026-08-24). -->
+            <!-- On the sign-off card Done is THE action, so it takes the filled amber tier (Classes.done,
+                 styled below the guide footer's own styles); everywhere else Exit stays a quiet ghost. -->
+            <Button Grid.Column="3" Classes="ghost" Classes.done="{Binding GuideExitIsPrimary}"
+                    Content="{Binding GuideExitLabel}" FontSize="{StaticResource FontCaption}"
+                    Padding="12,5" VerticalAlignment="Center" Command="{Binding ExitGuideCommand}"/>
+          </Grid>
+        </StackPanel>
+      </Border>
+    </Panel>
+
+    <!-- "You still have this file" guard. Fires only when a copy is actually on disk, so it never nags about
+         a mark that costs nothing. -->
+    <!-- Connect wait: instant feedback for the WebView cold start (up to ~10s before GOG's window even
+         exists). Stays behind GOG's own native window for the whole sign-in; closing either way clears it. -->
+    <Border ZIndex="99" IsVisible="{Binding ShowConnectScrim}" Background="{StaticResource ScrimBg}">
+      <Border Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1" CornerRadius="{StaticResource RadiusCard}" Padding="36,30"
+              HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="460">
+        <StackPanel Spacing="16">
+          <TextBlock Text="Connecting to GOG" FontSize="{StaticResource FontTitle}" FontWeight="Bold" Foreground="{StaticResource InkPrimary}"/>
+          <TextBlock Text="{Binding ConnectScrimText}" TextWrapping="Wrap" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontBody}"/>
+          <ProgressBar IsIndeterminate="True" Height="4"/>
+          <!-- The one exit if the native login window is lost (minimized-then-restored on Linux loses it,
+               and this modal used to have no way out but killing the app). Ghost tier: canceling is an
+               escape hatch, never this dialog's action. -->
+          <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+            <Button Classes="ghost" Content="Cancel" Padding="16,9" IsCancel="True"
+                    Command="{Binding CancelConnectCommand}"/>
+            <!-- Secondary, not primary: the login window is usually right there and this dialog's real
+                 action is "wait". Reopening is for when it has been lost behind the app or minimized away. -->
+            <Button Classes="secondarybtn" Content="Reopen Login Window" Padding="16,9"
+                    Command="{Binding ReopenLoginCommand}"
+                    ToolTip.Tip="Closes the sign-in window and opens a fresh one. Use this if it is hidden or lost."/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Border>
+
+    <!-- Remove account asks once: it wipes a saved login (the one destructive-adjacent account verb), and
+         on a primary with siblings it also names the promotion so the handover is never a surprise. -->
+    <ctl:ConfirmDialog DataContext="{Binding Accounts}" x:DataType="vm:AccountsViewModel" IsVisible="{Binding ShowRemoveAccountConfirm}" Title="Remove this account?" Body="{Binding RemoveAccountWarningText}"
+                       CancelText="Cancel" CancelCommand="{Binding CancelRemoveAccountCommand}" ConfirmText="Remove Account" ConfirmCommand="{Binding ConfirmRemoveAccountCommand}" Danger="True">
+<StackPanel Spacing="6">
+            <!-- (09-19) Opt-in, never the default: removing an account leaves the library alone unless this is ticked. -->
+            <CheckBox IsChecked="{Binding AlsoRemoveAccountGames}" IsVisible="{Binding CanAlsoRemoveGames}" Foreground="{StaticResource InkBright}" FontSize="{StaticResource FontCaption}">
+              <TextBlock Text="{Binding AlsoRemoveGamesLabel}" TextWrapping="Wrap"/>
+            </CheckBox>
+            <CheckBox IsChecked="{Binding DontAskRemoveAccountAgain}" Content="Don't show this again" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}"/>
+          </StackPanel>
+          
+    </ctl:ConfirmDialog>
+
+    <!-- Remove from library: untrack the selection. States the whole contract (bytes stay, rescan re-adds,
+         Hide is the permanent concealment) so the red verb never surprises. -->
+    <ctl:ConfirmDialog DataContext="{Binding Library}" x:DataType="vm:LibraryViewModel" IsVisible="{Binding ShowRemoveItemsConfirm}" Title="Remove from the library?" Body="{Binding RemoveItemsConfirmText}"
+                       CancelText="Cancel" CancelCommand="{Binding CancelRemoveItemsCommand}" ConfirmText="Remove" ConfirmCommand="{Binding ConfirmRemoveItemsCommand}" Danger="True"/>
+
+    <!-- (09-26, owner) MATURE REVIEW: the games "Hide mature content" would hide, each with Keep. Nothing changes
+         until Hide All; Cancel leaves the setting as it was. -->
+    <ctl:ConfirmDialog DataContext="{Binding Library}" x:DataType="vm:LibraryViewModel" IsVisible="{Binding ShowMatureReview}" Title="{Binding MatureReviewTitle}"
+                       Body="Tick Keep for any game you want to leave visible. Hidden games are still backed up."
+                       CancelText="Cancel" CancelCommand="{Binding CancelMatureReviewCommand}" ConfirmText="Hide All" ConfirmCommand="{Binding ConfirmMatureReviewCommand}" CardWidth="600">
+      <Border Background="{StaticResource SurfaceSunken}" CornerRadius="6" Padding="4">
+        <ScrollViewer MaxHeight="380" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Spacing="2" Margin="8,6">
+            <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,4" IsVisible="{Binding MatureReviewHasGogOnly}">
+              <TextBlock Grid.Column="0" Text="RATED 18+ BY GOG ONLY" Classes="eyebrow" Foreground="{StaticResource AccentAmber}" FontSize="{StaticResource FontEyebrow}" FontWeight="Bold" VerticalAlignment="Center"/>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,-4,0,-4" ToolTip.Tip="Keep every game in this section">
+                <TextBlock Text="ALL" Classes="eyebrow" Foreground="{StaticResource AccentAmber}" FontSize="{StaticResource FontEyebrow}" FontWeight="Bold" VerticalAlignment="Center"/>
+                <CheckBox IsChecked="{Binding KeepAllGogOnly}" VerticalAlignment="Center" MinWidth="0" Padding="0"/>
+              </StackPanel>
+            </Grid>
+            <ItemsControl ItemsSource="{Binding MatureReviewGogOnly}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:MatureReviewRow">
+                  <Grid ColumnDefinitions="*,Auto" Margin="0,3">
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding Title}" Foreground="{StaticResource InkBright}" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Text="{Binding Ratings}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}"/>
+                    </StackPanel>
+                    <CheckBox Grid.Column="1" Content="Keep" IsChecked="{Binding Keep}" Foreground="{StaticResource InkBright}" VerticalAlignment="Center"/>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Grid ColumnDefinitions="*,Auto" Margin="0,12,0,4" IsVisible="{Binding MatureReviewHasBoards}">
+              <TextBlock Grid.Column="0" Text="ALSO RATED BY ESRB, PEGI, USK OR BR" Classes="eyebrow" Foreground="{StaticResource AccentAmber}" FontSize="{StaticResource FontEyebrow}" FontWeight="Bold" VerticalAlignment="Center"/>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,-4,0,-4" ToolTip.Tip="Keep every game in this section">
+                <TextBlock Text="ALL" Classes="eyebrow" Foreground="{StaticResource AccentAmber}" FontSize="{StaticResource FontEyebrow}" FontWeight="Bold" VerticalAlignment="Center"/>
+                <CheckBox IsChecked="{Binding KeepAllBoards}" VerticalAlignment="Center" MinWidth="0" Padding="0"/>
+              </StackPanel>
+            </Grid>
+            <ItemsControl ItemsSource="{Binding MatureReviewBoards}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:MatureReviewRow">
+                  <Grid ColumnDefinitions="*,Auto" Margin="0,3">
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding Title}" Foreground="{StaticResource InkBright}" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Text="{Binding Ratings}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}"/>
+                    </StackPanel>
+                    <CheckBox Grid.Column="1" Content="Keep" IsChecked="{Binding Keep}" Foreground="{StaticResource InkBright}" VerticalAlignment="Center"/>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </ctl:ConfirmDialog>
+
+    <!-- DELETE downloaded files (09-11): the one place bytes are removed on purpose. Names the count and size;
+         "Don't ask again" is an app setting. -->
+    <ctl:ConfirmDialog DataContext="{Binding Library}" x:DataType="vm:LibraryViewModel" IsVisible="{Binding ShowDeleteConfirm}" Title="Delete downloaded files?" Body="{Binding DeleteConfirmText}"
+                       CancelText="Cancel" CancelCommand="{Binding CancelDeleteCommand}" ConfirmText="Delete" ConfirmCommand="{Binding ConfirmDeleteCommand}" Danger="True" CardWidth="520">
+<CheckBox IsChecked="{Binding DontAskDeleteAgain}" Content="Don't ask again" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}"/>
+    </ctl:ConfirmDialog>
+
+    <ctl:ConfirmDialog DataContext="{Binding Library}" x:DataType="vm:LibraryViewModel" IsVisible="{Binding ShowMarkNotBackedUpConfirm}" Title="Mark as not backed up?" Body="{Binding MarkWarningText}"
+                       CancelText="Cancel" CancelCommand="{Binding CancelMarkNotBackedUpCommand}" ConfirmText="Mark It" ConfirmCommand="{Binding ConfirmMarkNotBackedUpCommand}">
+<CheckBox IsChecked="{Binding DontAskMarkAgain}" Content="Don't ask again" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}"/>
+          
+    </ctl:ConfirmDialog>
+
+    <!-- PUT-BACK IN PROGRESS. A stopped FOLDER move reverts itself; this is the only thing on screen while it
+         does, and the only way out is a deliberate stop with its own confirm. -->
+    <ctl:ConfirmDialog DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding Reverting}" Title="Putting the files back" Body="{Binding RevertHeadline}"
+                       ShowCancel="False" ConfirmText="Stop" ConfirmCommand="{Binding RequestStopRevertCommand}"/>
+
+    <!-- Stopping the put-back strands files on purpose, so it is the one place that asks twice. -->
+    <ctl:ConfirmDialog DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowRevertStopConfirm}" Title="Stop putting the files back?" Body="{Binding RevertStopWarning}"
+                       CancelText="Keep Going" CancelCommand="{Binding BackFromRevertStopCommand}" ConfirmText="Yes, Stop" ConfirmCommand="{Binding ConfirmStopRevertCommand}" CardWidth="520"/>
+
+    <!-- Second step for the irreversible-ish choice: spell out the consequence with the actual count. -->
+    <ctl:ConfirmDialog DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowOrphanConfirm}" Title="Leave the moved files where they are?" Body="{Binding MoveStopOrphanWarning}"
+                       CancelText="Go Back" CancelCommand="{Binding BackFromOrphanConfirmCommand}" ConfirmText="Yes, Leave Them" ConfirmCommand="{Binding ConfirmAcceptOrphansCommand}"/>
+
+    <!-- Make-primary confirm: guards against an accidental switch of the default destination -->
+    <ctl:ConfirmDialog DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowMakePrimaryWarning}" Title="Change primary storage" Body="{Binding MakePrimaryText}"
+                       CancelText="Cancel" CancelCommand="{Binding CancelMakePrimaryCommand}" ConfirmText="Make Primary" ConfirmCommand="{Binding ConfirmMakePrimaryCommand}" CardWidth="480"/>
+
+    <!-- Close-confirm: the X asks close (pause work + stop the schedule) or minimize to tray; Close &
+         pause is default since the user pressed X. "Don't show again" only ACTS - the permanent answer lives
+         in Settings. Buttons route to OnCloseConfirmClose/Minimize/Cancel, which own the close/hide. -->
+    <!-- FIRST SCAN CANCELED, not a scolding: the app cannot tell what you own until one scan finishes,
+         so the empty grid needs a reason. Only after the FIRST scan; a canceled rescan explains itself. -->
+    <ctl:ConfirmDialog DataContext="{Binding Library}" x:DataType="vm:LibraryViewModel" IsVisible="{Binding ShowFirstScanCanceled}" Title="Scan stopped before it finished"
+                       Body="Nothing was saved, so your library is still empty. Grog needs one complete scan to know what you own and which files are available to back up; a partial list would leave it guessing."
+                       CancelText="Not now" CancelCommand="{Binding DismissFirstScanCanceledCommand}" ConfirmText="Scan GOG Library" ConfirmCommand="{Binding RescanAfterCancelCommand}" CardWidth="520"/>
+
+    <!-- Closing wait: the window stays up while the drive finishes the files in flight; Close now appears after 10 s. -->
+    <Border ZIndex="101" IsVisible="{Binding ShowClosingWait}" Background="{StaticResource ScrimBg}">
+      <Border Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1" CornerRadius="{StaticResource RadiusCard}" Padding="34,28"
+              HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="500">
+        <StackPanel Spacing="14">
+          <TextBlock Text="Closing Grog" FontSize="{StaticResource FontTitle}" FontWeight="Bold" Foreground="{StaticResource InkPrimary}"/>
+          <TextBlock TextWrapping="Wrap" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" Text="{Binding ClosingWaitText}"/>
+          <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,2,0,0" IsVisible="{Binding ClosingWaitCanForce}">
+            <Button Classes="secondarybtn" Content="Close now" Command="{Binding CloseNowCommand}" Padding="16,9"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Border>
+    <Border ZIndex="100" IsVisible="{Binding ShowCloseConfirm}" Background="{StaticResource ScrimBg}">
+      <Border Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1" CornerRadius="{StaticResource RadiusCard}" Padding="34,28"
+              HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="500">
+        <StackPanel Spacing="14">
+          <TextBlock Text="Close Grog?" FontSize="{StaticResource FontTitle}" FontWeight="Bold" Foreground="{StaticResource InkPrimary}"/>
+          <TextBlock TextWrapping="Wrap" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}"
+                     Text="Closing stops Scheduled Backups from running, and pauses anything in progress."/>
+          <TextBlock TextWrapping="Wrap" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}"
+                     Text="{Binding TrayConfirmBody}" IsVisible="{Binding Settings.TrayAvailable}"/>
+          <!-- Remember = the pressed button becomes the standing answer and this dialog stops appearing.
+               Changeable any time under Settings -> App Behavior -> "When you close the window". -->
+          <CheckBox Content="Remember my choice" IsChecked="{Binding RememberCloseChoice, Mode=TwoWay}"
+                    Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}"/>
+          <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,2,0,0">
+            <Button Classes="ghost" Content="Cancel" Click="OnCloseConfirmCancel" Padding="16,9"/>
+            <!-- Just "Close": this dialog appears whether or not anything is running, and "Close &amp; Pause"
+                 promised a pause that is meaningless on an idle app. What closing costs is said in the body. -->
+            <Button Classes="secondarybtn" Content="Close" Click="OnCloseConfirmClose" Padding="16,9" IsVisible="{Binding Settings.TrayAvailable}"/>
+            <!-- No tray on this desktop (sweep 2 #10): the tray button is not offered, because hiding the window
+                 with no icon to bring it back strands the app. Close is then the primary and the default. -->
+            <Button Classes="primary" Content="Close" Click="OnCloseConfirmClose" IsDefault="True" Padding="16,9" IsVisible="{Binding !Settings.TrayAvailable}"/>
+            <!-- PRIMARY, rightmost like every other primary: staying in the tray keeps scheduled backups
+                 running. IsDefault moves with the tier, or Enter would fire the wrong button. -->
+            <Button Classes="primary" Content="{Binding Settings.TrayPillLabel}" Click="OnCloseConfirmMinimize" IsDefault="{Binding Settings.TrayAvailable}" IsVisible="{Binding Settings.TrayAvailable}" Padding="16,9"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Border>
+
+    <!-- OUT OF SPACE, end of run: some files fit, these did not. Reported once at the end, like the scan
+         summary, because a file with nowhere to land is never attempted and so produces no failure to see.
+         They stay queued, so this reads as "when you free space", not as an error. -->
+    <ctl:ConfirmDialog IsVisible="{Binding ShowNoSpaceSummary}" Title="Backup finished, but not everything fit"
+                       CancelText="OK" CancelCommand="{Binding DismissNoSpaceSummaryCommand}" ConfirmText="Manage Storage" ConfirmCommand="{Binding ManageFoldersFromNoSpaceCommand}" CardWidth="540">
+      <Grid ColumnDefinitions="64,*">
+        <TextBlock Grid.Column="0" Text="{Binding NoSpaceCountText}" Foreground="{StaticResource AccentAmber}"
+                   FontSize="{StaticResource FontRow}" FontWeight="Bold" HorizontalAlignment="Right" Margin="0,0,14,0"/>
+        <StackPanel Grid.Column="1" Spacing="2">
+          <TextBlock Text="{Binding NoSpaceBytesText, StringFormat={}files ({0}) had no room on any storage}"
+                     Foreground="{StaticResource InkBright}" FontSize="{StaticResource FontRow}" TextWrapping="Wrap"/>
+          <TextBlock Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" TextWrapping="Wrap"
+                     Text="They were not downloaded and are still in the queue. Free space or add storage, then resume the queue and they will be picked up."/>
+        </StackPanel>
+      </Grid>
+    </ctl:ConfirmDialog>
+
+    <!-- OUT OF SPACE, nothing fits: shown INSTEAD of starting a run that would download zero files. -->
+    <ctl:ConfirmDialog IsVisible="{Binding ShowNoSpaceAtAll}" Title="No room to download" Body="{Binding NoSpaceSummaryLine}"
+                       Note="Nothing was started and the queue is unchanged. Free space or add storage, then resume."
+                       CancelText="OK" CancelCommand="{Binding DismissNoSpaceAtAllCommand}" ConfirmText="Manage Storage" ConfirmCommand="{Binding ManageFoldersFromNoSpaceCommand}" CardWidth="540"/>
+
+    <!-- Clearing the queue is cheap on disk but expensive in intent: order and hand-picked selection go.
+         The body says plainly that no bytes are lost, so the dialog informs rather than alarms. -->
+    <ctl:ConfirmDialog IsVisible="{Binding ShowClearQueueConfirm}" Title="Clear the download queue?"
+                       Body="Everything queued is removed and the file in progress stops."
+                       Note="Nothing on disk is deleted. Partly downloaded files are kept, so queuing them again picks up where they left off."
+                       CancelText="Cancel" CancelCommand="{Binding DismissClearQueueConfirmCommand}" ConfirmText="Clear Queue" ConfirmCommand="{Binding ConfirmClearQueueCommand}" Danger="True" CardWidth="520"/>
+
+    <!-- A move runs in the background for as long as the bytes take; this says once where to watch it,
+         then gets out of the way. Dismissing or navigating never affects the move itself. -->
+    <ctl:ConfirmDialog DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowMoveStartedNotice}" Title="Move started"
+                       Note="Files are copied and verified before the originals are removed, so the move is safe to leave running."
+                       CancelText="Stay here" CancelCommand="{Binding DismissMoveStartedNoticeCommand}" ConfirmText="Go to Overview" ConfirmCommand="{Binding WatchMoveOnOverviewCommand}" CardWidth="520">
+      <StackPanel Orientation="Horizontal" Spacing="0">
+        <TextBlock Text="Track its progress under Activity on the " Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" VerticalAlignment="Center"/>
+        <Button Classes="linky" Content="Overview" Padding="0" VerticalAlignment="Center" FontSize="{StaticResource FontBody}"
+                Command="{Binding WatchMoveOnOverviewCommand}"/>
+        <TextBlock Text=" page." Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" VerticalAlignment="Center"/>
+      </StackPanel>
+    </ctl:ConfirmDialog>
+
+    <!-- Some of the picked files cannot land on the target (no room, or over its per-file limit). The planner
+         left them out; the user says whether the rest goes. Cancel moves nothing. -->
+    <ctl:ConfirmDialog DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowMoveRoomConfirm}" Title="Not everything fits" Body="{Binding MoveRoomText}"
+                       CancelText="Cancel" CancelCommand="{Binding CancelMoveRoomCommand}" ConfirmText="Move What Fits" ConfirmCommand="{Binding ConfirmMoveRoomCommand}" CardWidth="520"/>
+
+    <!-- A second launch folded into this instance. Modal, not a toast: the user double-clicked something
+         and got a window that may be a DIFFERENT copy (portable vs installed look identical), so the
+         explanation must be seen, not glimpsed past a busy queue. -->
+    <ctl:ConfirmDialog IsVisible="{Binding ShowAlreadyRunning}" Title="Grog is already running" Body="{Binding AlreadyRunningText}"
+                       Note="Close it to start a different copy."
+                       ShowCancel="False" ConfirmText="OK" ConfirmCommand="{Binding DismissAlreadyRunningCommand}" CardWidth="520"/>
+
+    <!-- (New items 09-09) Manual rescan with items still flagged New: retire them, keep them, or stand down.
+         Three buttons, same shape as the add-intent dialog. Scheduled runs never reach this. -->
+    <ctl:ConfirmDialog IsVisible="{Binding ShowClearNewPrompt}" Title="{Binding ClearNewPromptTitle}"
+                       Body="{Binding ClearNewPromptBody}"
+                       CancelText="Cancel" CancelCommand="{Binding CancelClearNewScanCommand}"
+                       AltText="Keep and Scan" AltCommand="{Binding KeepNewAndScanCommand}"
+                       ConfirmText="Clear and Scan" ConfirmCommand="{Binding ClearNewAndScanCommand}" CardWidth="520"/>
+
+    <!-- Change-folder step 1: move the files, cancel, or continue without moving (red) -->
+    <!-- Change-folder step 1: move the files, cancel, or continue without moving (the red alternate). -->
+    <ctl:ConfirmDialog DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowChangeFolderPrompt}" Title="Move existing backups?" Body="{Binding ChangeFolderText}"
+                       CancelText="Cancel" CancelCommand="{Binding CancelChangeFolderCommand}"
+                       AltText="Continue Without Moving" AltCommand="{Binding RequestChangeOrphanCommand}" AltDanger="True"
+                       ConfirmText="Move" ConfirmCommand="{Binding ConfirmChangeMoveCommand}" CardWidth="520"/>
+
+    <!-- Change-folder, offline source whose files are already at the new path: re-point is primary, flag-missing the red alternate. -->
+    <ctl:ConfirmDialog DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowChangeRepointPrompt}" Title="Files are already here" Body="{Binding ChangeRepointText}"
+                       CancelText="Cancel" CancelCommand="{Binding CancelChangeFolderCommand}"
+                       AltText="Flag as Missing" AltCommand="{Binding RequestChangeOrphanCommand}" AltDanger="True"
+                       ConfirmText="Re-point" ConfirmCommand="{Binding ConfirmChangeRepointCommand}" CardWidth="520"/>
+
+    <!-- Change-folder step 2: orphan confirmation (red) when they chose not to move -->
+    <ctl:ConfirmDialog DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowChangeOrphanWarn}" Title="These files will be flagged missing" Body="{Binding ChangeOrphanText}"
+                       CancelText="Back" CancelCommand="{Binding CancelChangeFolderCommand}" ConfirmText="Re-point Anyway" ConfirmCommand="{Binding ConfirmChangeOrphanCommand}" Alarm="True" CardWidth="520"/>
+
+    <!-- Delete-device dialog: move / leave-files / delete-files, with a typed-DELETE gate on the destructive path. -->
+
+    <Border ZIndex="100" DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowDeleteDeviceDialog}" Background="{StaticResource ScrimBg}">
+      <Border Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1" CornerRadius="{StaticResource RadiusCard}" Padding="30,26"
+              HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="540">
+        <StackPanel Spacing="14">
+          <TextBlock Text="{Binding DeleteDeviceTitle}" FontSize="{StaticResource FontTitle}" FontWeight="Bold" Foreground="{StaticResource InkPrimary}"/>
+          <TextBlock Text="{Binding DeleteSummary}" TextWrapping="Wrap" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}"/>
+
+          <!-- The four outcomes, only when the device holds files. Order = least change first (owner 09-13).
+               (09-14) ONE-WAY + click command, never TwoWay: a Detach chosen by default ran as Forget (measured:
+               "Removed Secondary" in grog.log with Detach preselected). A radio group's realisation writes IsChecked
+               back through TwoWay bindings; the click is the only write now. -->
+          <StackPanel Spacing="9" IsVisible="{Binding DeleteHasFiles}">
+            <RadioButton GroupName="del" IsChecked="{Binding DeleteChoiceDetach, Mode=OneWay}" Command="{Binding SetDeleteChoiceCommand}" CommandParameter="3" IsVisible="{Binding DeleteCanDetach}">
+              <StackPanel Spacing="2">
+                <TextBlock Text="Detach: keep its files counted as backed up" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding DeleteDetachNote}" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}" TextWrapping="Wrap"/>
+              </StackPanel>
+            </RadioButton>
+            <RadioButton GroupName="del" IsChecked="{Binding DeleteChoiceLeave, Mode=OneWay}" Command="{Binding SetDeleteChoiceCommand}" CommandParameter="1">
+              <StackPanel Spacing="2">
+                <TextBlock Text="Forget: stop tracking it, leave its files on disk" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding DeleteLeaveNote}" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}" TextWrapping="Wrap"/>
+              </StackPanel>
+            </RadioButton>
+            <RadioButton GroupName="del" IsChecked="{Binding DeleteChoiceMove, Mode=OneWay}" Command="{Binding SetDeleteChoiceCommand}" CommandParameter="0" IsVisible="{Binding DeleteCanMove}">
+              <StackPanel Spacing="2">
+                <TextBlock Text="{Binding DeleteMoveOptionText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+                <TextBlock Text="Nothing is lost. The files copy to the other storage (verified) before this one is forgotten." Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}" TextWrapping="Wrap"/>
+              </StackPanel>
+            </RadioButton>
+            <RadioButton GroupName="del" IsChecked="{Binding DeleteChoiceDelete, Mode=OneWay}" Command="{Binding SetDeleteChoiceCommand}" CommandParameter="2" IsVisible="{Binding DeleteCanErase}">
+              <StackPanel Spacing="2">
+                <TextBlock Text="Delete: erase its files, then forget it" Foreground="{StaticResource ErrorRed}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding DeleteDestructiveNote}" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}" TextWrapping="Wrap"/>
+              </StackPanel>
+            </RadioButton>
+          </StackPanel>
+
+          <!-- Non-blocking heads-up (owner 08-30): the queued backup can't finish without this device.
+               Same red-on-dim-red treatment as the Overview fits-nowhere banner; it informs, never gates -
+               the user may be about to attach a replacement device. -->
+          <Border IsVisible="{Binding ShowDeleteQueueImpact}" Padding="9,6"
+                  Background="{StaticResource SurfaceErrorSoft}" BorderBrush="{StaticResource StrokeErrorSoft}"
+                  BorderThickness="1" CornerRadius="{StaticResource RadiusChip}">
+            <TextBlock Text="{Binding DeleteQueueImpactText}" Foreground="{StaticResource ErrorRedBright}"
+                       FontSize="{StaticResource FontCaption}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+          </Border>
+
+          <!-- typed confirmation, only for the destructive choice -->
+          <StackPanel Spacing="6" IsVisible="{Binding DeleteRequiresTyped}">
+            <TextBlock Text="Type DELETE to confirm you want to permanently delete these files:" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}"/>
+            <TextBox Text="{Binding DeleteTypedConfirm, Mode=TwoWay}" FontFamily="Consolas,monospace" PlaceholderText="DELETE"
+                     Background="{StaticResource SurfaceBg}" Foreground="{StaticResource InkPrimary}" BorderBrush="{StaticResource StrokeDangerInput}" CornerRadius="{StaticResource RadiusChip}" Padding="10,7"/>
+          </StackPanel>
+
+          <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,4,0,0">
+            <Button Classes="ghost" Content="Cancel" Command="{Binding CancelDeleteDeviceCommand}" Padding="16,9"/>
+            <Button Classes="primary" Content="{Binding DeleteActionLabel}" Command="{Binding ConfirmDeleteDeviceCommand}"
+                    IsEnabled="{Binding DeleteConfirmed}" Padding="16,9"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Border>
+
+    <!-- NEW STORAGE ADDED (09-13): one question about the files already on the old primary, asked once, right
+         after a second storage is added while the queue had files with nowhere to go. Numbers are the manifest's. -->
+    <Border ZIndex="100" DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowStorageAddOffer}" Background="{StaticResource ScrimBg}">
+      <Border Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1" CornerRadius="{StaticResource RadiusCard}" Padding="30,26"
+              HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="580">
+        <StackPanel Spacing="14">
+          <TextBlock Text="{Binding AddOfferTitle}" FontSize="{StaticResource FontTitle}" FontWeight="Bold" Foreground="{StaticResource InkPrimary}" TextWrapping="Wrap"/>
+          <TextBlock Text="{Binding AddOfferBody}" TextWrapping="Wrap" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}"/>
+          <StackPanel Spacing="9">
+            <RadioButton GroupName="addoffer" IsChecked="{Binding AddOfferChoiceLeave, Mode=OneWay}" Command="{Binding SetAddOfferChoiceCommand}" CommandParameter="0">
+              <StackPanel Spacing="2">
+                <TextBlock Text="Leave them where they are" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding AddOfferLeaveText}" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}" TextWrapping="Wrap"/>
+              </StackPanel>
+            </RadioButton>
+            <RadioButton GroupName="addoffer" IsChecked="{Binding AddOfferChoiceWhole, Mode=OneWay}" Command="{Binding SetAddOfferChoiceCommand}" CommandParameter="1" IsVisible="{Binding AddOfferCanKeepWhole}">
+              <StackPanel Spacing="2">
+                <TextBlock Text="Move the split games" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding AddOfferWholeText}" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}" TextWrapping="Wrap"/>
+              </StackPanel>
+            </RadioButton>
+            <RadioButton GroupName="addoffer" IsChecked="{Binding AddOfferChoiceMoveAll, Mode=OneWay}" Command="{Binding SetAddOfferChoiceCommand}" CommandParameter="2" IsVisible="{Binding AddOfferCanMoveAll}">
+              <StackPanel Spacing="2">
+                <TextBlock Text="Move everything to the new storage and make it Primary" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding AddOfferMoveAllText}" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}" TextWrapping="Wrap"/>
+              </StackPanel>
+            </RadioButton>
+          </StackPanel>
+          <TextBlock Text="Moves copy each file to the new storage, verify it, then remove the original. You can watch and pause them in Activity." Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontEyebrow}" TextWrapping="Wrap"/>
+          <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,4,0,0">
+            <Button Classes="primary" Content="{Binding AddOfferActionLabel}" Command="{Binding ContinueStorageAddOfferCommand}" Padding="16,9"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Border>
+
+    <!-- (09-25, owner) Storage went away mid-download: downloads pause and this says so, mid-screen on any page.
+         Reconnecting continues; Mark as Lost (Storage page) re-queues its files elsewhere. -->
+    <Border ZIndex="100" DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowDriveWaitCard}" Background="{StaticResource ScrimBg}">
+      <Border Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1" CornerRadius="{StaticResource RadiusCard}" Padding="30,26"
+              HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="560">
+        <StackPanel Spacing="14">
+          <TextBlock Text="{Binding DriveWaitTitle}" FontSize="{StaticResource FontTitle}" FontWeight="Bold" Foreground="{StaticResource InkPrimary}" TextWrapping="Wrap"/>
+          <TextBlock Text="{Binding DriveWaitBody}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" TextWrapping="Wrap"/>
+          <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,4,0,0">
+            <Button Content="Go to Storage" Command="{Binding DriveWaitGoToStorageCommand}" Padding="14,9"/>
+            <Button Classes="primary" Content="OK" Command="{Binding DriveWaitKeepCommand}" Padding="22,9"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Border>
+
+    <!-- Delete-device PROGRESS (09-13): NOT modal. The same card the Library scan uses, parked bottom-right over
+         whatever page is showing, in the destructive red instead of amber. The user keeps the app while a slow
+         drive works; nothing here can be cancelled half-way (a half-deleted folder is worse than either end). -->
+    <Border ZIndex="100" DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowDeleteDeviceProgress}"
+            HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,28,28" Width="440"
+            Background="{StaticResource SurfaceSection}" BorderBrush="{StaticResource StrokeErrorSoft}"
+            BorderThickness="1" CornerRadius="{StaticResource RadiusCard}" Padding="18,14">
+      <StackPanel Spacing="10">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Grid.Column="0" Text="{Binding DeleteDeviceProgressTitle}" Classes="eyebrow" Foreground="{StaticResource ErrorRedBright}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+          <TextBlock Grid.Column="1" Text="{Binding DeleteDeviceProgressPercent}" Foreground="{StaticResource ErrorRedBright}"
+                     FontSize="{StaticResource FontRow}" FontWeight="Bold" VerticalAlignment="Center" Margin="14,0,0,0"/>
+        </Grid>
+        <ProgressBar Classes="prominent" Height="8" Value="{Binding DeleteDeviceProgressValue}" Maximum="100"
+                     Foreground="{StaticResource ErrorRedBright}" Background="{StaticResource PlotRecess}"/>
+        <TextBlock Text="{Binding DeleteDeviceProgressText}" Foreground="White" FontSize="{StaticResource FontRow}" FontFamily="{StaticResource MonoFont}" FontFeatures="+tnum"/>
+      </StackPanel>
+    </Border>
+
+    <!-- Rename a storage (09-15): the user's name for a drive; blank falls back to the folder name. -->
+    <ctl:ConfirmDialog DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowRenameDialog}" Title="Name this storage" Body="{Binding RenameBody}"
+                       CancelText="Cancel" CancelCommand="{Binding CancelRenameCommand}" ConfirmText="Save" ConfirmCommand="{Binding ConfirmRenameCommand}" CardWidth="480">
+      <TextBox Text="{Binding RenameText, Mode=TwoWay}" PlaceholderText="e.g. Old laptop drive" MaxLength="40"
+               Background="{StaticResource SurfaceBg}" Foreground="{StaticResource InkPrimary}" BorderBrush="{StaticResource StrokeStrong}" CornerRadius="{StaticResource RadiusChip}" Padding="10,7"/>
+    </ctl:ConfirmDialog>
+    <!-- Swap Other storage into a held slot (09-14): one confirm naming both drives. -->
+    <ctl:ConfirmDialog DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowSwapConfirm}" Title="{Binding SwapTitle}" Body="{Binding SwapText}"
+                       CancelText="Cancel" CancelCommand="{Binding CancelSwapCommand}" ConfirmText="Swap" ConfirmCommand="{Binding ConfirmSwapCommand}" CardWidth="560"/>
+    <!-- Forget a drive under Other storage (09-13): the plain remove. -->
+    <ctl:ConfirmDialog DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowForgetDetachedConfirm}" Title="Forget this storage?" Body="{Binding ForgetDetachedText}"
+                       CancelText="Cancel" CancelCommand="{Binding CancelForgetDetachedCommand}" ConfirmText="Forget" ConfirmCommand="{Binding ConfirmForgetDetachedCommand}" Danger="True" CardWidth="520"/>
+
+    <!-- Fresh library: untrack EVERYTHING (items + queue), keep accounts/settings/storage/bytes.
+         Gated on typing RESET - it empties the whole grid in one click otherwise. -->
+    <ctl:ConfirmDialog DataContext="{Binding Settings}" x:DataType="vm:SettingsViewModel" IsVisible="{Binding ShowFreshLibraryConfirm}" Title="Start with a fresh library?" Body="{Binding FreshLibraryWarningText}"
+                       CancelText="Cancel" CancelCommand="{Binding CancelFreshLibraryCommand}" ConfirmText="Reset Library" ConfirmCommand="{Binding ConfirmFreshLibraryCommand}" CanConfirm="{Binding FreshLibraryConfirmed}" Danger="True" CardWidth="540">
+<StackPanel Spacing="6">
+            <TextBlock Text="Type RESET to confirm:" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}"/>
+            <TextBox Text="{Binding FreshTypedConfirm, Mode=TwoWay}" FontFamily="Consolas,monospace" PlaceholderText="RESET"
+                     Background="{StaticResource SurfaceBg}" Foreground="{StaticResource InkPrimary}" BorderBrush="{StaticResource StrokeDangerInput}" CornerRadius="{StaticResource RadiusChip}" Padding="10,7"/>
+          </StackPanel>
+          
+    </ctl:ConfirmDialog>
+
+    <!-- Mark-as-lost confirm: drive died / gone for good. Forgets its files (back to "not downloaded"),
+         drops the device. Gated on typing LOST. -->
+    <ctl:ConfirmDialog DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowLostDeviceDialog}" Title="{Binding LostDeviceTitle}" Body="{Binding LostSummary}"
+                       CancelText="Cancel" CancelCommand="{Binding CancelLostDeviceCommand}" ConfirmText="Mark as Lost" ConfirmCommand="{Binding ConfirmLostDeviceCommand}" CanConfirm="{Binding LostConfirmed}" CardWidth="540">
+<StackPanel Spacing="6">
+            <TextBlock Text="Type LOST to confirm:" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}"/>
+            <TextBox Text="{Binding LostTypedConfirm, Mode=TwoWay}" FontFamily="Consolas,monospace" PlaceholderText="LOST"
+                     Background="{StaticResource SurfaceBg}" Foreground="{StaticResource InkPrimary}" BorderBrush="{StaticResource StrokeWarnInput}" CornerRadius="{StaticResource RadiusChip}" Padding="10,7"/>
+          </StackPanel>
+          
+    </ctl:ConfirmDialog>
+
+    <!-- ===================== IMPORT RESULTS (problems + Find-match; matched collapsed) ===================== -->
+    <Border ZIndex="100" DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowImportResults}" Background="{StaticResource ScrimBg}">
+      <Border Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1" CornerRadius="{StaticResource RadiusCard}" Padding="0"
+              HorizontalAlignment="Center" VerticalAlignment="Center" Width="620" MaxHeight="640">
+        <DockPanel>
+          <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="24,20,20,8">
+            <TextBlock Text="Import results" FontSize="{StaticResource FontTitle}" FontWeight="Bold" Foreground="{StaticResource InkPrimary}" VerticalAlignment="Center"/>
+            <Button Grid.Column="1" Classes="ghost" Content="Close" Command="{Binding CloseImportResultsCommand}" Padding="14,7"/>
+          </Grid>
+          <Border DockPanel.Dock="Bottom" Padding="24,14" Background="{StaticResource SurfaceBgAlt}">
+            <Button Classes="primary" Content="Adopt Matches" HorizontalAlignment="Right"
+                    Command="{Binding ImportAdoptCommand}" IsEnabled="{Binding ImportCanAdopt}" Padding="18,9"/>
+          </Border>
+          <ScrollViewer>
+            <StackPanel Margin="24,4,24,16" Spacing="10">
+              <TextBlock Text="Needs your input" Foreground="{StaticResource AccentAmber}" FontWeight="SemiBold" FontSize="{StaticResource FontCaption}"
+                         IsVisible="{Binding ImportProblemRows.Count}"/>
+              <ItemsControl ItemsSource="{Binding ImportProblemRows}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ImportResultRow">
+                    <Border Background="{StaticResource SurfaceBgAlt}" BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1" CornerRadius="{StaticResource RadiusControl}" Padding="14,10" Margin="0,0,0,8">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Spacing="2">
+                          <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{Binding FolderName}" Foreground="{StaticResource InkPrimary}" FontWeight="SemiBold" FontSize="{StaticResource FontCaption}" TextWrapping="Wrap"/>
+                            <Border Background="{StaticResource SurfaceStroke}" CornerRadius="{StaticResource RadiusChip}" Padding="6,1" VerticalAlignment="Center">
+                              <TextBlock Text="{Binding Kind}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontEyebrow}"/>
+                            </Border>
+                          </StackPanel>
+                          <TextBlock Text="{Binding Detail}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontEyebrow}" TextWrapping="Wrap"/>
+                          <TextBlock Foreground="{StaticResource SuccessGreen}" FontSize="{StaticResource FontEyebrow}" IsVisible="{Binding IsResolved}">
+                            <Run Text="→ matched to "/><Run Text="{Binding ResolvedTitle}" FontWeight="SemiBold"/>
+                          </TextBlock>
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="ghost" Content="Find Match…" VerticalAlignment="Center"
+                                IsVisible="{Binding ShowFindMatch}" Padding="12,6"
+                                Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.FindMatchCommand}"
+                                CommandParameter="{Binding}"/>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <!-- collapsed matched section -->
+              <Button Classes="toc" Command="{Binding ToggleMatchedExpandedCommand}" HorizontalAlignment="Left" Margin="0,4,0,0">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Text="▸" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" IsVisible="{Binding !ImportMatchedExpanded}"/>
+                  <TextBlock Text="▾" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" IsVisible="{Binding ImportMatchedExpanded}"/>
+                  <TextBlock Foreground="{StaticResource InkPrimary}" FontWeight="SemiBold" FontSize="{StaticResource FontCaption}">
+                    <Run Text="Matched ("/><Run Text="{Binding ImportMatchedCount}"/><Run Text=")"/>
+                  </TextBlock>
+                </StackPanel>
+              </Button>
+              <ItemsControl ItemsSource="{Binding ImportMatchedTitles}" IsVisible="{Binding ImportMatchedExpanded}" Margin="18,0,0,0">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" Margin="0,2"/>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </ScrollViewer>
+        </DockPanel>
+      </Border>
+    </Border>
+
+    <!-- ===================== FIND-MATCH PICKER (searchable game list) ===================== -->
+    <Border ZIndex="100" DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowImportPicker}" Background="{StaticResource ScrimSunken}">
+      <Border Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1" CornerRadius="{StaticResource RadiusCard}" Padding="0"
+              HorizontalAlignment="Center" VerticalAlignment="Center" Width="480" MaxHeight="560">
+        <DockPanel>
+          <StackPanel DockPanel.Dock="Top" Margin="20,18,20,10" Spacing="10">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="Match to a game" FontSize="{StaticResource FontTitle}" FontWeight="Bold" Foreground="{StaticResource InkPrimary}" VerticalAlignment="Center"/>
+              <Button Grid.Column="1" Classes="ghost" Content="Cancel" Command="{Binding CloseImportPickerCommand}" Padding="12,6"/>
+            </Grid>
+            <TextBox Text="{Binding ImportPickerSearch}" PlaceholderText="Search your library…" />
+          </StackPanel>
+          <ScrollViewer>
+            <ItemsControl ItemsSource="{Binding ImportPickerGames}" Margin="12,0,12,14">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:GamePick">
+                  <Button Classes="toc" HorizontalAlignment="Stretch"
+                          Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.ImportPickerSelectCommand}"
+                          CommandParameter="{Binding GogId}">
+                    <TextBlock Text="{Binding Title}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" TextWrapping="Wrap"/>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </DockPanel>
+      </Border>
+    </Border>
+
+    <!-- ===================== ADD LOCATION INTENT (existing backups vs new empty) ===================== -->
+    <ctl:ConfirmDialog DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel" IsVisible="{Binding ShowAddIntent}" Title="{Binding AddIntentTitle}"
+                       Body="Grog will scan this folder. Anything already backed up there is added to your library, so you only download what's missing."
+                       CancelText="Cancel" CancelCommand="{Binding CancelAddIntentCommand}"
+                       AltText="Skip Scan &amp; Add" AltCommand="{Binding AddIntentSkipScanCommand}"
+                       ConfirmText="Scan &amp; Add" ConfirmCommand="{Binding AddIntentExistingCommand}" CardWidth="540">
+      <!-- Skip Scan: add the folder without looking for existing backups, for a folder you know is empty. A later
+           Rescan & Verify covers them if they were wrong; nothing is lost by skipping. -->
+      <StackPanel Spacing="10">
+        <Border IsVisible="{Binding PendingSameVolumeWarning, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                BorderBrush="{StaticResource AccentAmber}" BorderThickness="3,0,0,0" Padding="12,8" Background="{StaticResource SurfaceRaised}">
+          <TextBlock Text="{Binding PendingSameVolumeWarning}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" TextWrapping="Wrap"/>
+        </Border>
+        <!-- (09-25, owner) On: adopted files are hashed against GOG's checksums. Off: size check only. -->
+        <CheckBox IsChecked="{Binding ImportVerifyChecksums}" Content="Verify file integrity with GOG's checksums"
+                  Foreground="{StaticResource InkBright}" FontSize="{StaticResource FontCaption}"/>
+      </StackPanel>
+    </ctl:ConfirmDialog>
+
+    <!-- DEV ONLY (DEBUG builds): jump to any onboarding step without wiping state. Compiled out of Release.
+         PARKED: hidden for now (IsVisible="False"). To bring it back, restore IsVisible="{Binding IsDebugBuild}". -->
+    <Border IsVisible="False" HorizontalAlignment="Right" VerticalAlignment="Top" ZIndex="200"
+            Background="#CC1B1300" BorderBrush="{StaticResource AccentAmber}" BorderThickness="1" CornerRadius="0,0,0,8"
+            Padding="8,5" Margin="0,0,0,0">
+      <Border.Styles>
+        <Style Selector="Button.devstep">
+          <Setter Property="Background" Value="#2A2113"/><Setter Property="Foreground" Value="{StaticResource AccentAmberSoft}"/>
+          <Setter Property="BorderBrush" Value="{StaticResource SurfaceStroke}"/><Setter Property="BorderThickness" Value="1"/>
+          <Setter Property="CornerRadius" Value="5"/><Setter Property="Padding" Value="8,3"/><Setter Property="FontSize" Value="11"/>
+          <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.devstep:pointerover /template/ ContentPresenter">
+          <Setter Property="Background" Value="{StaticResource AccentAmber}"/><Setter Property="TextBlock.Foreground" Value="#1B1300"/>
+        </Style>
+      </Border.Styles>
+      <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+        <TextBlock Text="DEV:" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,3,0"/>
+        <Button Classes="devstep" Content="⟲ First-run" ToolTip.Tip="Reset to first-run (keeps your GOG login)" Command="{Binding DevResetFirstRunCommand}"/>
+      </StackPanel>
+    </Border>
+
+    <!-- Transient toast: floats bottom-right, auto-dismisses. Carries SEVERITY - red ring + dot +
+         "Review" for a failure; green dot, plain stroke, no Review for a clean finish (red is error ONLY).
+         On failure the Health dot stays badged after the toast fades. -->
+    <Border DataContext="{Binding Overview}" x:DataType="vm:OverviewViewModel" IsVisible="{Binding ToastVisible}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,28,28"
+            Background="{StaticResource SurfacePanel}" BorderBrush="{Binding ToastStroke}" BorderThickness="1"
+            CornerRadius="{StaticResource RadiusCard}" Padding="{Binding ToastPadding}" MaxWidth="640" BoxShadow="0 8 24 0 #66000000">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+        <!-- Dot + stroke + weight all follow severity, in the SAME colors as the tray icon tiers, and
+             warnings/errors read larger + semibold: an alert in caption type is designed to be missed. -->
+        <Ellipse Grid.Column="0" Width="12" Height="12" Fill="{Binding ToastAccent}" VerticalAlignment="Center" Margin="0,0,14,0"/>
+        <TextBlock Grid.Column="1" Text="{Binding ToastMessage}" Foreground="White" FontSize="{Binding ToastFontSize}"
+                   FontWeight="{Binding ToastFontWeight}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+        <Button Grid.Column="2" Classes="linky" Content="{Binding ToastActionLabel}" Foreground="{StaticResource AccentAmber}" FontSize="{StaticResource FontBody}"
+                FontWeight="SemiBold" Margin="16,0,12,0" IsVisible="{Binding ToastHasReview}"
+                Command="{Binding OpenHealthFromToastCommand}"/>
+        <Button Grid.Column="3" Classes="linky" Content="Close" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontBody}"
+                Command="{Binding DismissToastCommand}"/>
+      </Grid>
+    </Border>
+
+    <!-- Fire-time countdown (owner 09-02): five seconds of "Scheduled backup" with Start now / Skip, so a
+         run never surprises someone at the keyboard; unattended it just elapses. -->
+    <Border DataContext="{Binding Schedule}" x:DataType="vm:ScheduleViewModel" IsVisible="{Binding ShowScheduleCountdown}" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,28"
+            Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource AccentAmber}" BorderThickness="1"
+            CornerRadius="{StaticResource RadiusCard}" Padding="16,12" MaxWidth="560" BoxShadow="0 8 24 0 #66000000">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+        <Ellipse Grid.Column="0" Width="10" Height="10" Fill="{StaticResource AccentAmber}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+          <TextBlock Text="Scheduled backup" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+          <TextBlock Text="{Binding ScheduleCountdownText}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontEyebrow}"/>
+        </StackPanel>
+        <Button Grid.Column="2" Classes="primary" Content="Start Now" FontSize="{StaticResource FontCaption}" Margin="14,0,6,0"
+                VerticalAlignment="Center" Command="{Binding StartScheduledRunNowCommand}"/>
+        <Button Grid.Column="3" Classes="ghost" Content="Skip This Run" FontSize="{StaticResource FontCaption}" Padding="12,5"
+                VerticalAlignment="Center" Command="{Binding SkipScheduledRunCommand}"/>
+      </Grid>
+    </Border>
+
+    <!-- Morning-after notice (PO 09-01): the FIRST backup that ran unattended explains itself once - what,
+         how much, where, and where to change it. Persists until dismissed; yields the slot to Overdue. -->
+    <Border DataContext="{Binding Schedule}" x:DataType="vm:ScheduleViewModel" IsVisible="{Binding ShowFirstUnattendedNotice}" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,28"
+            Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource AccentAmber}" BorderThickness="1"
+            CornerRadius="{StaticResource RadiusCard}" Padding="16,12" MaxWidth="620" BoxShadow="0 8 24 0 #66000000">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+        <Ellipse Grid.Column="0" Width="10" Height="10" Fill="{StaticResource SuccessGreen}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+          <TextBlock Text="Your first scheduled backup ran" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+          <TextBlock Text="{Binding FirstUnattendedRunText}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontEyebrow}" TextWrapping="Wrap"/>
+        </StackPanel>
+        <Button Grid.Column="2" Classes="secondarybtn" Content="Settings" FontSize="{StaticResource FontCaption}" Margin="14,0,6,0"
+                VerticalAlignment="Center" Command="{Binding OpenSettingsFromNoticeCommand}"/>
+        <Button Grid.Column="3" Classes="linky" Content="✕" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontCaption}"
+                VerticalAlignment="Center" Command="{Binding DismissFirstUnattendedNoticeCommand}"/>
+      </Grid>
+    </Border>
+
+    <!-- Overdue-backup prompt: shown at launch when a scheduled slot passed while Grog was closed. Persists
+         (no auto-dismiss) until the user backs up or dismisses it. -->
+    <Border DataContext="{Binding Schedule}" x:DataType="vm:ScheduleViewModel" IsVisible="{Binding ScheduleOverdue}" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,28"
+            Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource AccentAmber}" BorderThickness="1"
+            CornerRadius="{StaticResource RadiusCard}" Padding="16,12" MaxWidth="560" BoxShadow="0 8 24 0 #66000000">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+        <Ellipse Grid.Column="0" Width="10" Height="10" Fill="{StaticResource AccentAmber}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+          <TextBlock Text="Backup overdue" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+          <TextBlock Text="{Binding ScheduleOverdueText}" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}" TextWrapping="Wrap"/>
+          <CheckBox Content="Don't show this again" IsChecked="{Binding DontShowOverdueAgain, Mode=TwoWay}"
+                    Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}" MinHeight="0" Margin="0,4,0,0"/>
+        </StackPanel>
+        <Button Grid.Column="2" Classes="primary" Content="Back Up Now" FontSize="{StaticResource FontCaption}" Margin="14,0,6,0"
+                VerticalAlignment="Center" Command="{Binding RunOverdueBackupCommand}"/>
+        <Button Grid.Column="3" Classes="linky" Content="✕" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontCaption}"
+                VerticalAlignment="Center" Command="{Binding DismissOverdueCommand}"/>
+      </Grid>
+    </Border>
+
+    </Panel>
+  </DockPanel>
+
+    <!-- ONE LIGHT at the window's own top-left corner, outside the DockPanel so it covers the title bar
+         (warmth starts at y=0 - frameless, not an app with a lid) and crosses the rail/content boundary. A
+         RADIAL gives falloff on both axes; the radii MUST carry % units (a bare "0.33" is 0.33 PIXELS, which
+         floods the area). Last child so it draws over everything; click-through. -->
+    <Border Height="184" VerticalAlignment="Top" IsHitTestVisible="False"
+            Background="{StaticResource RailBrandGlow}"/>
+
+  </Panel>
+</Window>

@@ -1,0 +1,18 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Shared progress-bar geometry. Size is a role class; semantic color (amber in-progress,
+         green complete) stays per-instance. One definition instead of repeating Height/CornerRadius
+         /Minimum/Maximum on every bar (design doc S0 reference-don't-repeat, S5 progress consistency). -->
+    <Style Selector="ProgressBar">
+        <Setter Property="Minimum" Value="0"/>
+        <Setter Property="Maximum" Value="100"/>
+        <!-- (09-16, measured) Fluent gives ProgressBar MinWidth=200 and centres it. Inside the 64px Library row
+             track the bar was 246px wide, clipped 91px on each side: 43% drew as 20%, 57% as 75%, 83% as full.
+             Every bar fills its container and nothing else. -->
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    </Style>
+    <Style Selector="ProgressBar.slim">       <Setter Property="Height" Value="3"/>  <Setter Property="CornerRadius" Value="2"/></Style>
+    <Style Selector="ProgressBar.row">        <Setter Property="Height" Value="6"/>  <Setter Property="CornerRadius" Value="3"/></Style>
+    <Style Selector="ProgressBar.prominent">  <Setter Property="Height" Value="12"/> <Setter Property="CornerRadius" Value="6"/></Style>
+</Styles>

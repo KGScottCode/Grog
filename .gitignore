@@ -1,0 +1,41 @@
+# Build output
+bin/
+obj/
+publish/
+dist/
+
+# IDE / user state
+*.user
+.vs/
+.idea/
+
+# App state (never commit a real manifest or tokens)
+grog-manifest.json*
+tokens.json
+
+# Internal working files -- not part of the public source
+_docs/
+Claude outputs/
+claude/
+docs/dev/
+CLAUDE.md
+.claude/
+_to_delete/
+_grog_src.tgz
+Make_Grog_Zip.bat
+Grog.zip
+
+# Dev-tool output and caches (safe to delete; regenerated on demand)
+_shots/
+_build-cache/
+_localpub/
+_testdata/
+
+# Docs site (VitePress): build output and dependencies never travel; package-lock.json DOES
+# (the workflow install is reproducible with it - commit it after the first npm install).
+node_modules/
+.vitepress/dist/
+.vitepress/cache/
+
+# FUSE ghosts: a mounted-folder editor rewriting a file in place leaves .fuse_hidden* remnants (09-02)
+.fuse_hidden*

@@ -1,0 +1,215 @@
+<!-- About page. Split out of MainWindow.axaml 2026-09-02; DataContext is the window's MainWindowViewModel. -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Grog.App.ViewModels"
+             xmlns:ctl="using:Grog.App.Controls"
+             x:Class="Grog.App.Views.Pages.AboutPage"
+             x:DataType="vm:MainWindowViewModel">
+  <ScrollViewer Background="Transparent">
+    <!-- ABOUT'S TEXT PLATE: words only (the scene is a window-level layer). MinHeight binds to the
+         viewport so the text can center - a ScrollViewer hands content only the height it asks for -
+         and the vertical margin must then be ZERO or the ScrollViewer grows a bar for padding. The card
+         fill, stroke and radius are gone: the scene is the page's own light, no plate to bound. -->
+    <Border Classes="barecard" Margin="14,0,14,0" HorizontalAlignment="Center" VerticalAlignment="Center"
+            MinHeight="{Binding $parent[ScrollViewer].Viewport.Height}"
+            Background="Transparent">
+      <Panel>
+      <!-- CENTERD HERE, not on sbody: a vertical StackPanel stacks its children top-down and ignores a
+           child's VerticalAlignment, so setting it one level in did nothing. -->
+      <StackPanel Spacing="0" VerticalAlignment="Center">
+        <!-- No "ABOUT" strip: the wordmark is the page's title, and a caps eyebrow over it is a label on a
+             label. -->
+        <!-- The plate is wide; the measure is not: a ~1000px line loses the reader at the left edge, so the
+             words keep an 820 column centered on the plate and the scene spreads behind it. -->
+        <StackPanel Classes="sbody" Spacing="12" MaxWidth="820" HorizontalAlignment="Center">
+
+      <!-- Wordmark: the real GROG mark (accented R + underline). The accent flows through the theme
+           tokens, so it re-tints amber<->purple with the Settings theme. -->
+      <!-- The stamp rides BESIDE the mark: side by side they are one masthead, and the text centers in the
+           space the wordmark leaves. Version + author stay plain text - a passive value never takes the
+           accent. No build hash: the version alone, over inventing an MSBuild property. -->
+      <Grid ColumnDefinitions="Auto,*">
+        <StackPanel Grid.Column="0">
+          <TextBlock FontSize="59" FontWeight="Bold" Foreground="{StaticResource InkPrimary}"
+                     LineHeight="62">G<Run Foreground="{StaticResource AccentAmber}">R</Run>OG</TextBlock>
+          <Border Height="5" CornerRadius="3" Background="{StaticResource AccentAmber}" Width="150"
+                  HorizontalAlignment="Left" Margin="3,4,0,0"/>
+        </StackPanel>
+        <!-- MEASURED: VerticalAlignment=Center centers on the column's BOX, whose descender space puts the
+             stamp 7px above the INK center of mark+rule; the transform corrects to the ink. -->
+        <TextBlock Grid.Column="1" Text="{Binding AppVersionText}" Foreground="{StaticResource InkDim}"
+                   FontSize="16.5" TextWrapping="Wrap"
+                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                   RenderTransform="translate(0px, 7px)"/>
+      </Grid>
+
+      <!-- No neutral divider under the masthead: with the wordmark's amber underline right above, a rule
+           is a third horizontal line in forty pixels. Spacing does the separating. -->
+      <Border Height="0" Margin="0,4,0,4"/>
+
+      <!-- Both statements share ONE size; only color separates the lede from the fine print. -->
+      <TextBlock Text="A cross-platform tool for backing up your DRM-free GOG library."
+                 Foreground="{StaticResource White}" FontSize="16.5" TextWrapping="Wrap"/>
+      <TextBlock Text="Grog is not affiliated with, or endorsed by, GOG.com or its owners."
+                 Foreground="{StaticResource InkFaint}" FontSize="16.5" TextWrapping="Wrap" Margin="0,2,0,0"/>
+
+      <!-- ACKNOWLEDGEMENTS, from the README. Order is deliberate: the library first, then the community
+           work that made the API knowable, then the project that set the shape, then Claude. -->
+      <!-- These two ARE this page's section headings, so the rule is AMBER: chrome law reserves amber for
+           a page section, and there is nothing above them for it to out-shout. -->
+      <Grid ColumnDefinitions="Auto,*" Margin="0,20,0,0">
+        <TextBlock Grid.Column="0" Text="ACKNOWLEDGEMENTS" Classes="eyebrow abouteyebrow"/>
+        <Border Grid.Column="1" Height="1" Background="{StaticResource AmberRuleFade}" Margin="10,0,0,0" VerticalAlignment="Center"/>
+      </Grid>
+      <!-- Names that HAVE a home are links to it: the docs, the two prior implementations, both Libation
+           authors and Libation. GOG.com is already in LINKS below; Claude has no repo - both stay plain. -->
+      <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+        <Button Grid.Row="0" Grid.Column="0" Classes="acklink" Command="{Binding OpenUrlCommand}"
+                CommandParameter="https://www.gog.com" ToolTip.Tip="gog.com">
+          <TextBlock Classes="ackname acklinktext" Text="GOG.com"/>
+        </Button>
+        <TextBlock Grid.Row="0" Grid.Column="1" Classes="ackrole" Text="the DRM-free library this exists to protect"/>
+
+        <Button Grid.Row="1" Grid.Column="0" Classes="acklink" Command="{Binding OpenUrlCommand}"
+                CommandParameter="https://github.com/Yepoleb/gogapidocs" ToolTip.Tip="github.com/Yepoleb/gogapidocs">
+          <TextBlock Classes="ackname acklinktext" Text="Unofficial GOG API docs"/>
+        </Button>
+        <!-- The author is a link inside the sentence, same treatment as Libation's two authors below. -->
+        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
+          <Button Classes="acklink" Command="{Binding OpenUrlCommand}"
+                  CommandParameter="https://github.com/Yepoleb" ToolTip.Tip="github.com/Yepoleb">
+            <TextBlock Classes="ackrole personlink" Text="Yepoleb"/>
+          </Button>
+          <TextBlock Classes="ackrole" Text=" - the API reference"/>
+        </StackPanel>
+
+        <!-- The browserless form sign-in follows the flow these two tools established (per GogFormLogin's
+             own comment); the credit names that specifically, nothing more. -->
+        <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal">
+          <!-- ackname's stock 16px right margin is the COLUMN gap; inside this pair it read as a
+               hole around the ampersand, so the first two get a tight 5px override. -->
+          <Button Classes="acklink" Command="{Binding OpenUrlCommand}"
+                  CommandParameter="https://github.com/Kalanyr/gogrepoc" ToolTip.Tip="github.com/Kalanyr/gogrepoc">
+            <TextBlock Classes="ackname acklinktext" Text="gogrepoc" Margin="0,0,5,5"/>
+          </Button>
+          <TextBlock Classes="ackname" Text="&amp;" Margin="0,0,5,5"/>
+          <Button Classes="acklink" Command="{Binding OpenUrlCommand}"
+                  CommandParameter="https://github.com/Sude-/lgogdownloader" ToolTip.Tip="github.com/Sude-/lgogdownloader">
+            <TextBlock Classes="ackname acklinktext" Text="lgogdownloader"/>
+          </Button>
+        </StackPanel>
+        <TextBlock Grid.Row="2" Grid.Column="1" Classes="ackrole" Text="the browserless GOG sign-in process"/>
+
+        <!-- Acknowledgements credit what Grog USES and SHIPS: the API docs, the MDI glyph data, the two
+             typefaces in the binary, and the UI framework. Full texts: Third-Party Notices. -->
+        <!-- Claude's credit moved INTO the Built With Claude prose below; a row here restating it was
+             the same fact twice on one card. -->
+
+        <!-- Libation LAST, and the only two-line credit: the authors read as a sentence with the names
+             as links inside it, then a second line for what the project actually contributed. -->
+        <Button Grid.Row="6" Grid.Column="0" Classes="acklink" Command="{Binding OpenUrlCommand}"
+                CommandParameter="https://getlibation.com" ToolTip.Tip="getlibation.com">
+          <TextBlock Classes="ackname acklinktext" Text="Libation"/>
+        </Button>
+        <StackPanel Grid.Row="6" Grid.Column="1">
+          <StackPanel Orientation="Horizontal">
+            <Button Classes="acklink" Command="{Binding OpenUrlCommand}"
+                    CommandParameter="https://github.com/rmcrackan" ToolTip.Tip="github.com/rmcrackan">
+              <TextBlock Classes="ackrole personlink" Text="rmcrackan"/>
+            </Button>
+            <TextBlock Classes="ackrole" Text=", "/>
+            <Button Classes="acklink" Command="{Binding OpenUrlCommand}"
+                    CommandParameter="https://github.com/Mbucari" ToolTip.Tip="github.com/Mbucari">
+              <TextBlock Classes="ackrole personlink" Text="Mbucari"/>
+            </Button>
+            <TextBlock Classes="ackrole" Text=" and the other contributors"/>
+          </StackPanel>
+          <TextBlock Classes="ackrole" Text="for the grid with artwork idea and inspiration for the name"/>
+        </StackPanel>
+
+        <!-- SHIPPED COMPONENTS, after the story credits: the rows above shaped Grog; these are in
+             the binary. Full license texts via the Third-Party Notices button below. -->
+        <Button Grid.Row="3" Grid.Column="0" Classes="acklink" Command="{Binding OpenUrlCommand}"
+                CommandParameter="https://avaloniaui.net" ToolTip.Tip="avaloniaui.net - MIT">
+          <TextBlock Classes="ackname acklinktext" Text="Avalonia"/>
+        </Button>
+        <TextBlock Grid.Row="3" Grid.Column="1" Classes="ackrole" Text="the cross-platform UI framework"/>
+
+        <Button Grid.Row="4" Grid.Column="0" Classes="acklink" Command="{Binding OpenUrlCommand}"
+                CommandParameter="https://pictogrammers.com/library/mdi/" ToolTip.Tip="pictogrammers.com - Apache 2.0">
+          <TextBlock Classes="ackname acklinktext" Text="Material Design Icons"/>
+        </Button>
+        <TextBlock Grid.Row="4" Grid.Column="1" Classes="ackrole" Text="the content-type glyphs on chips and squares"/>
+
+        <!-- The two shipped typefaces share a row (the gogrepoc pair's pattern): each name keeps
+             its own link, the role is one word. -->
+        <StackPanel Grid.Row="5" Grid.Column="0" Orientation="Horizontal">
+          <Button Classes="acklink" Command="{Binding OpenUrlCommand}"
+                  CommandParameter="https://rsms.me/inter/" ToolTip.Tip="rsms.me/inter - SIL OFL 1.1">
+            <TextBlock Classes="ackname acklinktext" Text="Inter" Margin="0,0,5,5"/>
+          </Button>
+          <TextBlock Classes="ackname" Text="&amp;" Margin="0,0,5,5"/>
+          <Button Classes="acklink" Command="{Binding OpenUrlCommand}"
+                  CommandParameter="https://github.com/microsoft/cascadia-code" ToolTip.Tip="github.com/microsoft/cascadia-code - SIL OFL 1.1">
+            <TextBlock Classes="ackname acklinktext" Text="Cascadia Mono"/>
+          </Button>
+        </StackPanel>
+        <TextBlock Grid.Row="5" Grid.Column="1" Classes="ackrole" Text="typefaces"/>
+      </Grid>
+      <!-- BUILT WITH CLAUDE: the second sentence says where the time actually went, which is the unusual
+           part of how this was built. -->
+      <!-- These two ARE this page's section headings, so the rule is AMBER: chrome law reserves amber for
+           a page section, and there is nothing above them for it to out-shout. -->
+      <Grid ColumnDefinitions="Auto,*" Margin="0,20,0,0">
+        <TextBlock Grid.Column="0" Text="BUILT WITH CLAUDE" Classes="eyebrow abouteyebrow"/>
+        <Border Grid.Column="1" Height="1" Background="{StaticResource AmberRuleFade}" Margin="10,0,0,0" VerticalAlignment="Center"/>
+      </Grid>
+      <!-- The link lives in the PROSE, not the credit list - the paragraph already says it at length.
+           InlineUIContainer keeps the button inside the flow so the paragraph wraps as one block. -->
+      <TextBlock Foreground="{StaticResource InkDim}" FontSize="16.5" TextWrapping="Wrap">
+        <Run Text="Grog was co-developed with "/><InlineUIContainer>
+          <!-- MEASURED: InlineUIContainer aligns its child's BOTTOM to the baseline and a Button's box is
+               taller than its glyphs, so the link floats 4px high; the RenderTransform corrects without
+               touching layout. Re-measure if this paragraph's font size changes. -->
+          <Button Classes="acklink" Padding="0" Background="Transparent" BorderThickness="0"
+                  RenderTransform="translate(0px, 4px)"
+                  Command="{Binding OpenUrlCommand}" CommandParameter="https://claude.ai" ToolTip.Tip="claude.ai">
+            <TextBlock Classes="acklinktext" FontSize="16.5" Text="Claude Cowork"/>
+          </Button></InlineUIContainer><Run Text=". Architecture, interface design and a significant portion of the implementation was a result of many long back-and-forth sessions rather than from a spec."/>
+      </TextBlock>
+
+
+      <!-- No LINKS heading: every name in the credits above is a link now, so a section announcing
+           "links" labeled nothing. What remains is the license, which stands on its own. -->
+      <!-- ONE foot row: the license (reference, left) and the log folder (action, right) keep their tiers
+           but share the card's closing row - the reading order every other foot uses. -->
+      <Grid ColumnDefinitions="*,Auto" Margin="0,20,0,0">
+        <!-- The label says what the license MEANS; the button opens the shipped point-in-time text (a
+             website can move; the copy the user was licensed under cannot). -->
+        <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,14,0" TextWrapping="Wrap"
+                   Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}"
+                   Text="Grog is free software: use it, share it, and improve it under the GNU GPL v3."/>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+          <Button Classes="secondarybtn outline" Padding="12,8"
+                  Command="{Binding OpenLicenseFileCommand}"
+                  ToolTip.Tip="The GPL-3.0 text this build ships with">
+            <TextBlock Text="View License"/>
+          </Button>
+          <Button Classes="secondarybtn outline" Padding="12,8"
+                  Command="{Binding OpenThirdPartyNoticesCommand}"
+                  ToolTip.Tip="The full license texts for the open-source components Grog ships (MDI, Inter, Cascadia Mono, Avalonia and friends)">
+            <TextBlock Text="Third-Party Notices"/>
+          </Button>
+          <Button Classes="secondarybtn outline" Padding="12,8"
+                  Command="{Binding OpenLogFileCommand}"
+                  ToolTip.Tip="Open grog.log - the full history, kept across restarts">
+            <TextBlock Text="Open Log File"/>
+          </Button>
+        </StackPanel>
+      </Grid>
+        </StackPanel>
+      </StackPanel>
+      </Panel>
+    </Border>
+  </ScrollViewer>
+</UserControl>

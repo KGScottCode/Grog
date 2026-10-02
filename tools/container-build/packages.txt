@@ -1,0 +1,44 @@
+# Grog container build - the exact package set, pinned.
+# One "id version" per line; blank lines and # comments ignored.
+#
+# WHY PINNED, not floating: the csproj uses 12.0.* because VS resolves it against a real restore
+# graph. There is no restore here, so this file IS the resolution. When VS moves to a new Avalonia,
+# bump the numbers here in the same change or the container renders a layout the product no longer has.
+#
+# 12.0.1 for DataGrid and WebView is NOT an oversight: there is no 12.0.5 of either, and 12.1.x
+# refuses to link against Avalonia 12.0.5 (CS1705).
+
+avalonia 12.0.5
+avalonia.desktop 12.0.5
+avalonia.themes.fluent 12.0.5
+avalonia.fonts.inter 12.0.5
+avalonia.skia 12.0.5
+# Text shaping. Avalonia.Headless loads it during UseHeadless(); without it the render dies before
+# the first frame with a FileNotFoundException naming this assembly.
+avalonia.harfbuzz 12.0.5
+avalonia.headless 12.0.5
+avalonia.markup.xaml.loader 12.0.5
+avalonia.controls.datagrid 12.0.1
+avalonia.controls.webview 12.0.1
+
+communitytoolkit.mvvm 8.3.2
+
+desktopnotifications 1.3.1
+desktopnotifications.freedesktop 1.3.1
+# Windows backend. Needed to COMPILE even on Linux: Notifier.cs has an unconditional using for it and
+# picks a backend at run time. It is never loaded here, only referenced.
+desktopnotifications.windows 1.3.1
+tmds.dbus 0.92.0
+
+skiasharp 3.119.4
+skiasharp.nativeassets.linux 3.119.4
+harfbuzzsharp 8.3.1.5
+harfbuzzsharp.nativeassets.linux 8.3.1.5
+microcom.runtime 0.11.0
+
+# Avalonia.Build.Tasks needs these to load; it ships INSIDE the avalonia package (tools/netstandard2.0).
+microsoft.build.framework 17.14.28
+microsoft.build.utilities.core 17.14.28
+
+# Core's only direct package reference.
+system.security.cryptography.protecteddata 9.0.0

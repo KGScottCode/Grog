@@ -1,0 +1,931 @@
+<!-- Storage page: backup locations and the device grids. Split out of MainWindow.axaml 2026-09-02. The page binds the
+     StorageViewModel (S3.1, DataContext rebased on the ScrollViewer); the few shell-owned members it still needs go
+     through $parent[Window] onto the MainWindowViewModel. -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Grog.App.ViewModels"
+             xmlns:ctl="using:Grog.App.Controls"
+             x:Class="Grog.App.Views.Pages.StoragePage"
+             x:DataType="vm:MainWindowViewModel">
+  <ScrollViewer Background="Transparent" VerticalScrollBarVisibility="Auto"
+                DataContext="{Binding Storage}" x:DataType="vm:StorageViewModel">
+  <!-- NO MinHeight: the page pins to the viewport and the FILE LISTS take the squeeze (they have
+       their own ScrollViewers). The old MinHeight=1000 scrolled the whole page - card headers,
+       capacity bars and all - on any window under 1000px (owner, mac resize pass 2026-08-29).
+       The window's own minimum size is the floor against absurd heights. -->
+  <Grid Background="Transparent"
+        Height="{Binding $parent[ScrollViewer].Viewport.Height}">
+  <!-- No page-title bar and no outer card wrapper: the rail names the page and the content sits
+       directly on the canvas, exactly like Library and Status. -->
+  <Border Margin="0" Background="Transparent" BorderThickness="0">
+  <Grid RowDefinitions="*">
+  <!-- Left pane docks: file-type legend on top, policy footer pinned at the bottom, and the two grids
+       fill everything in between (so they always reach the footer, full or not). -->
+  <DockPanel Grid.Row="0" Margin="14,12,14,10" LastChildFill="True">
+
+    <!-- No FILE TYPE legend: redundant with each card's WHAT'S ON IT strip, and "Rescan GOG Library"
+         already lives on Library and Status. -->
+
+    <!-- Two-grid inventory: Primary | center move buttons | Secondary, each device owning its own
+         grouped grid; draggable splitters flank the center. Selection + drag: code-behind. Shared row
+         templates live on this Grid's DataTemplates; this is the DockPanel's fill child. -->
+      <!-- Backups work area: device cards, horizontal move bar and both grids share ONE two-column layout
+           with a single slideable divider, so everything lines up. The move buttons hug the divider on
+           their own side. -->
+      <!-- MOVE IN FLIGHT: the cards below keep showing the SOURCE folder until the whole move
+           reaches its end (the root re-points once, so an interrupted move still names the place
+           the files provably are). That is correct but reads as stale, so say it. -->
+      <Border DockPanel.Dock="Top" IsVisible="{Binding HasReorgActive}" Margin="0,14,0,0" Padding="14,9"
+              Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource AccentAmberSoft}"
+              BorderThickness="1" CornerRadius="{StaticResource RadiusCard}">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <TextBlock Text="MOVING" Classes="eyebrow" Foreground="{StaticResource AccentAmber}" VerticalAlignment="Center"/>
+          <TextBlock Text="The cards below still show where files are now; they switch over when the move finishes."
+                     Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}"
+                     TextWrapping="Wrap" VerticalAlignment="Center"/>
+        </StackPanel>
+      </Border>
+
+      <!-- OTHER STORAGE (09-14; was the "Detached" strip above the cards). Drives Grog knows about that hold no
+           slot: files still counted as backed up, nothing downloads there. Docked at the BOTTOM: it is a place,
+           not an alert, so it sits below the two slots, and never pushes the grids. Each row expands to what is on
+           the drive, by game (read-only). Neutral chrome throughout; Forget red and last. -->
+      <Border x:Name="OtherStorageSection" DockPanel.Dock="Bottom" IsVisible="{Binding HasOtherStorage}" Margin="0,10,0,0" Padding="14,9"
+              Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource SurfaceStroke}"
+              BorderThickness="1" CornerRadius="{StaticResource RadiusCard}">
+        <StackPanel Spacing="4">
+          <!-- (09-15) Always present when there is other storage, but MINIMISED by default to this one line: the
+               summary stays readable, the rows unfold on the caret or from the rail entry. -->
+          <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="10">
+            <Button Grid.Column="0" Classes="linky" Padding="0" Background="Transparent" Content="{Binding OtherStorageCaret}" Foreground="{StaticResource InkDim}"
+                    FontSize="{StaticResource FontCaption}" ToolTip.Tip="{Binding OtherStorageToggleTip}" Command="{Binding ToggleOtherStorageSectionCommand}"/>
+            <TextBlock Grid.Column="1" Text="OTHER STORAGE" Classes="eyebrow" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="2" Text="{Binding OtherStorageSummary}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}"
+                       VerticalAlignment="Center" IsVisible="{Binding !ShowOtherStorageSection}" TextTrimming="CharacterEllipsis"/>
+          </Grid>
+          <ItemsControl ItemsSource="{Binding OtherStorage}" IsVisible="{Binding ShowOtherStorageSection}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:StorageViewModel+OtherStorageRow">
+                <StackPanel>
+                  <Grid ColumnDefinitions="22,Auto,Auto,*,Auto,Auto,Auto,Auto" ColumnSpacing="12" Margin="0,3">
+                    <Button Grid.Column="0" Classes="linky" Padding="0" Background="Transparent" Content="{Binding Caret}" Foreground="{StaticResource InkDim}"
+                            Command="{Binding $parent[ItemsControl].((vm:StorageViewModel)DataContext).ToggleOtherExpandedCommand}" CommandParameter="{Binding}"
+                            ToolTip.Tip="Show what is on this storage"/>
+                    <TextBlock Grid.Column="1" Text="{Binding StateText}" Foreground="{Binding StateBrush}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+                      <TextBlock Text="{Binding Label}" Foreground="White" FontSize="{StaticResource FontRow}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                      <Button Classes="linky" Padding="2,0" Background="Transparent" Content="✎" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontCaption}"
+                              VerticalAlignment="Center" ToolTip.Tip="Rename"
+                              Command="{Binding $parent[ItemsControl].((vm:StorageViewModel)DataContext).RequestRenameOtherCommand}" CommandParameter="{Binding}"/>
+                    </StackPanel>
+                    <TextBlock Grid.Column="3" Text="{Binding Path}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="4" Text="{Binding Summary}" Foreground="White" FontSize="{StaticResource FontCaption}" FontFeatures="+tnum" VerticalAlignment="Center"/>
+                    <Button Grid.Column="5" Classes="sortpill" Content="{Binding SecondaryActionLabel}" FontSize="{StaticResource FontCaption}" Padding="11,5" IsEnabled="{Binding IsConnected}"
+                            ToolTip.Tip="Give this drive the Secondary slot. Files never move; the queue re-plans."
+                            Command="{Binding $parent[ItemsControl].((vm:StorageViewModel)DataContext).UseAsSecondaryCommand}" CommandParameter="{Binding}"/>
+                    <Button Grid.Column="6" Classes="sortpill" Content="{Binding PrimaryActionLabel}" FontSize="{StaticResource FontCaption}" Padding="11,5" IsEnabled="{Binding IsConnected}"
+                            ToolTip.Tip="Give this drive the Primary slot; the current Primary becomes Other storage. Files never move."
+                            Command="{Binding $parent[ItemsControl].((vm:StorageViewModel)DataContext).SwapWithPrimaryCommand}" CommandParameter="{Binding}"/>
+                    <Button Grid.Column="7" Classes="sortpill danger" Content="Forget" FontSize="{StaticResource FontCaption}" Padding="11,5"
+                            ToolTip.Tip="Stop tracking this drive. Its files count as not backed up and return to the queue; nothing on the drive is touched."
+                            Command="{Binding $parent[ItemsControl].((vm:StorageViewModel)DataContext).RequestForgetDetachedCommand}" CommandParameter="{Binding}"/>
+                  </Grid>
+                  <!-- Read-only: what is on it, by game. Capped height so a 400-game drive does not swallow the page. -->
+                  <Border IsVisible="{Binding IsExpanded}" Margin="22,0,0,6" Padding="10,6" Background="{StaticResource SurfaceBg}"
+                          BorderBrush="{StaticResource FlatEdge}" BorderThickness="1" CornerRadius="{StaticResource RadiusCard}">
+                    <StackPanel Spacing="4">
+                      <TextBlock Text="{Binding GamesHeader}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontEyebrow}" FontWeight="SemiBold"/>
+                      <ScrollViewer MaxHeight="220" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding Games}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:StorageViewModel+OtherStorageGame">
+                              <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                                <TextBlock Grid.Column="0" Text="{Binding Title}" Foreground="{StaticResource InkBright}" FontSize="{StaticResource FontCaption}" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Summary}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" FontFamily="Consolas,monospace" FontFeatures="+tnum" Margin="12,0,0,0"/>
+                              </Grid>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </ScrollViewer>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
+      <Border DockPanel.Dock="Top" IsVisible="{Binding ShowSystemDriveHint}" Margin="0,14,0,0" Padding="14,9"
+              Background="{StaticResource SurfacePanel}" BorderBrush="{StaticResource AccentAmberSoft}"
+              BorderThickness="1" CornerRadius="{StaticResource RadiusCard}">
+        <!-- (UX 09-08 #5) The "ROOM" eyebrow becomes a plain amber title; the sentence is the body; the
+             remedy sits right on the banner as an amber button (same AddLocation command as the empty
+             secondary slot); dismiss X unchanged. -->
+        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+          <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+            <TextBlock Text="Not enough room on primary storage" Foreground="{StaticResource AccentAmber}"
+                       FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding SystemDriveHintText}"
+                       Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}"
+                       TextWrapping="Wrap"/>
+          </StackPanel>
+          <Button Grid.Column="1" Classes="primary" Content="Add second storage" FontSize="{StaticResource FontCaption}" Padding="12,6"
+                  VerticalAlignment="Center" HorizontalAlignment="Left" Command="{Binding AddLocationCommand}" IsEnabled="{Binding CanAddSecondary}"
+                  ToolTip.Tip="Pick a folder to use as secondary storage. Files that do not fit on the primary spill there automatically."/>
+          <Button Grid.Column="2" Classes="linky" Content="✕" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontCaption}"
+                  VerticalAlignment="Center" Command="{Binding DismissSystemDriveHintCommand}"/>
+        </Grid>
+      </Border>
+
+      <Grid IsVisible="{Binding HasLocation}" MinHeight="240" Margin="0,57,0,0"
+            ColumnDefinitions="*,28,*" RowDefinitions="Auto,Auto,Auto,*">
+        <Grid.DataTemplates>
+          <!-- DEVICE CARD (one per column) -->
+          <DataTemplate x:DataType="vm:BackupLocationRow">
+            <!-- Card body is a container, not a click target. Kept as a Button (not Border) so the drag-drop
+                 code-behind and droptarget highlight still work. -->
+            <!-- No MinHeight: with the management row bottom-aligned the slack is just empty card, and both
+                 cards stretch to the same grid row regardless. -->
+            <Button Classes="devicecard" Classes.problem="{Binding IsProblem}" Classes.disconnected="{Binding IsDisconnected}" Classes.reattached="{Binding JustReattached}" Padding="14,12" VerticalAlignment="Stretch"
+                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Tag="{Binding RootId}"
+                    Focusable="False">
+              <!-- DockPanel so the management row pins to the card BOTTOM: both cards stretch to the same row
+                   height, so their button rows line up regardless of composition above. -->
+              <Grid RowDefinitions="Auto,*">
+              <!-- The lifecycle row sits at the FOOT, bottom-aligned: the card's own 12px padding is the gap, and
+                   both columns' rows line up because they stretch to the same height. -->
+              <Grid Grid.Row="1" VerticalAlignment="Bottom" ColumnDefinitions="Auto,*">
+                <!-- Real buttons, not an overflow menu: a destructive action behind a menu is harder to find
+                     without being safer. They keep the strip's `sortpill` tier so the card has ONE control
+                     vocabulary - neutral to change, amber when removable is on, red for the one that can
+                     cost a library. -->
+                <!-- Lifecycle only, right-aligned: answers "what is this folder and does it stay" (where-is-it lives
+                     on the path line above). Destructive last, at the far corner. -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="7" HorizontalAlignment="Right"
+                            VerticalAlignment="Center" ClipToBounds="True">
+                  <Button Classes="sortpill" Classes.act="{Binding Removable}" Content="{Binding RemovableButtonText}"
+                          FontSize="{StaticResource FontCaption}" Padding="11,5" ToolTip.Tip="{Binding RemovableTip}"
+                          Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.ToggleRemovableCommand}" CommandParameter="{Binding}"/>
+                  <Button Classes="sortpill" Content="Make Primary" FontSize="{StaticResource FontCaption}" Padding="11,5"
+                          IsVisible="{Binding !IsPrimary}"
+                          Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.RequestMakePrimaryCommand}" CommandParameter="{Binding}"/>
+                  <Button Classes="sortpill" Content="Mark as Lost" FontSize="{StaticResource FontCaption}" Padding="11,5"
+                          IsVisible="{Binding !IsOnline}" Foreground="{StaticResource WarnOrange}"
+                          ToolTip.Tip="This storage is gone for good - forget its files (they return to your backup queue)."
+                          Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.RequestLostDeviceCommand}" CommandParameter="{Binding}"/>
+                  <!-- "Detach", not "Remove" (owner 09-13): Removable and Disconnected are the drive's PHYSICAL words;
+                       Grog's own verbs are Detach / Forget / Move & Forget / Delete, chosen inside the dialog, with
+                       the least-change one as the default and Delete typed-gated. -->
+                  <Button Classes="sortpill danger" Content="{Binding DetachLabel}" FontSize="{StaticResource FontCaption}" Padding="11,5"
+                          ToolTip.Tip="Take this storage out of Grog: keep its files counted (Detach), stop tracking them (Forget), move them first, or erase them (type DELETE)."
+                          Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.RequestDeleteDeviceCommand}" CommandParameter="{Binding}"/>
+                </StackPanel>
+              </Grid>
+              <StackPanel Grid.Row="0" Spacing="7" VerticalAlignment="Top">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                  <!-- No "Primary"/"Secondary" title here: the PAGE HEADING above the card now carries
+                       the role, so the card leads with the health dot + state, then the path. -->
+                  <!-- MOCK: ONE STATUS LINE. The dot, the word and the path are a single statement
+                       about this folder; on separate lines they read as two facts. -->
+                  <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
+                    <Ellipse Width="9" Height="9" Fill="{Binding StateBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding StatusWord}" Foreground="{Binding StateBrush}" FontSize="{StaticResource FontRow}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding VerifyText}" IsVisible="{Binding IsVerifying}" Foreground="{StaticResource AccentAmber}"
+                               FontSize="{StaticResource FontCaption}" FontWeight="SemiBold" FontFeatures="+tnum" VerticalAlignment="Center"/>
+                  </StackPanel>
+                  <!-- The path takes the STAR column, so it trims at exactly the space the buttons leave at any width
+                       (an Auto column measures with infinite width and trimming never fires).
+                       LeadingCharacterEllipsis: for a path the END is the useful half, and full path stays
+                       on the tooltip. Naming trap, verified by rendering: Avalonia's PrefixCharacterEllipsis
+                       KEEPS the prefix; LeadingCharacterEllipsis is the one that eats the front. -->
+                  <TextBlock Grid.Column="1" Text="{Binding Path}" Foreground="White"
+                             FontSize="{StaticResource FontCaption}" FontFamily="Consolas,monospace"
+                             TextTrimming="LeadingCharacterEllipsis" VerticalAlignment="Center"
+                             Margin="10,0,12,0" ToolTip.Tip="{Binding Path}"/>
+                  <!-- Both path actions sit WITH the path they act on. Open is the common one and keeps the amber;
+                       Change is the rarer neighbor and stays quiet. -->
+                  <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7" VerticalAlignment="Top">
+                    <!-- x:Name'd for the guide. This template is instantiated PER FOLDER, so the name is
+                         ambiguous on its own; the guide step scopes it to the primary card. -->
+                    <Button x:Name="GuideChangeFolder" Classes="sortpill" Content="Change Folder"
+                            FontSize="{StaticResource FontCaption}" Padding="12,6"
+                            ToolTip.Tip="Pick a different folder for this slot"
+                            Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.ChangeFolderCommand}"
+                            CommandParameter="{Binding}"/>
+                    <!-- `sortpill act`, not `amber-soft`: the two styles differ in SHAPE (radius 10 vs 5), and this card
+                         has one control vocabulary with meaning carried by text color alone. -->
+                    <Button Classes="sortpill act" Content="Open Folder" FontSize="{StaticResource FontCaption}" Padding="12,6"
+                            ToolTip.Tip="Open this folder in your file manager"
+                            Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.OpenFolderCommand}"
+                            CommandParameter="{Binding}"/>
+                  </StackPanel>
+                </Grid>
+                <!-- Disconnected removable drive: a calm, accent-soft notice (NOT the red problem
+                     treatment) that acknowledges it's unplugged and reassures it can be reconnected. -->
+                <Border IsVisible="{Binding IsDisconnected}" Background="{StaticResource SurfaceRaised}"
+                        BorderBrush="{StaticResource WarnOrange}" BorderThickness="3,0,0,0" CornerRadius="{StaticResource RadiusChip}"
+                        Padding="9,6" Margin="0,1,0,1">
+                  <!-- Grid (not a horizontal StackPanel) so the text column is width-constrained and
+                       actually wraps instead of running off the card edge. -->
+                  <Grid ColumnDefinitions="Auto,*">
+                    <TextBlock Grid.Column="0" Text="⏏" Foreground="{StaticResource WarnOrange}" FontSize="{StaticResource FontCaption}"
+                               VerticalAlignment="Top" Margin="0,0,8,0"/>
+                    <TextBlock Grid.Column="1" Text="{Binding DisconnectedNotice}" Foreground="{StaticResource InkDim}"
+                               FontSize="{StaticResource FontEyebrow}" TextWrapping="Wrap"/>
+                  </Grid>
+                </Border>
+                <!-- No drive-capacity bar: the two readouts either side already state the fact in words, and the
+                     breakdown a user wants is the one WHAT'S ON IT gives. -->
+                <!-- The legend sits BETWEEN the two readouts it explains - amber swatch beside "backed up", gray
+                     beside free/total - using the same swatch geometry as WHAT'S ON IT, one system. -->
+                <!-- MOCK: capacity readouts + their legend moved to Overview, where "what is left to back up" and
+                     "how much room is there" finally sit in the same card. -->
+                <!-- BACKED UP HERE: always present (even when empty) so the button row lines up between
+                     the Primary and Secondary cards. Empty devices show a quiet placeholder. -->
+                <StackPanel Spacing="5" Margin="0,3,0,0">
+                  <!-- In-card division, so the rule is NEUTRAL: an amber rule here would compete with the
+                       page heading above the card. -->
+                  <!-- The CONTENTS telemetry rides the eyebrow: the DRIVE question lives on Overview; what belongs
+                       here is what Grog put on this folder, the same subject as the bar beneath. -->
+                  <Grid ColumnDefinitions="Auto,*,Auto">
+                    <TextBlock Grid.Column="0" Text="BACKED UP HERE" Foreground="White" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <Border Grid.Column="1" Height="1" Background="{StaticResource NeutralRuleFade}" Margin="10,0,10,0" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{Binding UsageLine}" Foreground="White" FontSize="{StaticResource FontBody}" VerticalAlignment="Center"/>
+                  </Grid>
+                  <!-- 10, matching every other track in the app (Overview's coverage bars, the folder-capacity bars). -->
+                  <Border Height="10" CornerRadius="{StaticResource RadiusChip}" ClipToBounds="True" Background="{StaticResource PlotRecess}"
+                          BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1">
+                    <Grid IsVisible="{Binding HasComposition}">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="{Binding Comp0}"/>
+                        <ColumnDefinition Width="{Binding Comp1}"/>
+                        <ColumnDefinition Width="{Binding Comp2}"/>
+                        <ColumnDefinition Width="{Binding Comp3}"/>
+                        <ColumnDefinition Width="{Binding Comp4}"/>
+                      </Grid.ColumnDefinitions>
+                      <Border Grid.Column="0" Background="{Binding CompBrush0}"/>
+                      <Border Grid.Column="1" Background="{Binding CompBrush1}"/>
+                      <Border Grid.Column="2" Background="{Binding CompBrush2}"/>
+                      <Border Grid.Column="3" Background="{Binding CompBrush3}"/>
+                      <Border Grid.Column="4" Background="{Binding CompBrush4}"/>
+                    </Grid>
+                  </Border>
+                  <ItemsControl ItemsSource="{Binding Composition}" IsVisible="{Binding HasComposition}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:ExtraTypeSegment">
+                        <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,0,12,2">
+                          <Border Width="8" Height="8" CornerRadius="2" Background="{Binding Brush}" VerticalAlignment="Center"/>
+                          <TextBlock Text="{Binding Name}" Foreground="White" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <TextBlock Text="Nothing backed up here yet" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}"
+                             IsVisible="{Binding NothingBackedUpHere}"/>
+
+                  <!-- DRIVE SPACE: the whole drive is the denominator, unlike the composition bar
+                       above (which normalizes to Grog's own content). Segments left to right:
+                       other data, what Grog holds, what the queue will add here (dimmed, because it
+                       is not on disk yet), then free. -->
+                  <StackPanel Spacing="5" Margin="0,10,0,0" IsVisible="{Binding ShowCapacityBar}">
+                    <Grid ColumnDefinitions="Auto,*">
+                      <TextBlock Grid.Column="0" Text="DRIVE SPACE" Foreground="{StaticResource InkDim}"
+                                 FontSize="{StaticResource FontEyebrow}" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center"/>
+                      <Border Grid.Column="1" Height="1" Background="{StaticResource NeutralRuleFade}" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Border Height="10" CornerRadius="{StaticResource RadiusChip}" ClipToBounds="True" Background="{StaticResource PlotRecess}"
+                            BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1" ToolTip.Tip="{Binding BarToolTip}">
+                      <Grid>
+                        <!-- ORDER IS THE GRADIENT (owner call 2026-08-29): bright amber (stored) ->
+                             muted amber (planned; muted red when it fits nowhere) -> gray (other
+                             data) -> free. Amber shades sit ADJACENT so they read as one family;
+                             gray between them read as two unrelated ambers. Same order on the
+                             Overview folder bar - shared treatments move together. -->
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="{Binding CapGrogCol}"/>
+                          <ColumnDefinition Width="{Binding CapQueuedCol}"/>
+                          <ColumnDefinition Width="{Binding CapOtherCol}"/>
+                          <ColumnDefinition Width="{Binding CapFreeCol}"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Background="{StaticResource AccentAmber}"/>
+                        <Border Grid.Column="1" Background="{Binding QueuedSegmentBrush}"/>
+                        <Border Grid.Column="2" Background="{StaticResource InkFaint}"/>
+                        <Border Grid.Column="3" Background="Transparent"/>
+                      </Grid>
+                    </Border>
+                    <TextBlock Text="{Binding CapacityCaption}" Foreground="{StaticResource InkDim}"
+                               FontSize="{StaticResource FontCaption}" TextWrapping="Wrap"/>
+                    <!-- The one state the bar itself cannot draw: bytes that fit on NO device were
+                         never assigned here, so there is no segment for them. -->
+                    <Border IsVisible="{Binding HasUnplaceableQueue}" Margin="0,2,0,10" Padding="9,6"
+                            Background="{StaticResource SurfaceErrorSoft}" BorderBrush="{StaticResource StrokeErrorSoft}"
+                            BorderThickness="1" CornerRadius="{StaticResource RadiusChip}">
+                      <TextBlock Text="{Binding UnplaceableLine}" Foreground="{StaticResource ErrorRedBright}"
+                                 FontSize="{StaticResource FontCaption}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                    </Border>
+                  </StackPanel>
+                </StackPanel>
+              </StackPanel>
+              </Grid>
+            </Button>
+          </DataTemplate>
+
+          <!-- GAME ROLLUP ROW: completeness pill LEFT, expand caret, size right -->
+          <DataTemplate x:DataType="vm:InventoryGroupRow">
+            <!-- Padding 10,9 - the designed row spacing. -->
+            <Border Classes="invgroup" Classes.selrow="{Binding IsSelected}" Tag="{Binding}">
+              <Border.ContextMenu>
+                <!-- Queue items only apply to a partial game; "Rescan & Verify" applies to any game with files on
+                     this device. The queue block (and its divider) hides on a complete game. -->
+                <ContextMenu>
+                  <MenuItem Header="Open containing folder"
+                            Command="{Binding OpenGameFolderCommand}"
+                            CommandParameter="{Binding}"/>
+                  <MenuItem Header="{Binding CopyPathsLabel}"
+                            Command="{Binding CopyGamePathsCommand}"
+                            CommandParameter="{Binding}"/>
+                  <Separator/>
+                  <MenuItem Header="Rescan &amp; verify"
+                            IsVisible="{Binding CanVerify}"
+                            Command="{Binding VerifyGameCommand}"
+                            CommandParameter="{Binding}"/>
+                  <!-- Re-download at game scope can cost tens of gigabytes, so it carries its size. It only QUEUES -
+                       the run shows in Activity and is cancellable - so the honest label is the guard. -->
+                  <MenuItem Header="{Binding RedownloadAllLabel}"
+                            Command="{Binding RedownloadGameCommand}"
+                            CommandParameter="{Binding}"/>
+                  <Separator IsVisible="{Binding ShowPlacementBlock}"/>
+                  <MenuItem Header="Queue missing files (as filtered)"
+                            IsVisible="{Binding !IsComplete}"
+                            Command="{Binding QueueRemainingFilteredCommand}"
+                            CommandParameter="{Binding}"/>
+                  <MenuItem Header="Queue missing files (all types)"
+                            IsVisible="{Binding !IsComplete}"
+                            Command="{Binding QueueRemainingAllCommand}"
+                            CommandParameter="{Binding}"/>
+                  <MenuItem Header="Move remaining to top of queue"
+                            IsVisible="{Binding !IsComplete}"
+                            Command="{Binding MoveRemainingTopCommand}"
+                            CommandParameter="{Binding}"/>
+                  <!-- Consolidate (09-14): the game's files on the OTHER device come here. Greyed with the reason in
+                       its tooltip when this storage lacks the room. -->
+                  <MenuItem Header="{Binding ConsolidateLabel}"
+                            IsVisible="{Binding HasElsewhere}"
+                            IsEnabled="{Binding ConsolidateCanRun}"
+                            ToolTip.Tip="{Binding ConsolidateTip}"
+                            Command="{Binding ConsolidateCommand}"
+                            CommandParameter="{Binding}"/>
+                  <!-- Delete is the ONE destructive entry, so it sits last, red, behind its own divider (same as the
+                       Library menus). Scope is this device only; the label carries count and size. -->
+                  <Separator IsVisible="{Binding CanVerify}"/>
+                  <MenuItem Header="{Binding DeleteAllLabel}" Foreground="{StaticResource ErrorRedBright}"
+                            IsVisible="{Binding CanVerify}"
+                            Command="{Binding DeleteGameCommand}"
+                            CommandParameter="{Binding}"/>
+                </ContextMenu>
+              </Border.ContextMenu>
+              <Grid ColumnDefinitions="32,Auto,*,Auto,Auto">
+                <TextBlock Grid.Column="0" Text="{Binding Caret}" Tag="caret" Classes="caret"
+                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                <Border Grid.Column="1" CornerRadius="{StaticResource RadiusCard}" Padding="9,2" Margin="0,0,9,0"
+                        Background="{Binding CompletenessBg}" VerticalAlignment="Center">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="{Binding CompletenessText}" Foreground="{Binding CompletenessBrush}"
+                               FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding CountText}" Foreground="White"
+                               FontSize="{StaticResource FontCaption}" VerticalAlignment="Center" FontFeatures="+tnum"/>
+                  </StackPanel>
+                </Border>
+                <TextBlock Grid.Column="2" Classes="rowink" Text="{Binding Title}" MinWidth="70"
+                           FontSize="{StaticResource FontBody}" FontWeight="SemiBold" VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"/>
+                <TextBlock Grid.Column="4" Classes="rowink" Text="{Binding SizeText}"
+                           FontSize="{StaticResource FontCaption}" FontFamily="Consolas,monospace" VerticalAlignment="Center" FontFeatures="+tnum" Margin="12,0,0,0"/>
+              </Grid>
+            </Border>
+          </DataTemplate>
+
+          <!-- FILE ROW: filename (the subject, takes the width) | type chip (extras only) | size. Only the
+               filename is flexible, so the chip and size never get lost when the grid is narrow. -->
+          <DataTemplate x:DataType="vm:InventoryRow">
+            <Border Classes="invfile" Classes.selrow="{Binding IsSelected}" Tag="{Binding}"
+                    IsVisible="{Binding Owner.IsExpanded, FallbackValue=True}">
+              <!-- Per-file actions: the grid's selection drives the BULK move buttons above, so the single-file
+                   questions (where is it / still good / fetch again) live here. -->
+              <Border.ContextMenu>
+                <ContextMenu>
+                  <!-- ONE menu at two scopes: the game rollup offers exactly these entries in this order; only the
+                       target differs, so it reads as one action at two sizes. -->
+                  <MenuItem Header="Open containing folder"
+                            Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenContainingFolderCommand}"
+                            CommandParameter="{Binding}"/>
+                  <MenuItem Header="Copy full path"
+                            Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).CopyFilePathCommand}"
+                            CommandParameter="{Binding}"/>
+                  <Separator/>
+                  <MenuItem Header="Rescan &amp; verify"
+                            Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).VerifyInventoryFileCommand}"
+                            CommandParameter="{Binding}"/>
+                  <MenuItem Header="Re-download"
+                            Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RedownloadInventoryFileCommand}"
+                            CommandParameter="{Binding}"/>
+                  <Separator/>
+                  <MenuItem Header="Delete downloaded file" Foreground="{StaticResource ErrorRedBright}"
+                            Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Library.DeleteInventoryFileCommand}"
+                            CommandParameter="{Binding}"/>
+                </ContextMenu>
+              </Border.ContextMenu>
+              <!-- The FILE is the subject (no game line above it), so the filename takes the white-title slot.
+                   TYPE CHIP on EXTRAS ONLY, as in the download queue - color keeps one meaning. -->
+              <Grid ColumnDefinitions="*,Auto,Auto">
+                <TextBlock Grid.Column="0" Classes="rowink" Text="{Binding FileName}" FontSize="{StaticResource FontBody}"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                <Border Grid.Column="1" Classes="typechip" Background="{Binding ExtraTypeFill}" BorderBrush="{Binding ExtraTypeBorder}" Margin="10,0,0,0" IsVisible="{Binding IsExtra}" ToolTip.Tip="{Binding TypeLabel}">
+                  <TextBlock Text="{Binding TypeBadgeText}" Foreground="{Binding ExtraTypeText}"/>
+                </Border>
+                <TextBlock Grid.Column="2" Classes="rowink" Text="{Binding SizeText}"
+                           FontSize="{StaticResource FontCaption}" VerticalAlignment="Center" HorizontalAlignment="Right"
+                           FontFamily="Consolas,monospace" FontFeatures="+tnum" Margin="12,0,0,0"/>
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </Grid.DataTemplates>
+        <Grid.Styles>
+          <!-- Rows are transparent on the SurfaceCard grid container, separated by the fainter
+               FlatRowLine hairline; the same treatment as the Library grid. -->
+                            <Style Selector="Border.invfile"><Setter Property="Background" Value="Transparent"/></Style>
+          <!-- Selection is the ACCENT, not platform blue; both tokens are keyed + ThemeService-swapped. The
+               group row runs a step stronger than its files. -->
+          <!-- RowTint moved OFF the element and INTO a style: a LOCAL value beats a style setter,
+               so with Background set inline the .selrow class below could never take effect. -->
+          <Style Selector="Border.invgroup"><Setter Property="Background" Value="{Binding RowTint, DataType=vm:InventoryGroupRow}"/></Style>
+          <!-- (09-19) Selection is NOT a fill: an amber wash on a selected row was the Partial tint exactly (both
+               AccentAmber at 0x24), so a selected Complete game read as Partial. Selected = amber row INK (rowink below) over a
+               neutral lift on file rows; the game row KEEPS its status tint. No stroke (owner 09-19: bar and
+               underline tried and dropped). -->
+          <Style Selector="Border.invgroup, Border.invfile"><Setter Property="BorderBrush" Value="{StaticResource FlatRowLine}"/><Setter Property="BorderThickness" Value="0,0,0,1"/></Style>
+          <Style Selector="Border.invgroup"><Setter Property="Padding" Value="10,9"/></Style>
+          <Style Selector="Border.invfile"><Setter Property="Padding" Value="40,8,12,8"/></Style>
+          <!-- Row ink lives in a style so selection can turn it amber (a local Foreground would win). -->
+          <Style Selector="TextBlock.rowink"><Setter Property="Foreground" Value="White"/></Style>
+          <Style Selector="Border.selrow TextBlock.rowink"><Setter Property="Foreground" Value="{StaticResource AccentAmber}"/></Style>
+          <Style Selector="Border.invfile.selrow"><Setter Property="Background" Value="{StaticResource RowHoverFill}"/></Style>
+          <!-- The caret is SCALED, not resized: raising FontSize grows the line box and every row with it; a
+               RenderTransform applies after layout, so the mark grows and the row does not. -->
+          <Style Selector="TextBlock.caret">
+            <Setter Property="FontSize" Value="20"/><Setter Property="Foreground" Value="{StaticResource InkPrimary}"/>
+            <Setter Property="RenderTransform" Value="scale(1.75)"/>
+            <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
+          </Style>
+          <!-- Horizontal move buttons: the container is `sortpill act` (the page's pill vocabulary);
+               only the label/arrow sizing is theirs, keyed on the inner text classes. -->
+          <Style Selector="Button.sortpill TextBlock.mlbl"><Setter Property="FontSize" Value="13.5"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
+          <Style Selector="Button.sortpill TextBlock.marw"><Setter Property="FontSize" Value="16"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
+          <!-- MOVE eyebrow: a passive label naming what the buttons do, so NEUTRAL (never amber a
+               passive value). Leads the Primary buttons, trails the Secondary buttons. -->
+          <Style Selector="TextBlock.movetag"><Setter Property="FontSize" Value="11.5"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="White"/><Setter Property="LetterSpacing" Value="0.6"/><Setter Property="VerticalAlignment" Value="Center"/></Style>
+        </Grid.Styles>
+
+        <!-- Vertical resize handle between the two folder columns (full height across cards + grids). -->
+        <!-- PAGE SECTION headings: white label + amber fade rule, the app-wide pattern. The heading carries
+             the ROLE, so the card below leads with the health dot + state + path. -->
+        <GridSplitter Grid.Column="1" Grid.Row="0" Grid.RowSpan="4" Classes="dividercol"
+                      ResizeDirection="Columns" HorizontalAlignment="Stretch" ZIndex="5"/>
+
+        <!-- Row 0+1: one section card per column. The role heading is the card's HEADER STRIP and the
+             device's state is the first line inside it - the container replaces the device card's outline. -->
+        <!-- x:Name'd for the first-run guide: the FOLDER step must spotlight this card whether a folder is
+             set or not - the "add a folder" invitation does not exist once the default is auto-applied. -->
+        <Border x:Name="GuidePrimaryFolder" Grid.Row="0" Grid.RowSpan="2" Grid.Column="0" Classes="scard" BorderThickness="1,1,1,0" CornerRadius="12,12,0,0" VerticalAlignment="Stretch"
+                Classes.problem="{Binding PrimaryIsProblem}"
+                Classes.disconnected="{Binding PrimaryIsDisconnected}"
+                Classes.reattached="{Binding PrimaryJustReattached}">
+          <Grid RowDefinitions="Auto,*">
+            <Border Grid.Row="0" Classes="shead">
+              <!-- (09-15) The user's NAME for the drive lives on the LABEL row, in parentheses after the role, only when
+                   it is not the default (folder name, or the old "Primary"/"Secondary"). The pencil renames. -->
+              <Grid ColumnDefinitions="Auto,Auto,*">
+                <TextBlock Grid.Column="0" Classes="sgh" Text="PRIMARY STORAGE"/>
+                <!-- A ContentControl over the (nullable) slot row: with no row it renders nothing and binds nothing,
+                     so an empty slot logs no "Value is null" per dashboard pass (owner, 09-15). -->
+                <ContentControl Grid.Column="1" Content="{Binding PrimaryLocation}" VerticalAlignment="Center">
+                  <ContentControl.DataTemplates>
+                    <DataTemplate x:DataType="vm:BackupLocationRow">
+                      <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding NameInParens}" Foreground="{StaticResource InkBright}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" Margin="8,0,0,0" MaxWidth="260" TextTrimming="CharacterEllipsis" IsVisible="{Binding ShowName}"/>
+                        <Button Classes="linky" Padding="4,0" Background="Transparent" Content="✎" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontCaption}"
+                                VerticalAlignment="Center" Margin="4,0,6,0" ToolTip.Tip="{Binding RenameTip}"
+                                Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.RequestRenameLocationCommand}" CommandParameter="{Binding}"/>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ContentControl.DataTemplates>
+                </ContentControl>
+                <!-- (09-25, owner) A drive slow to answer is named on its own card; the rule makes room for it. -->
+                <Grid Grid.Column="2" ColumnDefinitions="*,Auto">
+                  <Border Grid.Column="0" Classes="shrule" Background="{StaticResource NeutralRuleFade}"/>
+                  <TextBlock Grid.Column="1" Text="{Binding PrimaryWaitingText}" IsVisible="{Binding PrimaryWaitingText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                             Foreground="White" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center" Margin="10,0,4,0"
+                             MaxWidth="240" TextTrimming="CharacterEllipsis"/>
+                </Grid>
+              </Grid>
+            </Border>
+        <Panel Grid.Row="1">
+          <ContentControl IsVisible="{Binding HasLocation}" Content="{Binding PrimaryLocation}"/>
+          <!-- Empty slot: the same invitation the secondary column and Accounts use, so the one folder the app
+               cannot work without can be set from the page that owns folders. -->
+          <StackPanel IsVisible="{Binding !HasLocation}" Margin="14,12" VerticalAlignment="Top">
+            <Button x:Name="GuideAddFolder" Classes="linky" Padding="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                    Background="Transparent" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ShowLocationPickerCommand}"
+                    ToolTip.Tip="Pick the folder your backups live in. Your account and library live here too.">
+              <Panel>
+                <Rectangle RadiusX="8" RadiusY="8" Stroke="{StaticResource StrokeAmberSoft}" StrokeThickness="1"
+                           StrokeDashArray="4,3" Fill="Transparent"/>
+                <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,15" VerticalAlignment="Center">
+                  <Border Width="26" Height="26" CornerRadius="{StaticResource RadiusCard}" Background="{StaticResource AccentAmber}">
+                    <TextBlock Text="+" Foreground="{StaticResource SurfaceBg}" FontSize="{StaticResource FontRow}" FontWeight="Bold"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  </Border>
+                  <TextBlock Text="Add Primary Storage"
+                             Foreground="{StaticResource AccentAmber}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Panel>
+            </Button>
+          </StackPanel>
+        </Panel>
+          </Grid>
+        </Border>
+        <Border x:Name="GuideSecondaryFolder" Grid.Row="0" Grid.RowSpan="2" Grid.Column="2" Classes="scard" BorderThickness="1,1,1,0" CornerRadius="12,12,0,0" VerticalAlignment="Stretch"
+                Classes.problem="{Binding SecondaryIsProblem}"
+                Classes.disconnected="{Binding SecondaryIsDisconnected}"
+                Classes.reattached="{Binding SecondaryJustReattached}">
+          <Grid RowDefinitions="Auto,*">
+            <Border Grid.Row="0" Classes="shead">
+              <!-- (09-15) The user's NAME for the drive lives on the LABEL row, in parentheses after the role, only when
+                   it is not the default (folder name, or the old "Primary"/"Secondary"). The pencil renames. -->
+              <Grid ColumnDefinitions="Auto,Auto,*">
+                <TextBlock Grid.Column="0" Classes="sgh" Text="SECONDARY STORAGE"/>
+                <!-- A ContentControl over the (nullable) slot row: with no row it renders nothing and binds nothing,
+                     so an empty slot logs no "Value is null" per dashboard pass (owner, 09-15). -->
+                <ContentControl Grid.Column="1" Content="{Binding SecondaryLocation}" VerticalAlignment="Center">
+                  <ContentControl.DataTemplates>
+                    <DataTemplate x:DataType="vm:BackupLocationRow">
+                      <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding NameInParens}" Foreground="{StaticResource InkBright}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" Margin="8,0,0,0" MaxWidth="260" TextTrimming="CharacterEllipsis" IsVisible="{Binding ShowName}"/>
+                        <Button Classes="linky" Padding="4,0" Background="Transparent" Content="✎" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontCaption}"
+                                VerticalAlignment="Center" Margin="4,0,6,0" ToolTip.Tip="{Binding RenameTip}"
+                                Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Storage.RequestRenameLocationCommand}" CommandParameter="{Binding}"/>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ContentControl.DataTemplates>
+                </ContentControl>
+                <!-- (09-25, owner) A drive slow to answer is named on its own card; the rule makes room for it. -->
+                <Grid Grid.Column="2" ColumnDefinitions="*,Auto">
+                  <Border Grid.Column="0" Classes="shrule" Background="{StaticResource NeutralRuleFade}"/>
+                  <TextBlock Grid.Column="1" Text="{Binding SecondaryWaitingText}" IsVisible="{Binding SecondaryWaitingText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                             Foreground="White" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center" Margin="10,0,4,0"
+                             MaxWidth="240" TextTrimming="CharacterEllipsis"/>
+                </Grid>
+              </Grid>
+            </Border>
+        <Panel Grid.Row="1">
+          <ContentControl IsVisible="{Binding HasSecondary}" Content="{Binding SecondaryLocation}"/>
+          <!-- Empty slot uses the SAME invitation as Accounts: dashed amber outline with the filled
+               circle-plus. Not a thing yet, so not a card - the two "add a second one" moments look like
+               one idea. -->
+          <StackPanel IsVisible="{Binding !HasSecondary}" Margin="14,12" VerticalAlignment="Top">
+            <Button Classes="linky" Padding="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                    Background="Transparent" Command="{Binding AddLocationCommand}" IsEnabled="{Binding CanAddSecondary}"
+                    ToolTip.Tip="Pick a folder to use as secondary storage.">
+              <Panel>
+                <Rectangle RadiusX="8" RadiusY="8" Stroke="{StaticResource StrokeAmberSoft}" StrokeThickness="1"
+                           StrokeDashArray="4,3" Fill="Transparent"/>
+                <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,15" VerticalAlignment="Center">
+                  <Border Width="26" Height="26" CornerRadius="{StaticResource RadiusCard}" Background="{StaticResource AccentAmber}">
+                    <TextBlock Text="+" Foreground="{StaticResource SurfaceBg}" FontSize="{StaticResource FontRow}" FontWeight="Bold"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  </Border>
+                  <TextBlock Text="Add Secondary Storage"
+                             Foreground="{StaticResource AccentAmber}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Panel>
+            </Button>
+            <!-- ONE line, not three bullets: what is not obvious to someone who did not build the app is that a
+                 second folder has three distinct uses. The uses, once, in a sentence. -->
+            <TextBlock Text="Secondary storage can mirror your backup, hold the overflow, or keep your cloud saves."
+                       Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontCaption}"
+                       TextWrapping="Wrap" Margin="2,10,2,0"/>
+          </StackPanel>
+        </Panel>
+          </Grid>
+        </Border>
+
+        <!-- Row 2: move bar. Each side's summary sits on the OUTER edge; the move buttons hug the divider.
+             The grids have no header of their own - the device name is on the card above. -->
+        <!-- The device and its file list are ONE subject: the card continues through the move bar and grid,
+             closed by a single bottom edge; a hairline marks the internal division, never a card edge. -->
+        <!-- The grid is RECESSED, not merely ruled off: the card and its file list are two surfaces, so the
+             list sits in a well a shade darker and the boundary needs no extra chrome to be felt. -->
+        <Border Grid.Row="2" Grid.RowSpan="2" Grid.Column="0" Background="{StaticResource SurfaceBg}"
+                BorderBrush="{StaticResource FlatEdge}" BorderThickness="1,1,1,0" ZIndex="-1"/>
+        <StackPanel Grid.Row="2" Grid.Column="0" Spacing="6" Margin="16,16,10,4">
+          <Grid ColumnDefinitions="*,Auto">
+            <!-- No inventory summary line: it restated the BACKED UP HERE readout a few rows above. -->
+            <!-- Mirror of the secondary's dim eyebrow: with no primary folder the summary slot states that,
+                 rather than a "0 games" that reads as "your primary is empty". Dim: a state, not a value. -->
+            <TextBlock Grid.Column="0" Text="NO PRIMARY STORAGE" Foreground="{StaticResource InkMuted}"
+                       FontSize="{StaticResource FontEyebrow}" FontWeight="SemiBold" LetterSpacing="0.6" VerticalAlignment="Center"
+                       IsVisible="{Binding !HasLocation}"/>
+          </Grid>
+          <!-- MOCK: this section's eyebrow is GONE too; the card above now carries the BACKED UP HERE
+               label and the grid below it is plainly the detail of that. -->
+          <!-- Sort pills (left) + Expand/Collapse All (right), on one line at the top of the grid.
+               Shown even when empty so Primary and Secondary read as the same control. -->
+          <!-- Side margins reach -8 into the container's own left pad: at 1366 the strip needs every px, and
+               the reclaimed padding becomes the gap between Show and the MOVE group. -->
+          <Grid ColumnDefinitions="*,Auto" Margin="-8,0,0,0">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
+              <!-- EXPAND leads the row: every row's caret sits at the LEFT edge of the grid below, so the master
+                   toggle belongs directly above them. The rule separates opening from narrowing. -->
+              <!-- All or nothing: every strip control disables over an empty grid - Sort and Expand included, so
+                   nothing offers to order and open nothing. -->
+              <Button Classes="sortpill view" IsEnabled="{Binding PrimaryGrid.HasFiles}"
+                      Command="{Binding PrimaryGrid.ToggleExpandAllCommand}"
+                      ToolTip.Tip="{Binding PrimaryGrid.ExpandAllTip}">
+                <!-- Double chevron, DRAWN rather than typed: the doubled chevron reads as "all", and typed
+                     U+2304/U+2303 carry their own font metrics and sit off-center; a Path centers exactly. -->
+                <StackPanel Orientation="Horizontal" Spacing="7">
+                  <Path Width="10" Height="11" VerticalAlignment="Center" Stretch="None"
+                        Stroke="{StaticResource InkDim}" StrokeThickness="1.4"
+                        StrokeLineCap="Round" StrokeJoin="Round"
+                        IsVisible="{Binding !PrimaryGrid.AllExpanded}"
+                        Data="M 1,1.5 L 5,5.5 L 9,1.5 M 1,5.5 L 5,9.5 L 9,5.5"/>
+                  <Path Width="10" Height="11" VerticalAlignment="Center" Stretch="None"
+                        Stroke="{StaticResource InkDim}" StrokeThickness="1.4"
+                        StrokeLineCap="Round" StrokeJoin="Round"
+                        IsVisible="{Binding PrimaryGrid.AllExpanded}"
+                        Data="M 1,5.5 L 5,1.5 L 9,5.5 M 1,9.5 L 5,5.5 L 9,9.5"/>
+                  <TextBlock FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"
+                             Text="{Binding PrimaryGrid.ExpandAllLabel}"/>
+                </StackPanel>
+              </Button>
+              <Border Width="1" Height="15" Background="{StaticResource StrokeSubtle}" Margin="4,0" VerticalAlignment="Center"/>
+              <!-- The verb rides INSIDE the pill: a self-describing control needs no caption, and the row loses
+                   two free-standing words. -->
+              <!-- (09-14) The items were never wired: no Command, a hardcoded "Size" label. Same key again flips direction. -->
+              <Button Classes="sortpill view" IsEnabled="{Binding PrimaryGrid.HasFiles}" ToolTip.Tip="Sort games. Pick the same key again to flip the direction.">
+                <TextBlock FontSize="{StaticResource FontCaption}"><Run Text="Sort: " Foreground="{StaticResource InkDim}"/><Run Text="{Binding PrimaryGrid.SortLabel}"/></TextBlock>
+                <Button.Flyout><MenuFlyout>
+                  <MenuItem Header="{Binding PrimaryGrid.SortMenuName}"  Command="{Binding PrimaryGrid.SortCommand}" CommandParameter="Name"/>
+                  <MenuItem Header="{Binding PrimaryGrid.SortMenuSize}"  Command="{Binding PrimaryGrid.SortCommand}" CommandParameter="Size"/>
+                </MenuFlyout></Button.Flyout>
+              </Button>
+              <!-- SHOW group: filtering sits next to the rows it narrows, not with the expand caret. The two
+                   flyouts (here and secondary) are deliberately IDENTICAL: CHANGE BOTH IN THE SAME EDIT. -->
+              <Button Classes="sortpill view" IsEnabled="{Binding PrimaryGrid.HasTypeChoices}"
+                      ToolTip.Tip="Choose which file types this grid shows">
+                <StackPanel Orientation="Horizontal" Spacing="0">
+                  <TextBlock FontSize="{StaticResource FontCaption}" Foreground="{StaticResource InkDim}" Text="Show: "/>
+                  <TextBlock FontSize="{StaticResource FontCaption}" Text="{Binding PrimaryGrid.TypeFilterLabel}"/>
+                  <TextBlock FontSize="{StaticResource FontEyebrow}" VerticalAlignment="Center" Margin="5,0,0,0" Foreground="{StaticResource InkDim}" Text="&#9662;"/>
+                </StackPanel>
+                <Button.Flyout>
+                  <Flyout Placement="Bottom">
+                    <StackPanel Spacing="9" MaxWidth="380">
+                      <TextBlock Text="Show file types" Foreground="{StaticResource White}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+                      <TextBlock Text="Only picked types are listed here, and only listed files can be moved. Changing this clears the selection."
+                                 Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" TextWrapping="Wrap"/>
+                      <ItemsControl ItemsSource="{Binding PrimaryGrid.TypeOptions}">
+                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:FilterChip">
+                            <CheckBox IsChecked="{Binding IsActive}" Margin="0,0,12,4" MinWidth="0">
+                              <StackPanel Orientation="Horizontal" Spacing="7">
+                                <Border Width="9" Height="9" CornerRadius="2" VerticalAlignment="Center" Background="{Binding Swatch}"/>
+                                <TextBlock Text="{Binding Label}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}"/>
+                              </StackPanel>
+                            </CheckBox>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                      <Button Classes="sortpill" HorizontalAlignment="Left" Command="{Binding PrimaryGrid.ShowAllTypesCommand}"
+                              IsEnabled="{Binding PrimaryGrid.TypeFilterActive}">
+                        <TextBlock Text="Show all"/>
+                      </Button>
+                    </StackPanel>
+                  </Flyout>
+                </Button.Flyout>
+              </Button>
+            </StackPanel>
+            <!-- ONE control strip: Sort and Show narrow rows; Expand All and MOVE act on them. A short vertical
+                 rule separates the two - a divider, not a border, faint and shorter than the pills. -->
+            <!-- MOVE eyebrow centered ABOVE its pills, so the group narrows by the word and the label still names
+                 both buttons. Mirrored on the secondary strip: CHANGE BOTH IN THE SAME EDIT. -->
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+              <!-- Negative top margin: the eyebrow paints in the 16px band the container margin already reserves,
+                   so the label costs the row no height and the pills stay level with Sort/Show. -->
+              <!-- Flanking hairlines tie the eyebrow to ITS two pills (it floated as a page label
+                   without them). Same fade idiom as every labeled rule; stops at the group edge. -->
+              <Grid ColumnDefinitions="*,Auto,*" Margin="0,-15,0,0">
+                <Border Grid.Column="0" Height="1" Background="{StaticResource StrokeSubtle}" Margin="2,0,6,0" VerticalAlignment="Center"/>
+                <!-- -0.6 right margin: LetterSpacing trails after the last glyph and counts into the
+                     text width, which started the right hairline late and left it 1px shorter. -->
+                <TextBlock Grid.Column="1" Classes="movetag" Text="MOVE FILES" Margin="0,0,-0.6,0"/>
+                <Border Grid.Column="2" Height="1" Background="{StaticResource StrokeSubtle}" Margin="6,0,2,0" VerticalAlignment="Center"/>
+              </Grid>
+              <StackPanel Orientation="Horizontal" Spacing="4">
+                <Button Classes="sortpill act" IsEnabled="{Binding CanMoveAllToSecondary}" Command="{Binding MoveAllToSecondaryCommand}"
+                        ToolTip.Tip="Move everything to Secondary">
+                  <StackPanel Orientation="Horizontal" Spacing="6"><TextBlock Classes="mlbl" Text="All"/><TextBlock Classes="marw" Text="&#8594;"/></StackPanel>
+                </Button>
+                <Button Classes="sortpill act" IsEnabled="{Binding CanMoveSelToSecondary}" Command="{Binding MoveSelToSecondaryCommand}"
+                        ToolTip.Tip="Move selected file(s) to Secondary">
+                  <StackPanel Orientation="Horizontal" Spacing="6"><TextBlock Classes="mlbl" Text="Selected"/><TextBlock Classes="marw" Text="&#8594;"/></StackPanel>
+                </Button>
+              </StackPanel>
+            </StackPanel>
+          </Grid>
+        </StackPanel>
+        <!-- The device and its file list are ONE subject: the card continues through the move bar and grid,
+             closed by a single bottom edge; a hairline marks the internal division, never a card edge. -->
+        <!-- The grid is RECESSED, not merely ruled off: the card and its file list are two surfaces, so the
+             list sits in a well a shade darker and the boundary needs no extra chrome to be felt. -->
+        <Border Grid.Row="2" Grid.RowSpan="2" Grid.Column="2" Background="{StaticResource SurfaceBg}"
+                BorderBrush="{StaticResource FlatEdge}" BorderThickness="1,1,1,0" ZIndex="-1"/>
+        <StackPanel Grid.Row="2" Grid.Column="2" Spacing="6" Margin="10,16,16,4">
+          <Grid ColumnDefinitions="Auto,*">
+            <!-- Mirrors the primary side; the inventory summary is the card's BACKED UP HERE readout, not
+                 repeated. The empty-state line below stays: a state, not a value. -->
+            <!-- One statement only: the grid below says "No secondary folder", centered, where the empty-folder
+                 line appears on the primary side. -->
+          </Grid>
+          <!-- Sort pills (left) + Expand/Collapse All (right): ALWAYS rendered, even with no secondary device,
+               so the empty side reads as a slot waiting to be filled, not a different widget. -->
+          <!-- FULL MIRROR: the MOVE groups hug the CENTER GUTTER, arrows pointing at each other, so "back and
+               forth" reads at a glance; view pills mirror to the right edge. Reaches -8 into the left pad. -->
+          <Grid ColumnDefinitions="Auto,*" Margin="-8,0,0,0" IsVisible="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).HasAnyBackedUp}">
+            <StackPanel Grid.Column="1" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="4">
+              <!-- Expand leads on BOTH sides, not mirrored: the carets it drives are at the left edge of every row
+                   in both grids. MOVE is what mirrors, because direction is its meaning. -->
+              <!-- All or nothing: every strip control disables over an empty grid - Sort and Expand included, so
+                   nothing offers to order and open nothing. -->
+              <Button Classes="sortpill view" IsEnabled="{Binding SecondaryGrid.HasFiles}"
+                      Command="{Binding SecondaryGrid.ToggleExpandAllCommand}"
+                      ToolTip.Tip="{Binding SecondaryGrid.ExpandAllTip}">
+                <!-- Double chevron, DRAWN rather than typed: the doubled chevron reads as "all", and typed
+                     U+2304/U+2303 carry their own font metrics and sit off-center; a Path centers exactly. -->
+                <StackPanel Orientation="Horizontal" Spacing="7">
+                  <Path Width="10" Height="11" VerticalAlignment="Center" Stretch="None"
+                        Stroke="{StaticResource InkDim}" StrokeThickness="1.4"
+                        StrokeLineCap="Round" StrokeJoin="Round"
+                        IsVisible="{Binding !SecondaryGrid.AllExpanded}"
+                        Data="M 1,1.5 L 5,5.5 L 9,1.5 M 1,5.5 L 5,9.5 L 9,5.5"/>
+                  <Path Width="10" Height="11" VerticalAlignment="Center" Stretch="None"
+                        Stroke="{StaticResource InkDim}" StrokeThickness="1.4"
+                        StrokeLineCap="Round" StrokeJoin="Round"
+                        IsVisible="{Binding SecondaryGrid.AllExpanded}"
+                        Data="M 1,5.5 L 5,1.5 L 9,5.5 M 1,9.5 L 5,5.5 L 9,9.5"/>
+                  <TextBlock FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"
+                             Text="{Binding SecondaryGrid.ExpandAllLabel}"/>
+                </StackPanel>
+              </Button>
+              <Border Width="1" Height="15" Background="{StaticResource StrokeSubtle}" Margin="4,0" VerticalAlignment="Center"/>
+              <!-- (09-14) The items were never wired: no Command, a hardcoded "Size" label. Same key again flips direction. -->
+              <Button Classes="sortpill view" IsEnabled="{Binding SecondaryGrid.HasFiles}" ToolTip.Tip="Sort games. Pick the same key again to flip the direction.">
+                <TextBlock FontSize="{StaticResource FontCaption}"><Run Text="Sort: " Foreground="{StaticResource InkDim}"/><Run Text="{Binding SecondaryGrid.SortLabel}"/></TextBlock>
+                <Button.Flyout><MenuFlyout>
+                  <MenuItem Header="{Binding SecondaryGrid.SortMenuName}"  Command="{Binding SecondaryGrid.SortCommand}" CommandParameter="Name"/>
+                  <MenuItem Header="{Binding SecondaryGrid.SortMenuSize}"  Command="{Binding SecondaryGrid.SortCommand}" CommandParameter="Size"/>
+                </MenuFlyout></Button.Flyout>
+              </Button>
+              <!-- The primary grid's SHOW group, mirrored. Keep the two identical. -->
+              <Button Classes="sortpill view" IsEnabled="{Binding SecondaryGrid.HasTypeChoices}"
+                      ToolTip.Tip="Choose which file types this grid shows">
+                <StackPanel Orientation="Horizontal" Spacing="0">
+                  <TextBlock FontSize="{StaticResource FontCaption}" Foreground="{StaticResource InkDim}" Text="Show: "/>
+                  <TextBlock FontSize="{StaticResource FontCaption}" Text="{Binding SecondaryGrid.TypeFilterLabel}"/>
+                  <TextBlock FontSize="{StaticResource FontEyebrow}" VerticalAlignment="Center" Margin="5,0,0,0" Foreground="{StaticResource InkDim}" Text="&#9662;"/>
+                </StackPanel>
+                <Button.Flyout>
+                  <Flyout Placement="Bottom">
+                    <StackPanel Spacing="9" MaxWidth="380">
+                      <TextBlock Text="Show file types" Foreground="{StaticResource White}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold"/>
+                      <TextBlock Text="Only picked types are listed here, and only listed files can be moved. Changing this clears the selection."
+                                 Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" TextWrapping="Wrap"/>
+                      <ItemsControl ItemsSource="{Binding SecondaryGrid.TypeOptions}">
+                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:FilterChip">
+                            <CheckBox IsChecked="{Binding IsActive}" Margin="0,0,12,4" MinWidth="0">
+                              <StackPanel Orientation="Horizontal" Spacing="7">
+                                <Border Width="9" Height="9" CornerRadius="2" VerticalAlignment="Center" Background="{Binding Swatch}"/>
+                                <TextBlock Text="{Binding Label}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}"/>
+                              </StackPanel>
+                            </CheckBox>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                      <Button Classes="sortpill" HorizontalAlignment="Left" Command="{Binding SecondaryGrid.ShowAllTypesCommand}"
+                              IsEnabled="{Binding SecondaryGrid.TypeFilterActive}">
+                        <TextBlock Text="Show all"/>
+                      </Button>
+                    </StackPanel>
+                  </Flyout>
+                </Button.Flyout>
+              </Button>
+            </StackPanel>
+            <!-- Mirror of the primary strip's stacked MOVE group - see the note there. Column 0:
+                sits AT the gutter, beside the primary's MOVE group. -->
+            <StackPanel Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center" Spacing="2">
+              <Grid ColumnDefinitions="*,Auto,*" Margin="0,-15,0,0">
+                <Border Grid.Column="0" Height="1" Background="{StaticResource StrokeSubtle}" Margin="2,0,6,0" VerticalAlignment="Center"/>
+                <!-- -0.6 right margin: LetterSpacing trails after the last glyph and counts into the
+                     text width, which started the right hairline late and left it 1px shorter. -->
+                <TextBlock Grid.Column="1" Classes="movetag" Text="MOVE FILES" Margin="0,0,-0.6,0"/>
+                <Border Grid.Column="2" Height="1" Background="{StaticResource StrokeSubtle}" Margin="6,0,2,0" VerticalAlignment="Center"/>
+              </Grid>
+              <StackPanel Orientation="Horizontal" Spacing="4">
+                <Button Classes="sortpill act" IsEnabled="{Binding CanMoveSelToPrimary}" Command="{Binding MoveSelToPrimaryCommand}"
+                        ToolTip.Tip="Move selected file(s) to Primary">
+                  <StackPanel Orientation="Horizontal" Spacing="6"><TextBlock Classes="marw" Text="&#8592;"/><TextBlock Classes="mlbl" Text="Selected"/></StackPanel>
+                </Button>
+                <Button Classes="sortpill act" IsEnabled="{Binding CanMoveAllToPrimary}" Command="{Binding MoveAllToPrimaryCommand}"
+                        ToolTip.Tip="Move everything to Primary">
+                  <StackPanel Orientation="Horizontal" Spacing="6"><TextBlock Classes="marw" Text="&#8592;"/><TextBlock Classes="mlbl" Text="All"/></StackPanel>
+                </Button>
+              </StackPanel>
+            </StackPanel>
+          </Grid>
+        </StackPanel>
+
+        <!-- Row 3: PRIMARY grid (headerless; summary lives in the move bar above). SurfaceCard, no
+             stroke, radius 10; the one card system, matching the Library grid card. -->
+        <Border Grid.Row="3" Grid.Column="0" Margin="1,0,1,10" Background="Transparent" BorderThickness="0"
+                CornerRadius="{StaticResource RadiusCard}" ClipToBounds="True">
+          <Panel>
+            <DockPanel IsVisible="{Binding HasLocation}">
+              <TextBlock DockPanel.Dock="Top" Text="Nothing backed up here yet." IsVisible="{Binding PrimaryGrid.IsEmpty}"
+                         Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" Margin="12,16" HorizontalAlignment="Center"/>
+              <!-- Virtualized (stress run 09-06): 7,500 rows at 1,500 games realized every row on each rebuild.
+                   The ScrollViewer must live INSIDE the ItemsControl template for the panel to see a viewport. -->
+              <ItemsControl x:Name="PrimaryList" ItemsSource="{Binding PrimaryGrid.GroupedRows}">
+                <ItemsControl.Template>
+                  <ControlTemplate>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                      <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}"/>
+                    </ScrollViewer>
+                  </ControlTemplate>
+                </ItemsControl.Template>
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+              </ItemsControl>
+            </DockPanel>
+            <!-- NO FOLDER reads exactly like an EMPTY folder: the same centered line in the same place; only the
+                 sentence differs. -->
+            <TextBlock IsVisible="{Binding !HasLocation}" Text="No primary storage." VerticalAlignment="Top"
+                       Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" Margin="12,16" HorizontalAlignment="Center"/>
+          </Panel>
+        </Border>
+
+        <!-- Row 3: SECONDARY grid (or a hint when there's no secondary device) -->
+        <Border Grid.Row="3" Grid.Column="2" Margin="1,0,1,10" Background="Transparent" BorderThickness="0"
+                CornerRadius="{StaticResource RadiusCard}" ClipToBounds="True">
+          <Panel>
+            <DockPanel IsVisible="{Binding HasSecondary}">
+              <TextBlock DockPanel.Dock="Top" Text="Nothing backed up here yet." IsVisible="{Binding SecondaryGrid.IsEmpty}"
+                         Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" Margin="12,16" HorizontalAlignment="Center"/>
+              <!-- Virtualized (stress run 09-06): 7,500 rows at 1,500 games realized every row on each rebuild.
+                   The ScrollViewer must live INSIDE the ItemsControl template for the panel to see a viewport. -->
+              <ItemsControl x:Name="SecondaryList" ItemsSource="{Binding SecondaryGrid.GroupedRows}">
+                <ItemsControl.Template>
+                  <ControlTemplate>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                      <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}"/>
+                    </ScrollViewer>
+                  </ControlTemplate>
+                </ItemsControl.Template>
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate><VirtualizingStackPanel/></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+              </ItemsControl>
+            </DockPanel>
+            <!-- Mirrors the primary side exactly; see the note there. -->
+            <TextBlock IsVisible="{Binding !HasSecondary}" Text="No secondary storage." VerticalAlignment="Top"
+                       Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" Margin="12,16" HorizontalAlignment="Center"/>
+          </Panel>
+        </Border>
+
+        <!-- Single slideable divider, spanning cards + move bar + grids so all three line up -->
+      </Grid>
+  </DockPanel>
+  </Grid>
+  </Border>
+  </Grid>
+  </ScrollViewer>
+</UserControl>

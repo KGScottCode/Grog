@@ -1,0 +1,17 @@
+{
+  "profiles": {
+    "sweep 1366x768": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "GROG_SHOT_BATCH": "1"
+      }
+    },
+    "sweep 1920x1080": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "GROG_SHOT_BATCH": "1",
+        "GROG_SHOT_SIZE": "1920x1080"
+      }
+    }
+  }
+}
