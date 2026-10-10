@@ -173,12 +173,26 @@ jobs:
           # Windows installer (profile-dir state); portable-on-mac is a user putting GrogData there by hand.
           rm -rf "$APP/Contents/MacOS/GrogData"
           chmod +x "$APP/Contents/MacOS/Grog" "$APP/Contents/MacOS/grogcli" 2>/dev/null || true
-          # Icon: .icns built from the 512px PNG with the runner's own tooling.
-          mkdir iconset.iconset
-          for s in 16 32 128 256 512; do
-            sips -z $s $s src/Grog.App/Assets/grog-amber.png --out "iconset.iconset/icon_${s}x${s}.png" >/dev/null
-          done
-          iconutil -c icns iconset.iconset -o "$APP/Contents/Resources/grog.icns"
+          # Icon, two forms. grog.icns (Apple's pre-26 grid, made by packaging/macos/make-icon.py) is what
+          # macOS 14-15 show. macOS 26 wants a layered icon: Grog.icon compiled by Xcode 26's actool into
+          # Assets.car and named by CFBundleIconName; without it Tahoe shows the icns inside a grey tile.
+          # Non-fatal: a runner without Xcode 26 still ships a working icns.
+          cp packaging/macos/Grog.icns "$APP/Contents/Resources/grog.icns"
+          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1 || true)
+          [ -n "$XC" ] && export DEVELOPER_DIR="$XC/Contents/Developer"
+          echo "actool from: $(xcode-select -p 2>/dev/null) DEVELOPER_DIR=${DEVELOPER_DIR:-unset}"
+          mkdir -p actool-out
+          if xcrun actool packaging/macos/Grog.icon --compile actool-out --app-icon Grog \
+               --enable-on-demand-resources NO --development-region en --target-device mac \
+               --platform macosx --minimum-deployment-target 14.0 \
+               --output-partial-info-plist actool-out/partial.plist \
+               --output-format human-readable-text --warnings --errors --notices \
+             && [ -f actool-out/Assets.car ]; then
+            cp actool-out/Assets.car "$APP/Contents/Resources/Assets.car"
+            echo "Assets.car compiled; partial plist:"; cat actool-out/partial.plist || true
+          else
+            echo "::warning::actool could not compile Grog.icon; macOS 26 will show grog.icns in a grey tile"
+          fi
           cat > "$APP/Contents/Info.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -190,6 +204,7 @@ jobs:
             <key>CFBundleShortVersionString</key><string>${{ steps.ver.outputs.version }}</string>
             <key>CFBundleExecutable</key><string>Grog</string>
             <key>CFBundleIconFile</key><string>grog.icns</string>
+            <key>CFBundleIconName</key><string>Grog</string>
             <key>CFBundlePackageType</key><string>APPL</string>
             <key>NSHighResolutionCapable</key><true/>
             <key>LSMinimumSystemVersion</key><string>14.0</string>
@@ -317,6 +332,9 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+      # The smoke screenshots are build evidence, not downloads: keep them out of the release assets.
+      - name: Drop smoke screenshots
+        run: rm -f dist/smoke-*.png
 
       # DRAFT, deliberately. Wave 1 is a quiet release: the tag builds everything and then waits for
       # a human to read the notes and press publish, rather than announcing itself.

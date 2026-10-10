@@ -12,6 +12,8 @@
   <string>Grog</string>
   <key>CFBundleIconFile</key>
   <string>Grog</string>
+  <key>CFBundleIconName</key>
+  <string>Grog</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleInfoDictionaryVersion</key>

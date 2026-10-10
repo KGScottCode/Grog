@@ -144,6 +144,19 @@ fi
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp -R "$PAYLOAD/." "$APP/Contents/MacOS/"
 cp packaging/macos/Grog.icns "$APP/Contents/Resources/Grog.icns"
+# macOS 26 layered icon (see release.yml): compiled only when Xcode 26's actool is available.
+if xcrun --find actool >/dev/null 2>&1; then
+  ACT="$REPO/dist/actool-out"; rm -rf "$ACT"; mkdir -p "$ACT"
+  if xcrun actool packaging/macos/Grog.icon --compile "$ACT" --app-icon Grog \
+       --enable-on-demand-resources NO --development-region en --target-device mac \
+       --platform macosx --minimum-deployment-target 14.0 \
+       --output-partial-info-plist "$ACT/partial.plist" >/dev/null 2>&1 && [[ -f "$ACT/Assets.car" ]]; then
+    cp "$ACT/Assets.car" "$APP/Contents/Resources/Assets.car"
+  else
+    echo "Note: actool could not compile Grog.icon (needs Xcode 26); the .icns is used everywhere."
+  fi
+  rm -rf "$ACT"
+fi
 cp LICENSE THIRD-PARTY-NOTICES.txt "$APP/Contents/Resources/" 2>/dev/null || true
 
 sed -e "s|@SHORT_VERSION@|$SHORT_VERSION|g" -e "s|@BUILD_VERSION@|$BUILD_VERSION|g" \
