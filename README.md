@@ -18,9 +18,9 @@ Grog backs up your entire GOG\* library - **Installers**, **Extras**, and **Clou
 drives, verified against GOG's checksums. One dashboard shows what you have, what's missing, and what's out
 of date. DRM-free games are only truly yours once they're on your disk.
 
-> Grog started as an experiment in how far today's agentic AI (Claude chat
-> sessions and Cowork) could carry a real project, and it grew from there.
-> I learned a lot along the way, and I hope you find it useful.
+> Grog started as an experiment exploring agentic AI (Claude chat sessions
+> and Cowork), and it grew from there. I learned a lot along the way, and I
+> hope you find it useful.
 
 ![Grog library dashboard](docs/hero.png)
 

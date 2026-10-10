@@ -50,8 +50,8 @@ END
 
 ## Updating
 
-Quit Grog first, then download over the old copy. Your library, settings and sign-in live in
-`~/grog/GrogData` and are kept.
+Quit Grog first, then download over the old copy. Your library, settings and sign-in (`~/grog/GrogData`)
+and any backups in `~/grog/GOG_Library` are kept.
 
 ```bash
 cd ~/grog
@@ -71,7 +71,13 @@ grogcli status
 
 ## Uninstalling
 
-Quit Grog, then:
+Quit Grog first.
+
+> **Your backups may be inside `~/grog`.** Unless you chose another folder, Grog's default backup folder is
+> `~/grog/GOG_Library`, and the command below deletes it. Move it out first if you want to keep it:
+> `mv ~/grog/GOG_Library ~/GOG_Library`
+
+Then:
 
 ```bash
 rm -rf ~/grog ~/.local/share/applications/grog.desktop
@@ -79,8 +85,8 @@ sed -i '/alias grogcli=/d' ~/.bashrc
 secret-tool clear service Grog 2>/dev/null
 ```
 
-This also removes your library, settings and sign-in (they live in `~/grog/GrogData`). Backed-up games
-on your drives are never touched; delete those folders yourself if you want them gone.
+This removes the app, your library, settings and sign-in (`~/grog/GrogData`) and anything else inside
+`~/grog`. Backups in folders outside `~/grog` are not touched; delete those yourself if you want them gone.
 
 ## If something goes wrong
 

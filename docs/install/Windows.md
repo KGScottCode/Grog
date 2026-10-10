@@ -53,7 +53,9 @@ The uninstaller then asks whether to also remove your library, settings and sign
 No, so a reinstall picks up where you left off. Backed-up games on your drives are never touched; delete
 those folders yourself if you want them gone.
 
-**Portable copy:** delete its folder. That also removes its `GrogData`.
+**Portable copy:** delete its folder. That also removes its `GrogData`, and its `GOG_Library` folder if
+you kept Grog's default backup location: that is where a portable copy saves your games unless you chose
+another folder. Move `GOG_Library` out first if you want to keep your backups.
 
 ## If something goes wrong
 
