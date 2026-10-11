@@ -48,6 +48,29 @@ END
 ~/grog/Grog
 ```
 
+## Backing up to a network share / NAS
+
+Mount the share as a normal folder first, then in Grog choose **Add a backup folder** and pick a folder
+inside it.
+
+Use a system mount, not your file manager's "Other Locations" / network browser: those connections
+(`/run/user/.../gvfs/...`) are slow and unreliable for large files. For an SMB share:
+
+```bash
+sudo apt install cifs-utils              # Ubuntu, Mint, Debian (Fedora: dnf, Arch: pacman)
+sudo mkdir -p /mnt/nas
+printf 'username=YOUR_NAS_USER\npassword=YOUR_NAS_PASSWORD\n' > ~/.nas-credentials
+chmod 600 ~/.nas-credentials
+echo "//nas.local/games /mnt/nas cifs credentials=$HOME/.nas-credentials,uid=$(id -u),gid=$(id -g),_netdev,nofail 0 0" | sudo tee -a /etc/fstab
+sudo mount /mnt/nas
+```
+
+Replace `nas.local/games` with your NAS and share name. The share then mounts at every start. An NFS share
+works the same way with an `nfs` line in `/etc/fstab`.
+
+Backups to a share are slower than to a local drive, and Grog shows the share as offline while the NAS is
+asleep or unreachable; it carries on when the share answers again.
+
 ## Updating
 
 Quit Grog first, then download over the old copy. Your library, settings and sign-in (`~/grog/GrogData`)

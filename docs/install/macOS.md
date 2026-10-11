@@ -34,6 +34,19 @@ Download `Grog-macos-arm64.tar.gz` (or `-x64`) instead, double-click it to extra
 `Grog.app` from wherever you keep it (allow it as in step 3). The app is the whole install: your
 library, settings and sign-in live inside it.
 
+## Backing up to a network share / NAS
+
+1. In Finder, choose **Go > Connect to Server**, enter the share's address (for example
+   `smb://nas.local/games`) and click **Connect**. Tick **Remember this password in my keychain**.
+2. In Grog, choose **Add a backup folder** and pick a folder on the share (it appears under
+   **Locations** in the sidebar, and in `/Volumes`).
+
+macOS does not reconnect shares after a restart on its own. To have it do so, open
+**System Settings > General > Login Items** and add the share under **Open at Login**.
+
+Backups to a share are slower than to a local drive, and Grog shows the share as offline while the NAS is
+asleep or unreachable; it carries on when the share answers again.
+
 ## Updating
 
 Quit Grog, download the new `.dmg`, and drag **Grog** onto **Applications** again; choose

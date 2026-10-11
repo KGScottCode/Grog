@@ -24,6 +24,18 @@ To run a portable copy without installing:
 
 The folder is the whole install: your library, settings and sign-in live in its `GrogData` folder.
 
+## Backing up to a network share / NAS
+
+In Grog, choose **Add a backup folder** and type the share's address in the **Folder** box, for example
+`\\nas\games`, then pick or create a folder there. Sign in to the share in File Explorer first if it asks
+for a password.
+
+A mapped drive letter (File Explorer > **This PC** > **Map network drive**) works too, but the `\\nas\share`
+address is more reliable: drive letters belong to your Windows sign-in only.
+
+Backups to a share are slower than to a local drive, and Grog shows the share as offline while the NAS is
+asleep or unreachable; it carries on when the share answers again.
+
 ## Updating
 
 Run the new `Grog-win-x64-setup.exe`. It closes Grog if it is open and replaces the app; your library,
