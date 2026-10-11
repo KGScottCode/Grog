@@ -364,11 +364,11 @@
                          in a star/Auto/star grid. Chrome law: felt, not noticed; green marks a state. -->
                     <Grid Grid.Column="0" Grid.ColumnSpan="{Binding RowDoneSpan}" ColumnDefinitions="*,Auto,*"
                           VerticalAlignment="Center" IsVisible="{Binding ShowRowDone}">
-                      <Border Grid.Column="0" Height="1" Margin="4,0,10,0" VerticalAlignment="Center"
+                      <Border Grid.Column="0" Height="2" Margin="4,0,10,0" VerticalAlignment="Center"
                               Background="{StaticResource SuccessRuleFadeIn}"/>
                       <TextBlock Grid.Column="1" Text="{Binding RowMarkGlyph}" Foreground="{Binding RowMarkBrush}"
-                                 FontSize="{StaticResource FontRow}" VerticalAlignment="Center"/>
-                      <Border Grid.Column="2" Height="1" Margin="10,0,4,0" VerticalAlignment="Center"
+                                 FontSize="{StaticResource FontRow}" FontWeight="Bold" VerticalAlignment="Center"/>
+                      <Border Grid.Column="2" Height="2" Margin="10,0,4,0" VerticalAlignment="Center"
                               Background="{StaticResource SuccessRuleFade}"/>
                     </Grid>
                     <!-- AT REST, NOT STARTED: the same centered, ruled shape as done, in neutral. The

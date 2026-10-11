@@ -188,9 +188,9 @@ public sealed partial class QueueRow : ObservableObject, IDropTargetRow
         get
         {
             if (QueuePaused || Task.FinishingPhase is not null) return "";
-            if (Task.BytesPerSecond <= 0) return "";
-            long left = Math.Max(0, (Task.BytesTotal ?? 0) - Task.BytesReceived);
-            var eta = left > 0 ? TimeSpan.FromSeconds(left / Task.BytesPerSecond) : TimeSpan.Zero;
+            // Smoothed per file (FileEta), not remaining bytes over the half-second speed, which swung by minutes.
+            if (Task.SecondsLeft is not { } secs) return "";
+            var eta = TimeSpan.FromSeconds(secs);
             var etaText = eta.TotalHours >= 1 ? $"{(int)eta.TotalHours}h {eta.Minutes}m"
                         : eta.TotalMinutes >= 1 ? $"{(int)eta.TotalMinutes}m" : $"{eta.Seconds}s";
             // Time left only: the live rate is the Overview's big readout, and on the card it crowded the percent.

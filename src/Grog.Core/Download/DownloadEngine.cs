@@ -525,7 +525,7 @@ public sealed class DownloadEngine
                 {
                     task.PreemptRequested = false;
                     task.State = DownloadTaskState.Pending;
-                    task.BytesPerSecond = 0;
+                    task.BytesPerSecond = 0; task.SecondsLeft = null;
                 }
                 else task.State = DownloadTaskState.Canceled;
             }
@@ -576,7 +576,7 @@ public sealed class DownloadEngine
                     && PartLength(task) is { } partLen)
                     task.File.PartialBytes = partLen;
                 task.Cancellation = null;
-                task.BytesPerSecond = 0;
+                task.BytesPerSecond = 0; task.SecondsLeft = null;
                 TaskChanged?.Invoke(task);
                 QueueChanged?.Invoke();
             }
@@ -1079,6 +1079,8 @@ public sealed class DownloadEngine
             // (not a user cancel) and the .part is preserved for resume.
             var speedWindowStart = DateTime.UtcNow;
             long speedWindowBytes = 0;
+            var fileEta = new FileEta();
+            task.SecondsLeft = fileEta.Update(speedWindowStart, task.BytesReceived, task.BytesTotal);
             using (var stall = new StallGuard(ct, StallTimeout))
             {
                 while (true)
@@ -1095,6 +1097,7 @@ public sealed class DownloadEngine
                     if (elapsed >= 0.5)
                     {
                         task.BytesPerSecond = speedWindowBytes / elapsed;
+                        task.SecondsLeft = fileEta.Update(DateTime.UtcNow, task.BytesReceived, task.BytesTotal);
                         speedWindowStart = DateTime.UtcNow;
                         speedWindowBytes = 0;
                         TaskChanged?.Invoke(task);
@@ -1102,7 +1105,7 @@ public sealed class DownloadEngine
                     await throttle.ThrottleAsync(read, ct);
                 }
             }
-            task.FinishingPhase = "Writing to disk"; task.BytesPerSecond = 0; TaskChanged?.Invoke(task);
+            task.FinishingPhase = "Writing to disk"; task.BytesPerSecond = 0; task.SecondsLeft = null; TaskChanged?.Invoke(task);
             var flushClock = System.Diagnostics.Stopwatch.StartNew();
             await outStream.FlushAsync(ct);
             outStream.Flush(flushToDisk: true);

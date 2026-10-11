@@ -195,12 +195,12 @@
     <!-- Completion rules: flank the tick on a fully-backed-up row; low alpha because they repeat per row.
          NOT theme-swapped: green is a STATE color and means healthy under every theme. -->
     <LinearGradientBrush x:Key="SuccessRuleFade" StartPoint="0%,50%" EndPoint="100%,50%">
-        <GradientStop Color="#4459C46B" Offset="0"/>
+        <GradientStop Color="#9959C46B" Offset="0"/>
         <GradientStop Color="#0059C46B" Offset="1"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="SuccessRuleFadeIn" StartPoint="0%,50%" EndPoint="100%,50%">
         <GradientStop Color="#0059C46B" Offset="0"/>
-        <GradientStop Color="#4459C46B" Offset="1"/>
+        <GradientStop Color="#9959C46B" Offset="1"/>
     </LinearGradientBrush>
 
     <LinearGradientBrush x:Key="NeutralRuleFade" StartPoint="0%,50%" EndPoint="100%,50%">

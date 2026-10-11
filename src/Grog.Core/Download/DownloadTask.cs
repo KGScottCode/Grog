@@ -35,6 +35,8 @@ public sealed class DownloadTask
     public string? DownloadedVia { get; set; }
     /// <summary>Live throughput for the active transfer, bytes/sec (rolling). 0 when idle.</summary>
     public double BytesPerSecond { get; set; }
+    /// <summary>Smoothed seconds left for this transfer (<see cref="FileEta"/>); null while settling or idle.</summary>
+    public double? SecondsLeft { get; set; }
 
     /// <summary>After the last byte: the tail of a transfer that is not network at all. Flushing to the drive
     /// (a USB stick with write-through can take many seconds for a few hundred MB) and hashing the file read
