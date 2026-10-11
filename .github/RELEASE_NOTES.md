@@ -1,6 +1,16 @@
-# Grog v0.1.0
+## What's new in v0.1.1
 
-The first public release of Grog: back up your GOG.com library (installers, extras and cloud saves) to your own
+Small fixes after the first release:
+
+- **macOS 26 icon:** Grog's icon now fills the shape like other apps (no grey tile); sized correctly on macOS 14-15 too.
+- **Queue sizes:** rows show each file's real size once it's known, not GOG's rounded label, and the Size sort uses it.
+- **Clearer status:** after closing Grog mid-backup, Overview says "paused when Grog last closed".
+- **Smoother startup on macOS and Linux:** a drive check no longer runs on the window's thread.
+- **Install guides:** macOS covers installing without admin rights; the portable uninstall steps now keep your backups.
+
+---
+
+Grog backs up your GOG.com library (installers, extras and cloud saves) to your own
 drives, verified against GOG's checksums. A desktop app and a command-line tool for Windows, macOS and Linux.
 
 > Unofficial; not affiliated with or endorsed by GOG.com. Grog uses the same API GOG's own clients use, signed in
