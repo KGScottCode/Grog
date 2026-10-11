@@ -10,7 +10,7 @@ using Grog.Core.Runs;
 
 namespace Grog.Cli;
 
-/// <summary>Verbs that are thin shells over the Core orchestrators (S2.1, 09-08): the sequence lives in
+/// <summary>Verbs that are thin shells over the Core orchestrators: the sequence lives in
 /// <c>Grog.Core.Runs</c>, the verb parses flags, renders the result and picks the exit code.</summary>
 internal static partial class CliVerbs
 {
@@ -157,7 +157,7 @@ internal static partial class CliVerbs
         if (force)
         {
             int reopened = 0;
-            manifest.Mutate(m => reopened = PurchaseDatesRun.Reopen(m));   // (manifest gate 09-08)
+            manifest.Mutate(m => reopened = PurchaseDatesRun.Reopen(m));   // 
             if (reopened > 0) Out.Dim($"--force: re-asking about {reopened} item(s) previously answered 'no order record'.");
         }
 
@@ -173,7 +173,7 @@ internal static partial class CliVerbs
 
         try
         {
-            // Every connected account's order history, each on its own client (sweep 2 #9).
+            // Every connected account's order history, each on its own client.
             var r = manifest.Current.Accounts.Count == 0
                 ? await PurchaseDatesRun.RunAsync(manifest, ctx.Api, CancellationToken.None)
                 : await PurchaseDatesRun.RunForAccountsAsync(manifest, PurchaseDatesRun.OrdersOf(ctx.Sessions), CancellationToken.None);

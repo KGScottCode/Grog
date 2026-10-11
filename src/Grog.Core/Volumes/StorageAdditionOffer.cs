@@ -10,7 +10,7 @@ using Grog.Core.Sync;
 namespace Grog.Core.Volumes;
 
 /// <summary>
-/// The numbers behind the "New storage added" offer (owner, 09-13). When a second storage is added while the
+/// The numbers behind the "New storage added" offer. When a second storage is added while the
 /// queue holds files that had nowhere to go, the queue is re-planned onto the new drive and the user is asked
 /// ONE question about the files already on the old primary: leave them, move only the games that will
 /// otherwise end up split across two drives, or move everything and make the new drive primary.

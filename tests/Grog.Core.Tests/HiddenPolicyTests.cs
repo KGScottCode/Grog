@@ -37,7 +37,7 @@ public class HiddenPolicyTests
         Assert.True(p.IsVisible(Game(3, "Teen", ("pegi", 16))), "below the cutoff stays");
     }
 
-    // (09-26, owner) The App reads GOG's rating only: an adult title (GOG 18) hides, a violent classic GOG never
+    // The App reads GOG's rating only: an adult title (GOG 18) hides, a violent classic GOG never
     // rated (Deus Ex: ESRB 17, USK 18) stays visible.
     [Test]
     void GogBoardOnly_HidesGogAdultRatings_NotOtherBoards()
@@ -47,7 +47,7 @@ public class HiddenPolicyTests
         Assert.True(gog.IsVisible(Game(2, "Deus Ex", ("esrb", 17), ("pegi", 16), ("usk", 18))), "no GOG rating -> visible");
     }
 
-    // (09-26, owner) A game kept in the mature review stays visible under the rating filter, but a per-game Hide
+    // A game kept in the mature review stays visible under the rating filter, but a per-game Hide
     // still hides it; IsMatureRated ignores Keep (it is what the review lists).
     [Test]
     void KeptGames_AreExemptFromTheRatingFilterOnly()

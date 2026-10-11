@@ -13,7 +13,7 @@ using Grog.Core.Tests.Framework;
 
 namespace Grog.Core.Tests;
 
-/// <summary>(09-22) The rules the architecture pass moved out of the App into Core: the move ledger as an
+/// <summary>The rules the architecture pass moved out of the App into Core: the move ledger as an
 /// instance, a running move taking more files, pins that live on the job, the finish-current-files state, the
 /// typed failure kind, and the fitting count Resume reads.</summary>
 [NewBatch]

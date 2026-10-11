@@ -16,7 +16,7 @@ namespace Grog.Core.Tests;
 [Trait("guide")]
 public sealed class FirstRunTourTests
 {
-    // folder/sawFile are accepted and ignored: neither was ever read by a stop (removed from GuideState 09-02).
+    // folder/sawFile are accepted and ignored: neither was ever read by a stop.
     private static GuideState S(string view = "Overview", bool acct = false, bool folder = false,
                                bool lib = false, bool backed = false, bool scanning = false,
                                bool runStarted = false, bool sawFile = false, bool itemCount = false,
@@ -101,7 +101,7 @@ public sealed class FirstRunTourTests
     void Back_passes_over_transition_stops()
     {
         // Rail clicks are pure transitions and the summary's target lives in a dismissed modal, so Back
-        // lands only on stops where something real is on screen (owner decision 2026-08-26). The full
+        // lands only on stops where something real is on screen. The full
         // backward walk from the sign-off:
         var g = Fresh();
         var s = S(view: "Settings", acct: true, folder: true, lib: true, backed: true, sawFile: true,
@@ -230,7 +230,7 @@ public sealed class FirstRunTourTests
         g.GoTo("back-up");
         var waiting = S(view: "Library", acct: true, lib: true);
         // Landing is THE PICKED FILE arriving, not "anything is backed up": a library with files from earlier
-        // runs must still ask for the arrow (owner 09-02).
+        // runs must still ask for the arrow.
         var otherFiles = S(view: "Library", acct: true, lib: true, backed: true);
         Assert.True(!g.Current(otherFiles).Caption.Contains("backed up"), "other files on disk do not land this stop");
         var landed = S(view: "Library", acct: true, lib: true, backed: true, firstFile: true);
@@ -263,7 +263,7 @@ public sealed class FirstRunTourTests
     [Test]
     void The_tour_holds_on_the_scan_until_it_finishes_and_its_summary_is_dismissed()
     {
-        // The exact sequence reported on 2026-08-25: the tour reached "Back Up Your First Game" while the
+        // The exact sequence reported on: the tour reached "Back Up Your First Game" while the
         // scan was still running, and the summary dialog then appeared behind an already-advanced tour.
         // Two causes, both here: items land progressively so the library is non-empty MID-scan, and "no
         // dialog on screen" is trivially true in the moment before the dialog appears.
@@ -362,7 +362,7 @@ public sealed class FirstRunTourTests
         Assert.Equal("folder-default", g.Current(onFolders).Key, "reading the folder stop");
 
         // Forward again: "Open [Library]" is already satisfied (the library exists), so the cursor must not
-        // park on it and wait for a click that changes nothing (owner 09-02); it lands on the scan stop.
+        // park on it and wait for a click that changes nothing; it lands on the scan stop.
         g.Next(onFolders);
         g.Sync(onLibrary);
         Assert.Equal("scan", g.Current(onLibrary).Key, "nav-library passed over when retracing forward");
@@ -392,7 +392,7 @@ public sealed class FirstRunTourTests
     {
         // The whole tour, back to the start and forward to the end, with the window following each Move exactly
         // as the app does. At every landing the stop's page and the current page must agree, or the card
-        // draws over the wrong screen with nothing to ring (owner 09-02: "steps being mapped correctly").
+        // draws over the wrong screen with nothing to ring ("steps being mapped correctly").
         var g = Fresh();
         string view = "Settings";
         GuideState S2() => S(view: view, acct: true, folder: true, lib: true, backed: true, sawFile: true,
@@ -477,7 +477,7 @@ public sealed class FirstRunTourTests
     [Test]
     void A_satisfied_pass_over_stop_is_never_landed_on_from_either_direction()
     {
-        // The property behind the 09-02 retrace bug, for EVERY pass-over stop, not the one that was reported.
+        // The property behind the retrace bug, for EVERY pass-over stop, not the one that was reported.
         // A tour that reached the end has acked every stop it passed with Next (an Optional stop completes
         // only that way), so the state carries every key acked: what a real end-of-tour session holds.
         var acked = FirstRunTour.Nodes.Select(n => n.Key).ToHashSet();

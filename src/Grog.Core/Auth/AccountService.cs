@@ -60,7 +60,7 @@ public sealed class AccountService
                 // Heal any stray "" attributions: they belong to the first account, same as the
                 // migration itself would have assigned.
                 bool healed;
-                using (_manifest.Gate.Enter())   // (manifest gate 09-08)
+                using (_manifest.Gate.Enter())   // 
                     healed = m.Accounts.FirstOrDefault()?.Id is { Length: > 0 } firstId && RewriteEmptyAttributions(m, firstId);
                 if (healed) await _manifest.SaveAsync(ct);
                 return false;
@@ -74,7 +74,7 @@ public sealed class AccountService
             if (File.Exists(legacyToken) && !File.Exists(newToken))
                 File.Copy(legacyToken, newToken);
 
-            using (_manifest.Gate.Enter())   // (manifest gate 09-08)
+            using (_manifest.Gate.Enter())   // 
             {
                 legacy.Id = id;
                 RewriteEmptyAttributions(m, id);
@@ -141,7 +141,7 @@ public sealed class AccountService
         if (id.Length == 0) throw new ArgumentException("An account needs an id or a username.", nameof(id));
         // Username is the identity; the id is just its filesystem-safe form. Matching id first covers a
         // rename, the username fallback covers the same person arriving under a differently-derived id.
-        using (_manifest.Gate.Enter())   // (manifest gate 09-08)
+        using (_manifest.Gate.Enter())   // 
         {
             _manifest.Gate.AssertHeld();
             var existing = _manifest.Current.Accounts.FirstOrDefault(a => a.Id == id)
@@ -185,7 +185,7 @@ public sealed class AccountService
                            ?? group.First();
                 foreach (var dup in group.Where(a => !ReferenceEquals(a, keep)).ToList())
                 {
-                    using (_manifest.Gate.Enter()) accounts.Remove(dup);   // (manifest gate 09-08)
+                    using (_manifest.Gate.Enter()) accounts.Remove(dup);   // 
                     removed++;
                 }
             }
@@ -217,7 +217,7 @@ public sealed class AccountService
     public async Task<bool> RemoveAsync(string id, CancellationToken ct = default)
     {
         id = Sanitize(id);
-        using (_manifest.Gate.Enter())   // (manifest gate 09-08)
+        using (_manifest.Gate.Enter())   // 
         {
             _manifest.Gate.AssertHeld();
             var acct = _manifest.Current.Accounts.FirstOrDefault(a => a.Id == id);

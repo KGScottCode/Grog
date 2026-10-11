@@ -51,7 +51,7 @@ public sealed record BackupRunOptions(
     Func<LibraryItem, GameFile, bool>? ViewFilter = null,
     /// <summary>Run the size verify pass after downloading (the CLI `backup` default).</summary>
     bool VerifyAfter = false,
-    /// <summary>(09-20, owner) "Back up these games" and "download these next" are two intentions. True (the default,
+    /// <summary>"Back up these games" and "download these next" are two intentions. True (the default,
     /// and the CLI's): the picked games' files go to the FRONT of the queue. False: they join the END of the queue
     /// and the run works the whole queue in its order; queue order is the user's.</summary>
     bool PromotePicked = true,
@@ -89,7 +89,7 @@ public sealed record BackupRunResult(
     string? JournalPath,
     Exception? Error)
 {
-    /// <summary>(09-25) Files stopped because their storage went away: waiting for it, not failed.</summary>
+    /// <summary>Files stopped because their storage went away: waiting for it, not failed.</summary>
     public int DriveOffline { get; init; }
     /// <summary>Why a Skipped run never started, in words a host can print ("The download queue is paused.").</summary>
     public string? Reason { get; init; }

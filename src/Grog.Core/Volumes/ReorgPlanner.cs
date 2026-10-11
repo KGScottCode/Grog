@@ -132,7 +132,7 @@ public static class ReorgPlanner
     /// <summary>A resumed job is re-checked the way a new one is planned: the pending cross-volume moves that no longer
     /// fit the target (room, in order, or its per-file limit) are marked Failed with the reason and listed in
     /// <see cref="ReorgJob.NotFitting"/>, so a resume never retries a file the drive cannot take. Returns how many.</summary>
-    /// <summary>(QA 09-30 B3) Re-derive every unsettled move's absolute paths from where its roots are NOW: the journal
+    /// <summary>Re-derive every unsettled move's absolute paths from where its roots are NOW: the journal
     /// stores absolute paths, and a drive that came back under another letter (or a relocation the user accepted)
     /// left them pointing at a volume that is gone or is someone else's. A root the layout cannot place keeps the
     /// journal's path. A Change Folder job's destination is its own new folder, not a root. Returns how many changed.</summary>
@@ -170,7 +170,7 @@ public static class ReorgPlanner
         lock (job.SyncRoot)
         {
             // Dropped moves LEAVE the plan: marked Failed they were re-admitted by the next run (it retries every
-            // Failed move) and copied into a full drive until the breaker paused the job (QA 09-30 B4). The file
+            // Failed move) and copied into a full drive until the breaker paused the job. The file
             // stays where it is, untouched, and NotFitting says so.
             foreach (var mv in job.Moves.ToList())
             {

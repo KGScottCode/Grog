@@ -209,7 +209,7 @@ public class VolumeServiceTests
         finally { Cleanup(root); }
     }
 
-    /// <summary>(09-13) The shelf. A detached drive keeps every record and count, is never bound (even with its
+    /// <summary>The shelf. A detached drive keeps every record and count, is never bound (even with its
     /// folder present), is no placement target, does not count as an offline drive, and comes back with Reattach.</summary>
     [Test]
     void DetachRoot_KeepsFilesCounted_NeverBinds_AndReattaches()
@@ -335,7 +335,7 @@ public class VolumeServiceTests
         finally { Cleanup(root); }
     }
 
-    /// <summary>(09-14) Re-adding a detached root's folder (Add / Scan and Add) brings it back instead of
+    /// <summary>Re-adding a detached root's folder (Add / Scan and Add) brings it back instead of
     /// returning it still shelved and invisible.</summary>
     [Test]
     void AddRoot_OnADetachedRootsPath_Reattaches()
@@ -355,7 +355,7 @@ public class VolumeServiceTests
         finally { Cleanup(root); }
     }
 
-    /// <summary>(09-14) Other storage swaps into a slot in one step; a primary swap stamps the outgoing primary's
+    /// <summary>Other storage swaps into a slot in one step; a primary swap stamps the outgoing primary's
     /// implicit (null-RootId) files so they are not re-attributed to the new primary.</summary>
     [Test]
     void SwapIntoSlot_TakesTheSlot_AndAPrimarySwapStampsImplicitFiles()
@@ -404,7 +404,7 @@ public class VolumeServiceTests
         finally { Cleanup(root); }
     }
 
-    /// <summary>(09-15 review) SetPrimary moves the ROLE pins (EnsurePrimary stamps them with the first primary
+    /// <summary>SetPrimary moves the ROLE pins (EnsurePrimary stamps them with the first primary
     /// explicitly) and stamps only records that hold bytes.</summary>
     [Test]
     void SetPrimary_MovesRolePins_StampsOnlyHeldBytes()

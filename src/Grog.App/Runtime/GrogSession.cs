@@ -16,7 +16,7 @@ namespace Grog.App.Runtime;
 /// <summary>
 /// The application state that is not a view: the manifest store, the GOG client and its session, the
 /// settings, the chosen root, the live download engine and the run's cancellation. One instance per
-/// process, created by the shell and handed to every page view model (S1, 09-08).
+/// process, created by the shell and handed to every page view model.
 ///
 /// No Avalonia here, no ObservableProperty, no Dispatcher: this type is built and driven from tests with a
 /// temp profile and a fake GOG. Presentation stays in the view models; orchestration (scan, backup, import,

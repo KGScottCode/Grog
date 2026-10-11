@@ -1,7 +1,7 @@
 // Grog - GOG.com library backup tool
 // Licensed under GPL-3.0-or-later
 //
-// (New items 09-09) The "New" flag, in one place. An item is New when a scan ADDED it to this library
+// The "New" flag, in one place. An item is New when a scan ADDED it to this library
 // (the very first scan of an empty library seeds instead from GOG's own isNew). It is ITEM level only:
 // a superseded installer stays Outdated and a fresh extra on an owned game stays Not Backed Up -- there
 // is no second badge concept here. New clears exactly two ways: the item becomes fully backed up in

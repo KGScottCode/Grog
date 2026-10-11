@@ -11,7 +11,7 @@ using Grog.Core.Volumes;
 
 namespace Grog.Core.Runs;
 
-/// <summary>(09-19) GOG's size is a rounded label. Near a drive's per-file ceiling (FAT32: 4 GiB - 1) the label cannot
+/// <summary>GOG's size is a rounded label. Near a drive's per-file ceiling (FAT32: 4 GiB - 1) the label cannot
 /// say which side the file is on: 45 of the owner's Windows parts read exactly 4 GiB. Before a run places them, ask
 /// the CDN for the real length and record it as <see cref="GameFile.WireSizeBytes"/>, so the plan, the red rows and
 /// the "too big for this drive" wording all rest on a measured size. Asked once per file; the answer persists.</summary>

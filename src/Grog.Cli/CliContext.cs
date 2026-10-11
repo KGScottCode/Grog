@@ -12,7 +12,7 @@ namespace Grog.Cli;
 
 /// <summary>Everything Program.cs resolves before dispatching a verb: arguments, storage paths, the manifest,
 /// the default session and its API client, the per-account session cache, and the lazily built layout.
-/// Verbs read from this instead of closing over Program.cs locals (09-02 verb split).</summary>
+/// Verbs read from this instead of closing over Program.cs locals.</summary>
 internal sealed class CliContext
 {
     public string[] Args { get; }
@@ -63,7 +63,7 @@ internal sealed class CliContext
         if (_layout is null)
         {
             // First run adds the primary root inside the layout ctor: that structure change goes under the
-            // gate (the volume scan it also does is read-only disk probing). (manifest gate 09-08)
+            // gate (the volume scan it also does is read-only disk probing).
             var contentRoot = ContentRoot();
             var m = Manifest.Current!;
             using (Manifest.Gate.Enter()) Grog.Core.Volumes.BackupLayout.EnsurePrimary(m, contentRoot);

@@ -45,7 +45,7 @@ public partial class MainWindow
             dragging = false;
             // Only ARM a move-drag on an ALREADY-SELECTED file row, so a drag-to-select or click-then-move
             // can never turn into a move (which shuffles gigabytes).
-            // A selected FILE row, or a game header whose files are all selected (owner 09-08: dragging the
+            // A selected FILE row, or a game header whose files are all selected (dragging the
             // whole game is the common case). The caret never arms: it toggles.
             var row = InventoryRowUnder(e.Source);
             var grp = row is null && !IsCaretHit(e.Source) ? GroupUnder(e.Source) : null;

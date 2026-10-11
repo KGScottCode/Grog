@@ -8,7 +8,7 @@ namespace Grog.Core.Manifest;
 /// <summary>
 /// The one door for changing the manifest graph. Download workers (settling), the sync service (reconcile),
 /// the hosts (commands) and the store (serialising for a save) all held the same object graph with no
-/// shared exclusion before 09-08: a save serialised a live graph with retries and, after eight misses,
+/// shared exclusion before: a save serialised a live graph with retries and, after eight misses,
 /// dropped the write. Every mutation now runs inside <see cref="Enter"/>, and the store serialises inside
 /// it too, so a save always sees a quiescent graph.
 ///
@@ -24,7 +24,7 @@ public sealed class ManifestGate
     public Scope Enter()
     {
         if (Monitor.TryEnter(_lock)) return new Scope(_lock);
-        // Contended: time the wait (diagnostic only, walk 09-25: a 4.3 s UI stall on a queue re-sort with no timed pass).
+        // Contended: time the wait (a 4.3 s UI stall on a queue re-sort with no timed pass).
         var sw = System.Diagnostics.Stopwatch.StartNew();
         Monitor.Enter(_lock);
         try { SlowWait?.Invoke(sw.ElapsedMilliseconds); } catch { /* a diagnostic hook must never strand the gate */ }
@@ -40,7 +40,7 @@ public sealed class ManifestGate
 
     /// <summary>Canary for the handful of central mutators (sync apply, settle, add root/account, import
     /// apply): throws when the calling thread does not hold the gate. Cheap (one Monitor query), so it is
-    /// always compiled in. (manifest gate 09-08)</summary>
+    /// always compiled in. </summary>
     public void AssertHeld()
     {
         if (!IsHeld) throw new InvalidOperationException("manifest mutated outside the gate");

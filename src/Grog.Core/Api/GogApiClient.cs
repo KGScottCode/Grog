@@ -52,7 +52,7 @@ public sealed class GogApiClient
     // 429 retries indefinitely; 5xx retries a few times then surfaces so a broken endpoint fails loudly.
     private static readonly TimeSpan ThrottleBase = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan ThrottleMax = TimeSpan.FromMinutes(5);
-    // 2, not 4 (owner call 09-01): a product with a BROKEN record 500s every time, and at 2s/4s/8s/16s
+    // 2, not 4: a product with a BROKEN record 500s every time, and at 2s/4s/8s/16s
     // the old cap stalled every scan's tail ~30s for nothing. Two retries (~6s) still absorb a blip;
     // a persistent 500 is reported as unavailable and retried for free on the next scan anyway.
     private const int ServerErrorRetries = 2;

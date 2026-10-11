@@ -22,7 +22,7 @@ using Grog.App.Runtime;
 namespace Grog.App.ViewModels;
 
 /// <summary>
-/// The Storage page's view model (S3.1, 09-08): the backup locations and their capacity rows, the roots
+/// The Storage page's view model: the backup locations and their capacity rows, the roots
 /// (add / change / remove / re-point / make primary / lost), the import wizard, the layout migration and
 /// the move jobs with their Activity pane, the two device grids, and the live volume watch. Split into
 /// partials by those topics. It owns no manifest or engine state: that is the session's; what it still
@@ -64,9 +64,9 @@ public sealed partial class StorageViewModel : ObservableObject
         {
             var item = _root.Library.ItemById(entry.GameGogId);
             if (item is null) return;
-            using (_session.Manifest!.Gate.Enter())   // (manifest gate 09-08)
+            using (_session.Manifest!.Gate.Enter())   // 
             {
-                // Core records it first now (BackupRun, 09-19); either way the page still saves and refreshes.
+                // Core records it first now; either way the page still saves and refreshes.
                 if (!item.OldVersionFiles.Any(f => f.FileKey == entry.FileKey)) item.OldVersionFiles.Add(entry);
             }
             Runtime.ManifestSaves.Default.SaveInBackground(_session.Manifest, "old version archived");
@@ -76,7 +76,7 @@ public sealed partial class StorageViewModel : ObservableObject
     }
 
     /// <summary>Everything the storage rows need from the library for ONE root, gathered by a single pass over
-    /// Items x Files in RefreshBackupLocationsCore (UI-thread sweep 09-06): it used to be ~5 separate walks per
+    /// Items x Files in RefreshBackupLocationsCore: it used to be ~5 separate walks per
     /// root per 1 Hz tick (drive usage, file count, composition, coverage, health tally).</summary>
     private sealed class RootAgg
     {
@@ -103,7 +103,7 @@ public sealed partial class StorageViewModel : ObservableObject
 
     /// <summary>Two rows say the same thing: every displayed value equal, composition compared segment by
     /// segment. The record's own equality is useless here because Composition is a list reference.</summary>
-    // (1282) The one verify that can run at a time, for the card's "Verifying N / M" word. Progress arrives per file
+    // The one verify that can run at a time, for the card's "Verifying N / M" word. Progress arrives per file
     // from a pool thread; the card refresh is coalesced to twice a second.
     private string? _verifyingRootId; private int _verifyDone, _verifyTotal;
     private Services.UiCoalescer? _verifyRefresh;
@@ -124,7 +124,7 @@ public sealed partial class StorageViewModel : ObservableObject
             || a.PolicyLine != b.PolicyLine || a.IsViewing != b.IsViewing || a.Removable != b.Removable
             || a.JustReattached != b.JustReattached || a.StatusKnown != b.StatusKnown
             || a.CoverageLine != b.CoverageLine || a.VerifyText != b.VerifyText
-            || a.Name != b.Name || a.ShowName != b.ShowName) return false;   // (09-15) a rename must replace the row
+            || a.Name != b.Name || a.ShowName != b.ShowName) return false;   // a rename must replace the row
         if (a.Composition.Count != b.Composition.Count) return false;
         for (int i = 0; i < a.Composition.Count; i++) if (a.Composition[i] != b.Composition[i]) return false;
         return true;
@@ -145,7 +145,7 @@ public sealed partial class StorageViewModel : ObservableObject
         return isPrimary ? "Everything lands here" : "Overflow lands here";
     }
 
-    /// <summary>(UX 09-08 #6) Storage rail second line: "{n} drive(s) · healthy|attention". Attention = any
+    /// <summary>Storage rail second line: "{n} drive(s) · healthy|attention". Attention = any
     /// location whose dot is not green (offline fixed drive, unplugged removable, or status not yet known).
     /// The dots stay beside it: the text carries two states, the dots four.</summary>
     public string RailStorageSub
@@ -154,14 +154,14 @@ public sealed partial class StorageViewModel : ObservableObject
         {
             int n = BackupLocations.Count;
             if (n == 0) return "no storage yet";
-            if (WaitingDrives.Length > 0) return $"waiting for {WaitingDrives}";   // (09-25) a drive slow to answer
-            // (Rail exceptions 09-09) "healthy" is gone: green is assumed and never reported, and the dots
+            if (WaitingDrives.Length > 0) return $"waiting for {WaitingDrives}";   // a drive slow to answer
+            // "healthy" is gone: green is assumed and never reported, and the dots
             // beside this line already carry connectivity. Trouble states now get their own line below.
             return $"{n} drive{(n == 1 ? "" : "s")}";
         }
     }
 
-    /// <summary>(Rail exceptions 09-09) Storage's outstanding items. A drive whose status is not yet known
+    /// <summary>Storage's outstanding items. A drive whose status is not yet known
     /// is NOT reported: "unknown" is not a fault, and saying so on every launch would cry wolf.</summary>
     public IReadOnlyList<RailException> RailStorageExceptions
     {
@@ -175,11 +175,11 @@ public sealed partial class StorageViewModel : ObservableObject
 
     private void RaiseLocationButtons()
     {
-        OnPropertyChanged(nameof(RailStorageSub));   // (UX 09-08 #6)
-        OnPropertyChanged(nameof(RailStorageExceptions));   // (Rail exceptions 09-09)
+        OnPropertyChanged(nameof(RailStorageSub));   // 
+        OnPropertyChanged(nameof(RailStorageExceptions));   // 
         OnPropertyChanged(nameof(CanAddSecondary));
         OnPropertyChanged(nameof(HasSecondary));
-        // The Primary-first pill hides without a secondary (1117); a sort left on it would show no pill
+        // The Primary-first pill hides without a secondary; a sort left on it would show no pill
         // selected and no glyph. Back to queue order, the resting state.
         OnPropertyChanged(nameof(PrimaryButtonText));
         OnPropertyChanged(nameof(PrimaryLocation));
@@ -192,7 +192,7 @@ public sealed partial class StorageViewModel : ObservableObject
     /// <summary>True once a primary location is configured. Secondary is meaningless without one.</summary>
     public bool CanAddSecondary => HasLocation && BackupLocations.Count < 2;
 
-    /// <summary>OTHER STORAGE (owner 09-14; was "Detached"): a drive Grog knows about that holds no slot. Its
+    /// <summary>OTHER STORAGE: a drive Grog knows about that holds no slot. Its
     /// files stay recorded and counted as backed up; nothing downloads to it until it takes a slot. "Use as
     /// Secondary/Primary" when that slot is free, "Swap with ..." when it is held; Forget is the plain remove.</summary>
     public sealed partial class OtherStorageRow : ObservableObject
@@ -239,7 +239,7 @@ public sealed partial class StorageViewModel : ObservableObject
     public string PrimaryButtonText => HasLocation ? "Change Primary Storage…" : "Set Primary Storage…";
 
     /// <summary>Warm StorageReport's per-path drive sample for every known root OFF the UI thread (UI-thread
-    /// sweep 09-06): the first DriveSample call for a path probes the volume synchronously, and the storage rows
+    /// sweep): the first DriveSample call for a path probes the volume synchronously, and the storage rows
     /// are built on the UI thread. Call (via Task.Run) at manifest bind time; later calls are cheap cache hits.</summary>
     internal void PreseedDriveSamples()
     {
@@ -257,7 +257,7 @@ public sealed partial class StorageViewModel : ObservableObject
 
     /// <summary>Rebuild the per-location rows (capacity, composition, coverage, the queue projection).</summary>
     /// <param name="dashboardPass">True from the shell's RaiseDashboardCore: RaiseHealth follows this rebuild in the
-    /// same synchronous pass, so the health checks need not re-walk the library here (UI-thread sweep 09-06).</param>
+    /// same synchronous pass, so the health checks need not re-walk the library here.</param>
     internal void RefreshBackupLocations(bool dashboardPass = false, bool forceOtherStorage = false)
         => Services.UiWatch.Time("RefreshBackupLocations", () => RefreshBackupLocationsCore(dashboardPass, forceOtherStorage));
     private void RefreshBackupLocationsCore(bool dashboardPass, bool forceOtherStorage)
@@ -272,11 +272,11 @@ public sealed partial class StorageViewModel : ObservableObject
         string primaryId = m.PrimaryRootId ?? "primary";
         // StorageReport.DrivesFor and CoverageLineFor resolved an unset RootId against the RAW PrimaryRootId
         // (null on a pre-root manifest) while the file count and composition used the "primary" fallback; the
-        // one pass below keeps each figure on the rule it had, so no number moves (UI-thread sweep 09-06).
+        // one pass below keeps each figure on the rule it had, so no number moves.
         string? rawPrimary = m.PrimaryRootId;
 
         var pairs = new List<(string RootId, string Path)>();
-        foreach (var r in m.Roots.Where(r => r.State != RootState.Detached)) pairs.Add((r.Id, r.PathHint));   // shelved drives have no slot (09-13)
+        foreach (var r in m.Roots.Where(r => r.State != RootState.Detached)) pairs.Add((r.Id, r.PathHint));   // shelved drives have no slot
         // No primary and no chosen root (the only storage was forgotten): nothing to imply a card from.
         if (!pairs.Any(p => p.RootId == primaryId) && !string.IsNullOrEmpty(_session.BackupRoot))
             pairs.Insert(0, (primaryId, _session.BackupRoot));
@@ -291,7 +291,7 @@ public sealed partial class StorageViewModel : ObservableObject
         var byGogId = new Dictionary<long, Grog.Core.Models.LibraryItem>();
         foreach (var it in m.Items) byGogId[it.GogId] = it;
 
-        // ONE pass over Items x Files for every per-root figure (UI-thread sweep 09-06). Roots not in `pairs`
+        // ONE pass over Items x Files for every per-root figure. Roots not in `pairs`
         // still get an entry so a file pointing at a forgotten root never throws; they are simply not rendered.
         var scope = _root.Library.EffectiveScope;
         var agg = new Dictionary<string, RootAgg>(StringComparer.Ordinal);
@@ -316,7 +316,7 @@ public sealed partial class StorageViewModel : ObservableObject
                     // ONE rule for the card's file count, its Grog bytes and its composition strip: bytes on disk
                     // (HasLocalCopy, superseded copies included). GrogBytes used IsPresent while the count and the
                     // strip used HasLocalCopy, so an Outdated file was counted but its bytes were not, and the
-                    // Other-storage games summed to more than their row (QA 09-18).
+                    // Other-storage games summed to more than their row.
                     a.GrogBytes += Grog.Core.Sync.Rollups.HeldBytesOf(f);
                     // Fold fine classifier buckets onto the canonical vocabulary, so the strip reads the same
                     // as the chips, legend and detail tags instead of exposing raw bucket names.
@@ -353,7 +353,7 @@ public sealed partial class StorageViewModel : ObservableObject
         foreach (var (rootId, path) in pairs)
         {
             // Free space and the .grog-tmp size are read in ONE background pass so the pair is from the same
-            // instant (owner-caught 09-04).
+            // instant.
             var sample = Grog.Core.Storage.StorageReport.DriveSample(path);
             // "Backed up" = present on disk per BackupScope.IsPresent, plus what the engine holds in
             // <root>/.grog-tmp, MEASURED (a Pause/Resume re-plan can leave a .part behind on another device).
@@ -378,18 +378,18 @@ public sealed partial class StorageViewModel : ObservableObject
         // The live branch is for a run that is MOVING. Pause sets StopRequested and keeps the engine, so a paused
         // run takes the replan path below and must hand the engine over: with engine:null the records were
         // rewritten but the engine never reconciled (a row flagged won't-fit stayed Pending and downloaded on
-        // Resume; a row that started fitting was never enqueued) -- review 09-16.
+        // Resume; a row that started fitting was never enqueued) --.
         if (queuedFiles.Count > 0 && _session.LiveEngine is { } live && !_session.StopRequested)
         {
             // A RUN IS LIVE: the plan was made once, at Back up, and the engine WILL put each file where its task
             // says. Re-planning every second against a free figure that falls as the .part grows (while the queue
             // still carries the whole file) double-counts the in-flight bytes and flips games near the cut-off
-            // between devices - the bar breathed (owner, 09-04). Read the run's own assignment; what is queued but
+            // between devices - the bar breathed. Read the run's own assignment; what is queued but
             // not in the engine is what was held for space.
             // Completed tasks stay in the map with zero remaining: between the engine finishing a file and the
             // settler removing its queue entry, a tick would otherwise read it as "queued, fits nowhere" and
             // flash the segment red for a second on every small file.
-            // Won't-fit is the persisted Fits flag here too, the same fact the rows paint (QA 09-30 A4): counting from
+            // Won't-fit is the persisted Fits flag here too, the same fact the rows paint: counting from
             // engine membership called a turned-away task (in the engine, red) placed, and a file waiting for its
             // unplugged drive (not in the engine, white) won't-fit. The engine only says which are done and where.
             var target = new Dictionary<(long, string), (string Root, bool Done)>();
@@ -412,12 +412,12 @@ public sealed partial class StorageViewModel : ObservableObject
         }
         else if (queuedFiles.Count > 0)
         {
-            // IDLE: one fact for every surface (09-13). The rows paint from the persisted Fits flag, so the banner
+            // IDLE: one fact for every surface. The rows paint from the persisted Fits flag, so the banner
             // must count the SAME flag, not a fresh projection nobody wrote back: with the two apart, a queue
             // built before the first Back up showed "N won't fit" over zero red rows, and "Show me" / "Remove
             // them" had nothing to act on. ReplanWholeQueue with no engine rewrites target + Fits in order.
-            // (09-25) NEVER re-plan here: this runs on the UI thread on every dashboard pass, and the same pass took
-            // 1.7 s idle and 5 to 24 s from a sort (walk 09-25). Paint from the persisted flags; when the inputs a
+            // NEVER re-plan here: this runs on the UI thread on every dashboard pass, and the same pass took
+            // 1.7 s idle and 5 to 24 s from a sort. Paint from the persisted flags; when the inputs a
             // plan reads have changed since the last request (drive free space and state, queue membership and
             // order), ask for ONE coalesced re-plan off the UI thread. It rewrites the flags and calls back here,
             // where the inputs now match, so it never loops.
@@ -425,7 +425,7 @@ public sealed partial class StorageViewModel : ObservableObject
             // refresh asks; the request is coalesced (one in flight, one trailing, at most one a second) and the
             // refresh that publishes a plan never asks again (no loop).
             if (!_root.Overview.PublishingPlan) _root.Overview.RequestIdleReplan();
-            roomByRoot = _root.Overview.LastPlanRoom;   // the plan's own leftover, not free-minus-queued (09-16 contract)
+            roomByRoot = _root.Overview.LastPlanRoom;   // the plan's own leftover, not free-minus-queued
             var fileByKey = new Dictionary<(long, string), GameFile>();
             foreach (var f in queuedFiles) fileByKey[(f.GameGogId, f.FileKey)] = f;
             foreach (var q in m.Downloads.Snapshot())
@@ -433,18 +433,18 @@ public sealed partial class StorageViewModel : ObservableObject
                 if (!fileByKey.TryGetValue((q.GogId, q.FileKey), out var f)) continue;
                 if (!q.Fits || string.IsNullOrEmpty(q.TargetRootId)) { unplaceableBytes += Grog.Core.Volumes.PlacementPlanner.StillNeeds(f); unplaceableCount++; continue; }
                 // The planner's price (what the file still needs): the partial is already out of the free figure.
-                // Charging the full size read "0 B still free" over a queue the planner said fits (review 09-16).
+                // Charging the full size read "0 B still free" over a queue the planner said fits.
                 long bytes = Math.Max(0, (f.ExpectedSizeBytes ?? 0) - (f.HasPartial ? f.PartialBytes ?? 0 : 0));
                 queuedByRoot[q.TargetRootId!] = (queuedByRoot.TryGetValue(q.TargetRootId!, out var had) ? had : 0) + bytes;
             }
         }
 
-        // (09-16) What is still free once every fitting row has its room: the won't-fit divider shows it so the
+        // What is still free once every fitting row has its room: the won't-fit divider shows it so the
         // user can see what a smaller file dragged above it (or Sort by Size) would fill. Same figures as the
         // rows: the per-root reservation just tallied against the drives' measured free space.
         // Per device (a fit is a per-device test): the plan's leftover when a plan ran here, else the live run's
         // reservation against the measured free space. Published unconditionally: the menus also key on flags
-        // that change while the number does not (review 09-16).
+        // that change while the number does not.
         if (roomByRoot is null)
         {
             roomByRoot = drives
@@ -455,15 +455,15 @@ public sealed partial class StorageViewModel : ObservableObject
         }
         _root.Overview.SetRoomLeft(roomByRoot);
 
-        _root.QueueUnplaceableBytes = unplaceableBytes;   // (Rail exceptions 09-09) set BEFORE the flag: the flag raises the rail line that reads it
+        _root.QueueUnplaceableBytes = unplaceableBytes;   // set BEFORE the flag: the flag raises the rail line that reads it
         _root.QueueHasUnplaceable = unplaceableBytes > 0;
         _root.Overview.SetUnplaceableQueue(unplaceableCount, unplaceableBytes);   // Files & issues gap breakdown
         _root.QueueUnplaceableLine = unplaceableBytes > 0 ? BackupLocationRow.FitsNowhereLine(unplaceableCount, unplaceableBytes) : "";
 
         // Rows are kept when nothing changed and swapped one at a time when something did (UI-thread sweep
-        // 09-06): BackupLocationRow is an immutable record, so "update in place" means replacing the slot, and
+        // ): BackupLocationRow is an immutable record, so "update in place" means replacing the slot, and
         // a Clear + re-add every tick reset both device cards for nothing.
-        // (Storage math 09-09) Grog bytes per VOLUME, so a row can take its siblings out of "other data".
+        // Grog bytes per VOLUME, so a row can take its siblings out of "other data".
         // Keyed by mount root; a path that will not resolve falls back to its own RootId, which makes it its
         // own volume and leaves the old single-folder behaviour exactly as it was.
         var grogByVolume = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
@@ -475,20 +475,20 @@ public sealed partial class StorageViewModel : ObservableObject
             grogByVolume[vol] = (grogByVolume.TryGetValue(vol, out var had) ? had : 0) + u.GrogBytes;
         }
 
-        // OTHER STORAGE (09-13/14): on the shelf, files still counted, no slot. Rebuilt only when something changed
+        // OTHER STORAGE: on the shelf, files still counted, no slot. Rebuilt only when something changed
         // (the per-game list is built then, not on every dashboard pass).
         bool secondarySlotFree = pairs.Count < 2;
         var shelved = m.Roots.Where(r => r.State == RootState.Detached).ToList();
         // Cheap identity first; the per-game list and the disk probe only when something changed. The probe
         // (Directory.Exists on a drive letter) is skipped on the 1 Hz dashboard pass: an unplugged USB letter can
         // stall it, and the last answer stands until the next real refresh.
-        bool otherChanged = forceOtherStorage || shelved.Count != OtherStorage.Count   // forced: the hidden rule changed (09-19)
+        bool otherChanged = forceOtherStorage || shelved.Count != OtherStorage.Count   // forced: the hidden rule changed
             || shelved.Zip(OtherStorage).Any(z => z.First.Id != z.Second.RootId || z.First.Label != z.Second.Label || z.First.PathHint != z.Second.Path
                                                 || AggFor(z.First.Id).FileCount != z.Second.FileCount || AggFor(z.First.Id).GrogBytes != z.Second.Bytes
                                                 || (secondarySlotFree ? "Use as Secondary" : "Swap with Secondary…") != z.Second.SecondaryActionLabel
                                                 || (pairs.Count == 0 ? "Use as Primary" : "Swap with Primary…") != z.Second.PrimaryActionLabel);
         // Presence comes from the 2 s watch's last map (it probes every root, shelved ones included, on a worker):
-        // never a Directory.Exists on the dispatcher (review 09-15).
+        // never a Directory.Exists on the dispatcher.
         bool ConnectedNow(BackupRoot r) => _prevOnline.TryGetValue(r.Id, out var on) && on;
         if (!otherChanged)
             otherChanged = shelved.Zip(OtherStorage).Any(z => ConnectedNow(z.First) != z.Second.IsConnected);
@@ -499,7 +499,7 @@ public sealed partial class StorageViewModel : ObservableObject
             foreach (var r in shelved)
             {
                 var a = AggFor(r.Id);
-                var hiddenPolicy = _root.Library.Hidden;   // (09-19) no hidden game's name in the per-drive list; the drive's totals keep its bytes
+                var hiddenPolicy = _root.Library.Hidden;   // no hidden game's name in the per-drive list; the drive's totals keep its bytes
                 var games = m.Items
                     .Where(hiddenPolicy.IsVisible)
                     .Select(it => (it.Title, Files: it.Files.Where(f => Grog.Core.Sync.BackupScope.HasLocalCopy(f) && f.RootId == r.Id).ToList()))
@@ -569,14 +569,14 @@ public sealed partial class StorageViewModel : ObservableObject
         // before locations load and would keep the empty-list value.
         _root.Overview.RaiseHealthStatus();
         // The Storage-connected check row derives from the IsProblem flags rebuilt ABOVE - without a
-        // rebuild the card claims "1 of 1" while the lede reports a missing drive (owner-caught 08-31).
-        _root.Overview.RebuildHealthChecks(retally: !dashboardPass);   // the dashboard pass re-tallies in RaiseHealth right after (UI-thread sweep 09-06)
+        // rebuild the card claims "1 of 1" while the lede reports a missing drive.
+        _root.Overview.RebuildHealthChecks(retally: !dashboardPass);   // the dashboard pass re-tallies in RaiseHealth right after
         _root.Settings.RaisePolicyState();
         UpdateDeviceProblem();
         OnPropertyChanged(nameof(ShowSystemDriveHint)); OnPropertyChanged(nameof(SystemDriveHintText));
     }
 
-    // ---- Storage hint (design, 09-01): skipping the tour lands backups in Documents, i.e. the OS drive.
+    // ---- Storage hint: skipping the tour lands backups in Documents, i.e. the OS drive.
     // When the primary storage is that drive AND the in-scope library will not fit in what is free, say so
     // once, calmly, with the plan (a second storage - spill is automatic). Dismissible; never red.
     private BackupLocationRow? PrimaryOnSystemDrive()
@@ -653,7 +653,7 @@ public sealed partial class StorageViewModel : ObservableObject
 
     /// <summary>Folders-tab "Rescan &amp; Verify", read-frugal over BOTH devices: size-check every settled file,
     /// MD5 only unverified files with a checksum; skips offline drives; serialized via the activity slot.</summary>
-    /// <summary>(QA 09-30 B7) A verify reads files a running (or paused, half-moved) move is relocating: resolved at the
+    /// <summary>A verify reads files a running (or paused, half-moved) move is relocating: resolved at the
     /// old place they read Missing and were re-queued. Every verify entry point asks here first.</summary>
     internal bool VerifyBlockedByMove()
     {
@@ -668,7 +668,7 @@ public sealed partial class StorageViewModel : ObservableObject
         if (_root.Busy || VerifyBlockedByMove()) return;
         await _root.RunBusy("Verifying…", async () =>
         {
-            // (S2.2) Core's VerifyRun; size-only, as this button always ran (RunAsync(full: false)). Core logs the
+            // Core's VerifyRun; size-only, as this button always ran (RunAsync(full: false)). Core logs the
             // "Verify: n ok, ..." summary through the host.
             var request = Grog.Core.Runs.VerifyRequest.LibrarySizeOnly() with
             {

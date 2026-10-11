@@ -69,7 +69,7 @@ public static class MisnamedFileRepair
             var rel = f.LocalRelativePath!;
             int cut = Math.Max(rel.LastIndexOf('/'), rel.LastIndexOf('\\'));
             // Re-point after the rename succeeded, under the store's gate when the caller passes one; the
-            // probe + File.Move above stay outside it. (manifest gate 09-08)
+            // probe + File.Move above stay outside it.
             if (gate is not null)
             {
                 using (gate.Enter())

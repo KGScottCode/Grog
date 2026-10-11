@@ -22,7 +22,7 @@ public partial class MainWindowViewModel
         private readonly bool _activityStrip;
         private readonly Dictionary<Guid, DownloadTaskState> _lastState = new();
         // Per-settle dashboard work, coalesced: a size-sorted queue settles several tiny files a second, and a
-        // full Health + Dashboard + storage-row pass per file made the window sluggish (owner-hit 09-04). The
+        // full Health + Dashboard + storage-row pass per file made the window sluggish. The
         // trailing edge guarantees the last file's state renders; the tallies and log line stay per file.
         private readonly Services.UiCoalescer _settledUi;
         private readonly Services.UiCoalescer _inventoryUi;
@@ -34,7 +34,7 @@ public partial class MainWindowViewModel
             _vm = vm; _activityStrip = activityStrip;
             // One second, trailing-only: the progress tick already runs RaiseDashboard at 1 Hz (Activity.cs
             // _lastDriveProbe gate) and the 250 ms leading edge here ran a second full pass alongside it on
-            // every landed file (UI-thread sweep 09-06 r2). The trailing edge still renders the last file.
+            // every landed file. The trailing edge still renders the last file.
             _settledUi = new Services.UiCoalescer(TimeSpan.FromMilliseconds(1000), () =>
             {
                 if (_vm._stopRequested) return;
@@ -43,9 +43,9 @@ public partial class MainWindowViewModel
             }, trailingOnly: true);
             // The Storage grids replace every row when rebuilt and Avalonia then re-lays hundreds of rows out; per
             // landed file that was a 0.7-0.9 s UI stall every second or two on a small-file burst (grog.log
-            // 16:03, 09-05). Two seconds between rebuilds keeps the page live without freezing it.
+            // 16:03,). Two seconds between rebuilds keeps the page live without freezing it.
             // Trailing-only: the first landed file of a run paid the full rebuild on the leading edge, which
-            // is the same stall the window exists to avoid (review 09-06).
+            // is the same stall the window exists to avoid.
             _inventoryUi = new Services.UiCoalescer(TimeSpan.FromMilliseconds(2000), () =>
             {
                 if (_vm._stopRequested || _vm.CurrentView != View.Drives) return;
@@ -57,7 +57,7 @@ public partial class MainWindowViewModel
         {
             _vm._heldNoSpaceCount = held; _vm._heldNoSpaceBytes = heldBytes;
             var line = _vm.SpillLine(tasks);
-            // LOG ONLY, no toast (owner 09-10): anyone who added a second storage does not need to be told
+            // LOG ONLY, no toast: anyone who added a second storage does not need to be told
             // its backups go there. The log line stays -- it is what names the split when reading a run back.
             if (line is not null) Dispatcher.UIThread.Post(() => _vm.Log(line.Replace('\n', ' '), false, LogCategory.Download));
         }
@@ -69,13 +69,13 @@ public partial class MainWindowViewModel
             if (_activityStrip) _vm.DrainEngineReady(engine);   // the Back-up run only: the per-file executor has no drain
             engine.QueueChanged += () => Dispatcher.UIThread.Post(_vm.RequestQueueRebuild);
             engine.OldVersionArchived += _vm.Storage.OnOldVersionArchived;
-            engine.RootWentAway += rid => Dispatcher.UIThread.Post(() => _vm.Storage.OnDriveWentAway(rid));   // (09-25) the card
+            engine.RootWentAway += rid => Dispatcher.UIThread.Post(() => _vm.Storage.OnDriveWentAway(rid));   // the card
             // Event-driven sort: apply the active queue sort now that the files are in, not on every tick,
             // then let Auto size the worker pool from the (sorted) queue head.
             if (_vm.Overview.QueueSort != OverviewViewModel.QueueSortKey.Order) _vm.Overview.ApplyQueueSortToModel();
             _vm.Settings.ApplyAutoConcurrency(engine, force: true);
 
-            // Coalesced to 250ms (owner call 09-01): per-event full passes made 600-tiny-file runs
+            // Coalesced to 250ms: per-event full passes made 600-tiny-file runs
             // quadratic-ish; the trailing edge guarantees the burst's LAST state always renders.
             DownloadTask? latest = null;
             var progressUi = new Services.UiCoalescer(TimeSpan.FromMilliseconds(250), () =>
@@ -86,7 +86,7 @@ public partial class MainWindowViewModel
                 var t = latest;
                 _vm.OnDownloadProgress(engine, t, _lastState);
                 if (!_activityStrip) return;
-                // Both figures per tick: the mid-run re-plan and the run tail add tasks after EngineReady ("53 of 50", QA 09-30 A7).
+                // Both figures per tick: the mid-run re-plan and the run tail add tasks after EngineReady.
                 var snapNow = engine.Snapshot;
                 int doneNow = snapNow.Count(x => x.State == DownloadTaskState.Completed);
                 int total = snapNow.Count();
@@ -96,7 +96,7 @@ public partial class MainWindowViewModel
 
             Dispatcher.UIThread.Post(() =>
             {
-                // (09-26) Files clicked while this run was starting join it now.
+                // Files clicked while this run was starting join it now.
                 if (_vm._joinLiveOnReady.Count > 0 && ReferenceEquals(_vm._liveEngine, engine))
                 {
                     // HandToLiveEngine may re-add to the list: drain a copy so the loop never enumerates a mutating list.
@@ -133,12 +133,12 @@ public partial class MainWindowViewModel
                 }
                 // Health tally AND dashboard as files land (not per run): the Overview's coverage rows, legend
                 // buckets and GB figures climb during the run, coalesced so a burst of small files is one pass.
-                // No MarkLastRunDirty per settle (review 09-06): every reader of the journal wants a FINISHED run
+                // No MarkLastRunDirty per settle: every reader of the journal wants a FINISHED run
                 // (the card ignores "running", the failure lede reads the run-end mark), and dirtying here re-read
                 // three journal files from the config dir every 5 s for the whole run.
-                // (09-26) The row re-derives HERE, after Core wrote the record. The Completed event's refresh
+                // The row re-derives HERE, after Core wrote the record. The Completed event's refresh
                 // (Activity.cs) usually runs before the settler's write, and nothing followed it, so a game's last
-                // file left the row at 2/3 Partial with the detail pane all checked (owner-hit 09-25).
+                // file left the row at 2/3 Partial with the detail pane all checked.
                 if (outcome is DownloadSettlement.Outcome.Completed or DownloadSettlement.Outcome.GaveUp
                     && _vm.Library._gameById.TryGetValue(t.File.GameGogId, out var row) && row.Item is not null)
                 {
@@ -154,17 +154,17 @@ public partial class MainWindowViewModel
             => Dispatcher.UIThread.Post(() => _vm.Log(message, isError, LogCategory.Download));
 
         /// <summary>Progress dressing for a scan pass; second arg is the account name ("name (i/n)"), "" when
-        /// naming is noise. Set by the scan site before the run. (S2.2)</summary>
+        /// naming is noise. Set by the scan site before the run. </summary>
         public Action<Grog.Core.Sync.LibrarySyncService, string>? ScanDress { get; set; }
 
         /// <summary>LibraryScan calls this once per account (null account = legacy single session). The art hook,
-        /// the per-account panel title and the site's own progress dressing all live here. (S2.2)</summary>
+        /// the per-account panel title and the site's own progress dressing all live here. </summary>
         public override void ConfigureScan(Grog.Core.Sync.LibrarySyncService svc, Grog.Core.Models.GrogAccount? account, int index, int count)
             => _vm.ConfigureScanPass(svc, account, index, count, ScanDress);
     }
 
     /// <summary>The window's side of a run that does not download (verify, import, layout move, cloud saves,
-    /// fix): every line the run says lands in the Activity log under the run's category. (S2.2)</summary>
+    /// fix): every line the run says lands in the Activity log under the run's category. </summary>
     internal sealed class AppRunHost : NullBackupHost
     {
         private readonly MainWindowViewModel _vm;
@@ -182,7 +182,7 @@ public partial class MainWindowViewModel
 
     /// <summary>One scan pass is being set up (LibraryScan -> host.ConfigureScan): fold art fetching in, name
     /// the pass on the scan panel when several accounts take turns (position counts ALL accounts, skipped
-    /// included, so the counter never appears to jump), then let the site dress progress. (S2.2)</summary>
+    /// included, so the counter never appears to jump), then let the site dress progress. </summary>
     private void ConfigureScanPass(Grog.Core.Sync.LibrarySyncService svc, Grog.Core.Models.GrogAccount? account, int index, int count,
                                    Action<Grog.Core.Sync.LibrarySyncService, string>? dress)
     {
@@ -200,7 +200,7 @@ public partial class MainWindowViewModel
     }
 
     /// <summary>The one log line per finished file. GOG's extras are often named after the game, so
-    /// "Venba - Venba: ..." stutters: say it once. (09-14) An installer named after its game read as
+    /// "Venba - Venba:..." stutters: say it once. An installer named after its game read as
     /// "failed: Ascendant" with no hint it was a file: those carry the real filename, or the OS, instead.</summary>
     private void LogSettled(DownloadTask x, DownloadSettlement.Outcome outcome)
     {
@@ -209,7 +209,7 @@ public partial class MainWindowViewModel
         else if (!string.IsNullOrEmpty(x.File.ResolvedFileName)) who = $"{x.GameTitle} - {x.File.ResolvedFileName}";
         else if (!string.IsNullOrEmpty(x.File.Os)) who = $"{x.GameTitle} - {x.File.Os} installer";
         else who = x.GameTitle;
-        // (09-19) These lines show in the Activity panel, so a hidden game is not named in them either. The
+        // These lines show in the Activity panel, so a hidden game is not named in them either. The
         // outcome, the timings and the account stay; while hiding is on, the log file carries the same line.
         if (QueueRow.IsHiddenGame(x.File.GameGogId)) who = QueueRow.HiddenLabel;
         switch (outcome)
@@ -272,7 +272,7 @@ public partial class MainWindowViewModel
 
     /// <summary>A BackupRun over this window's manifest, root and sessions.</summary>
     /// <remarks>Builds a BackupLayout (disk): callers on the dispatcher wrap this in Task.Run. Config dir
-    /// only here; the backup-root legacy probe ran at bind (UI-thread sweep 09-06 r2).</remarks>
+    /// only here; the backup-root legacy probe ran at bind.</remarks>
     private BackupRun NewBackupRun(AppBackupHost host)
         => new(_manifest, _api, _http, EngineSessions(),
                new Grog.Core.Volumes.BackupLayout(_manifest.Current, _backupRoot), _backupRoot,

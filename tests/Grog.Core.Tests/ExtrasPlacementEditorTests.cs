@@ -14,12 +14,12 @@ using Grog.Core.Runs;
 using Grog.Core.Tests.Framework;
 
 /// <summary>
-/// The staged "Where extras are stored" card (09-11). <see cref="ExtrasPlacementTests"/> pins the PLANNER;
+/// The staged "Where extras are stored" card. <see cref="ExtrasPlacementTests"/> pins the PLANNER;
 /// this pins the CARD - what is staged, when it is dirty, and what the leave guard does - because that is
 /// the half that decides whether the planner is ever asked.
 ///
 /// Reachable at all only because the editor takes <see cref="IExtrasPlacementHost"/> rather than the root
-/// view model (09-11); the fake below is the whole shell it needs. Same pattern as ScheduleViewModelTests.
+/// view model; the fake below is the whole shell it needs. Same pattern as ScheduleViewModelTests.
 /// </summary>
 [Trait("settings")]
 public sealed class ExtrasPlacementEditorTests
@@ -124,7 +124,7 @@ public sealed class ExtrasPlacementEditorTests
         Assert.Equal("Not applied", card.PendingText, "the count is honest about not knowing yet");
     }
 
-    // The storage half alone is a change. This is the case that silently did nothing before 09-11.
+    // The storage half alone is a change. This is the case that silently did nothing before.
     [Test]
     void ChangingOnlyTheStorage_MakesItDirty()
     {
@@ -260,7 +260,7 @@ public sealed class ExtrasPlacementEditorTests
 
     // ---- apply --------------------------------------------------------------------------------------
 
-    // Apply commits BOTH halves in one write. Committing one without the other is the 09-11 bug.
+    // Apply commits BOTH halves in one write. Committing one without the other is the bug.
     [Test]
     async Task Apply_CommitsShapeAndStorageTogether()
     {

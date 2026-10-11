@@ -56,7 +56,7 @@ public sealed class GameFile
     [System.Text.Json.Serialization.JsonIgnore]
     public long? PlanSizeBytes => WireSizeBytes ?? ExpectedSizeBytes;
 
-    /// <summary>The root whose .grog-tmp holds the partial (null on records older than 09-19: assume the routed
+    /// <summary>The root whose.grog-tmp holds the partial (assume the routed
     /// root). The bytes already received are room spent on THAT drive only: planned onto another, the file needs
     /// its whole size there.</summary>
     public string? PartialRootId { get; set; }
@@ -67,10 +67,10 @@ public sealed class GameFile
 
     /// <summary>The user asked for FRESH bytes (Fix It, Re-download): the engine must not adopt the copy
     /// already on disk by its size -- a corrupt file has the right size and the wrong bytes. Set by
-    /// <c>DownloadSettlement.RequeueFresh</c>, cleared when the file lands or is reset (sweep 2 #2).</summary>
+    /// <c>DownloadSettlement.RequeueFresh</c>, cleared when the file lands or is reset.</summary>
     public bool RefetchRequested { get; set; }
 
-    /// <summary>Back to never-touched (owner, 09-13): no local facts, no download history, no verify stamp, no
+    /// <summary>Back to never-touched: no local facts, no download history, no verify stamp, no
     /// carried strikes. What GOG told us about the file (Version, ExpectedMd5, ExpectedSizeBytes,
     /// ResolvedFileName) stays: those are facts about the file, not about our copy. THE one reset; every
     /// path that drops a file's local copy calls it, so no site forgets a field (four hand-rolled copies

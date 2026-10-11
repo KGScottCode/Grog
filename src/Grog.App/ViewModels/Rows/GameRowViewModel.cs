@@ -20,17 +20,17 @@ public partial class GameRowViewModel : ObservableObject
 {
     /// <summary>THE "this game has an update" rule, used by the rail count, the Status bucket and the
     /// Updates quick-filter alike - three sites that used to carry their own copy of it.</summary>
-    /// <para>SCOPED (sweep 2 #16): an outdated extra with extras out of scope is not an update the next run
+    /// <para>SCOPED: an outdated extra with extras out of scope is not an update the next run
     /// will fetch, and counting it lit the rail's Updates figure for work that never happens.</para>
     public bool HasUpdate => Status == BackupStatus.Outdated
         || ScopedFiles.Any(f => f.State == FileState.Outdated);
 
     public long GogId { get; init; }
     public string Title { get; init; } = "";
-    /// <summary>(New items 09-09) This item is new to the library -- the small "New" chip beside the title
+    /// <summary>This item is new to the library -- the small "New" chip beside the title
     /// and the Status dropdown's "New" bucket both read it. From the item; a rebuild is what refreshes it.</summary>
     public bool IsNew => Item?.IsNew ?? false;
-    /// <summary>(New items 09-09) The "New" chip's ground and hairline -- the SAME construction as the Cloud
+    /// <summary>The "New" chip's ground and hairline -- the SAME construction as the Cloud
     /// Saves status pill (translucent amber over the row), so the two chips read as one idea.</summary>
     public IBrush NewChipBg => RowBrushes.Translucent(Palette.AccentAmberSoft, 0x22);
     public IBrush NewChipBorder => RowBrushes.Translucent(Palette.AccentAmberSoft, 0x55);
@@ -45,7 +45,7 @@ public partial class GameRowViewModel : ObservableObject
     /// detail pane, queue, health tally and progress bar. A count you cannot act on is worse than no count.</summary>
     /// <para>THE scoped set is <see cref="Grog.Core.Sync.BackupScope.Scoped"/>, the same one Status reads: a file
     /// GOG refuses to serve (Unavailable) is in neither. A hand-rolled Scope.Includes here counted it, so a
-    /// Backed Up game read "4/5" beside a green tick (sweep 2 #13).</para>
+    /// Backed Up game read "4/5" beside a green tick.</para>
     private IEnumerable<GameFile> ScopedFiles =>
         Item is null ? Enumerable.Empty<GameFile>() : Grog.Core.Sync.BackupScope.Scoped(Item, Scope);
 
@@ -58,7 +58,7 @@ public partial class GameRowViewModel : ObservableObject
     /// machines. Order is registration order, primary first; the tooltip carries the full names.</summary>
     public IReadOnlyList<AccountBadge> OwnerBadges =>
         Item is null ? Array.Empty<AccountBadge>() : ViewModels.OwnerBadges.For(Item.OwnerIds);
-    /// <summary>Side by side while there is room, overlapping as the count grows (owner-approved look):
+    /// <summary>Side by side while there is room, overlapping as the count grows:
     /// up to three discs sit with a small gap; four or more tuck under each other.</summary>
     public double OwnerSpacing => OwnerBadges.Count <= 3 ? 3 : -7;
 
@@ -173,7 +173,7 @@ public partial class GameRowViewModel : ObservableObject
     public Grog.Core.Sync.Scope Scope { get; set; } = Grog.Core.Sync.Scope.Both;
 
     /// <summary>FILE-COUNT completion for this game, scope-aware: present in-scope files over in-scope files
-    /// (owner 09-16; was byte-weighted, which drew a 1/5 game whose one file is small as an empty bar). The
+    /// (; was byte-weighted, which drew a 1/5 game whose one file is small as an empty bar). The
     /// fraction beside the bar and the bar now say the same thing.</summary>
     public double CompletionPercent
     {
@@ -185,7 +185,7 @@ public partial class GameRowViewModel : ObservableObject
     }
 
     /// <para>Both operands are FILE-COUNT percents (RowProgress is <c>Rollups.GameFilePercent</c>): the bar
-    /// never mixes units (sweep 2 #18).</para>
+    /// never mixes units.</para>
     /// <summary>Live bar value: never less than the standing on-disk completion, rising to the live figure while
     /// a sync feeds RowProgress. The Max covers paused and per-file paths, where RowProgress may be 0/stale.</summary>
     public double BarValue => System.Math.Max(CompletionPercent, RowBusy ? RowProgress : 0);
@@ -209,7 +209,7 @@ public partial class GameRowViewModel : ObservableObject
 
     /// <summary>True when this row's progress is worth drawing: incomplete, or live.</summary>
     /// <summary>A bar only once something has landed or is landing: a queued or paused game with 0 files and
-    /// no bytes yet rests with the dash + count like any other 0/N row (owner 09-17: an empty track down the
+    /// no bytes yet rests with the dash + count like any other 0/N row (an empty track down the
     /// column said nothing the fraction did not).</summary>
     public bool ShowRowBar => RowBusy
         || (StatusText is "Downloading" or "Paused" or "Partial" or "Moving" && (FilesPresent > 0 || BarValue > 0))
@@ -221,7 +221,7 @@ public partial class GameRowViewModel : ObservableObject
     public string RowMarkGlyph => ConditionVocabulary.Glyph(StatusText);
     public IBrush RowMarkBrush => ConditionVocabulary.Brush(StatusText);
 
-    /// <summary>Files present / files in scope: the one figure the row bar and its label both use (09-16).</summary>
+    /// <summary>Files present / files in scope: the one figure the row bar and its label both use.</summary>
     public int FilesInScope
     {
         get { int n = 0; foreach (var _ in ScopedFiles) n++; return n; }
@@ -237,10 +237,10 @@ public partial class GameRowViewModel : ObservableObject
 
     /// <summary>The two figures SPLIT, so each sits in its own fixed, right-aligned cell and the digits
     /// line up down the column.</summary>
-    /// <summary>The fraction beside the bar, and beside the resting dash too (owner 09-17: the count must stay
+    /// <summary>The fraction beside the bar, and beside the resting dash too (the count must stay
     /// visible on a row nothing has happened to; only the "Not in Scope" word has no figure).</summary>
     public string RowCountText => ShowRowCount ? $"{FilesPresent}/{FilesInScope}" : "";
-    /// <summary>The fraction shows on every row that has files in scope, done ones included (owner 09-17: "users
+    /// <summary>The fraction shows on every row that has files in scope, done ones included ("users
     /// should know how many files there are"); only the "Not in Scope" word stands alone.</summary>
     public bool ShowRowCount => ShowRowBar || ((ShowRowIdle || ShowRowDone) && !NotInScope);
     /// <summary>The resting dash spans only the bar's cell when a count sits beside it; the "Not in Scope" word
@@ -248,7 +248,7 @@ public partial class GameRowViewModel : ObservableObject
     public int RowIdleSpan => NotInScope ? 3 : 1;
     /// <summary>The done tick spans only the bar's cell, like the resting dash, so its count sits beside it.</summary>
     public int RowDoneSpan => 1;
-    /// <summary>The live percent only while a download feeds the row; idle, the fraction says it all (09-16).</summary>
+    /// <summary>The live percent only while a download feeds the row; idle, the fraction says it all.</summary>
     public string RowPctText   => ShowRowBar && RowBusy ? $"{System.Math.Round(BarValue)}%" : "";
     public bool ShowRowPct => ShowRowBar && RowBusy;
 
@@ -267,11 +267,11 @@ public partial class GameRowViewModel : ObservableObject
     public bool ShowRowLabel => ShowRowMark && StatusText != "Backed Up";
     public string RowLabelText => ShowRowLabel ? StatusText : "";
 
-    /// <summary>(UX 09-08 #7) The resting cell's text: a dim dash for a row nothing has happened to yet
+    /// <summary>The resting cell's text: a dim dash for a row nothing has happened to yet
     /// ("Not Downloaded" reads as a verdict when repeated down a column; the tooltip keeps the word), the
     /// "Not in Scope" word for the deliberate exclusion. Active, partial and issue states are untouched.</summary>
     public string RowIdleText => NotInScope ? RowLabelText : "\u2014";
-    /// <summary>The idle cell's ink: dim for both resting states (UX 09-08 #7; the dash carries no urgency).</summary>
+    /// <summary>The idle cell's ink: dim for both resting states.</summary>
     public IBrush RowIdleBrush => Palette.InkDim;
 
     private void RaiseRowMark()
@@ -289,13 +289,13 @@ public partial class GameRowViewModel : ObservableObject
     partial void OnRowBusyChanged(bool value) { OnPropertyChanged(nameof(BarValue)); OnPropertyChanged(nameof(BarBrush)); OnPropertyChanged(nameof(ShowRowProgress)); RaiseRowMark(); }
     /// <summary>Displayed status is DERIVED from files + scope at read time (domain invariant). It was set once
     /// in FromItem, so a game whose last file landed mid-run kept "Partial" (amber, in the Partial bucket)
-    /// until a full rebuild (sweep 2 #8). Every completion tick re-derives it from the same rule FromItem uses.</summary>
+    /// until a full rebuild. Every completion tick re-derives it from the same rule FromItem uses.</summary>
     public void RaiseCompletion() { if (Item is not null) Status = Grog.Core.Sync.BackupScope.Status(Item, Scope); OnPropertyChanged(nameof(CompletionPercent)); OnPropertyChanged(nameof(BarValue)); OnPropertyChanged(nameof(BarBrush)); OnPropertyChanged(nameof(ShowRowProgress)); RaiseRowMark(); }
 
     // --- cached portrait cover (grid column) ---
     public static string? ArtDir { get; set; }
     private Avalonia.Media.Imaging.Bitmap? _cover; private bool _coverTried;
-    // (UI-thread sweep 09-06) _coverGen stamps each load; RaiseCover/DropCover bump it so a decode that lands
+    // _coverGen stamps each load; RaiseCover/DropCover bump it so a decode that lands
     // after the row was re-armed or released (or the cover swapped) is discarded instead of applied stale.
     private int _coverGen;
     public Avalonia.Media.Imaging.Bitmap? CoverBitmap
@@ -307,7 +307,7 @@ public partial class GameRowViewModel : ObservableObject
             if (ArtDir is null) return null;
             var p = Services.ArtCache.CoverPath(ArtDir, GogId);
             var gen = _coverGen;
-            // (UI-thread sweep 09-06) File.Exists + decode happen on a worker: the art dir sits under the backup
+            // File.Exists + decode happen on a worker: the art dir sits under the backup
             // root (often a slow/external drive) and this getter runs as rows scroll in. The decoded bitmap is
             // posted back to the UI thread; the getter returns null until then and the binding refreshes.
             // Decode to ~2x the 44px grid slot, NOT full box-art resolution: 600 full-res bitmaps in memory
@@ -327,7 +327,7 @@ public partial class GameRowViewModel : ObservableObject
                     Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                     {
                         if (gen != _coverGen || !_coverTried) { bmp.Dispose(); return; }   // stale: row re-armed/released meanwhile
-                        var prev = _cover;   // (UI-thread sweep 09-06 r2) normally null (RaiseCover cleared it); never leak a replaced one
+                        var prev = _cover;   // normally null (RaiseCover cleared it); never leak a replaced one
                         _cover = bmp;
                         OnPropertyChanged(nameof(CoverBitmap));
                         prev?.Dispose();
@@ -338,12 +338,12 @@ public partial class GameRowViewModel : ObservableObject
             return _cover;
         }
     }
-    // (UI-thread sweep 09-06 r2) the old bitmap is disposed on the UI thread AFTER the property change lands, so a
+    // the old bitmap is disposed on the UI thread AFTER the property change lands, so a
     // still-bound Image never paints a disposed bitmap: null the field, raise, then dispose.
     public void RaiseCover() { _coverGen++; _coverTried = false; var old = _cover; _cover = null; OnPropertyChanged(nameof(CoverBitmap)); old?.Dispose(); }
     /// <summary>Drop the decoded cover so it can be collected while Grog sits hidden in the tray. Keeps
     /// _coverTried set so the hidden binding returns null WITHOUT re-decoding; RaiseCover re-arms the decode.</summary>
-    public void DropCover() { _coverGen++; if (_cover is null) return; var old = _cover; _cover = null; OnPropertyChanged(nameof(CoverBitmap)); old.Dispose(); }   // (UI-thread sweep 09-06 r2)
+    public void DropCover() { _coverGen++; if (_cover is null) return; var old = _cover; _cover = null; OnPropertyChanged(nameof(CoverBitmap)); old.Dispose(); }   // 
     public string LocationText { get; init; } = "";
 
     /// <summary>The source item, for count/logic access from the parent VM (not bound directly).</summary>
@@ -357,7 +357,7 @@ public partial class GameRowViewModel : ObservableObject
 
     /// <summary>Delisted games get a permanent subtle red row tint -- a per-row "at risk, don't delete
     /// this" warning that lives on the game itself rather than as a dashboard number. A game whose owning
-    /// account is removed/signed out is a DIFFERENT, quieter state: a subtle ORANGE tint (owner 08-30) --
+    /// account is removed/signed out is a DIFFERENT, quieter state: a subtle ORANGE tint --
     /// nothing is missing from GOG, it just can't be re-fetched until that account is reconnected.</summary>
     public bool IsDelisted => Item?.IsDelisted ?? false;
     public bool OwnerDisconnected { get; init; }
@@ -365,7 +365,7 @@ public partial class GameRowViewModel : ObservableObject
     public string DisconnectedOwners { get; init; } = "";
     // OwnerDisconnected OUTRANKS a delisted flag: with the owning account gone, "delisted" is a claim
     // nobody can verify any more (the next sweep withdraws it). The full-row orange tint was dropped
-    // 08-31 (owner call: with a whole zero-account library flagged it was wallpaper, not signal) --
+    //  (with a whole zero-account library flagged it was wallpaper, not signal) --
     // the orange "(account removed)" caption under the status word carries the state instead.
     public IBrush RowBackground => !ShowOwnerCaption && IsDelisted
         ? Palette.SurfaceErrorDark2   // subtle red tint
@@ -453,11 +453,11 @@ public partial class GameRowViewModel : ObservableObject
         IReadOnlyCollection<string>? connectedAccounts = null)
     {
         // Owned only by accounts no longer registered/signed in: a DIFFERENT state from delisted
-        // (owner 08-30) - GOG did not pull it, the owning account just is not connected any more.
+        // - GOG did not pull it, the owning account just is not connected any more.
         bool ownerDisconnected = false, ownerLoggedOut = false;
         string disconnectedOwners = "";
         // null = the caller has no account knowledge (harness/tests) - never flag. An EMPTY list is real
-        // knowledge (last account removed) and still flags (owner 08-31). Fully-backed-up games stay
+        // knowledge (last account removed) and still flags. Fully-backed-up games stay
         // plain - the flag marks files that can no longer be FETCHED, and a game with no gap needs none.
         if (registeredAccounts is not null)
         {
@@ -466,13 +466,13 @@ public partial class GameRowViewModel : ObservableObject
                 .Any(f => !Grog.Core.Sync.BackupScope.HasLocalCopy(f));
             // With ZERO accounts registered NOTHING can be fetched, so every gap flags -- including
             // files with pre-account "" owner stamps, which is why the owner's zero-account library
-            // only partially flagged (owner 08-31). With accounts present, "" stays unflagged (it is
+            // only partially flagged. With accounts present, "" stays unflagged (it is
             // rewritten to a real account by the account service and can't be proven orphaned).
             bool orphaned = registeredAccounts.Count == 0
                 || (owners.Count > 0 && !owners.Contains("") && !owners.Overlaps(registeredAccounts));
             ownerDisconnected = orphaned && gap;
             // Registered but SIGNED OUT (no readable token): the quieter cousin - re-fetch needs only a
-            // Log In, not a re-add. Same zero/"" rules as above, against the connected set (owner 08-31).
+            // Log In, not a re-add. Same zero/"" rules as above, against the connected set.
             if (!ownerDisconnected && gap && connectedAccounts is not null)
                 ownerLoggedOut = connectedAccounts.Count == 0
                     || (owners.Count > 0 && !owners.Contains("") && !owners.Overlaps(connectedAccounts));

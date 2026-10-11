@@ -28,8 +28,8 @@ public sealed class ReorgJournalStore
     public bool Exists => File.Exists(_path);
 
     /// <summary>Atomically write the journal: temp file flushed to disk, the previous primary kept as .bak,
-    /// then replace. A READ-ONLY destination makes the replace throw UnauthorizedAccessException (owner-hit
-    /// 2026-08-30: a reorg.json carrying the read-only attribute crashed the run at Save) -- clear the
+    /// then replace. A READ-ONLY destination makes the replace throw UnauthorizedAccessException (
+    /// : a reorg.json carrying the read-only attribute crashed the run at Save) -- clear the
     /// attribute and retry once before giving up.</summary>
     public void Save(ReorgJob job)
     {
@@ -72,7 +72,7 @@ public sealed class ReorgJournalStore
         return TooNew(bak) ? null : bak;
     }
 
-    // A job written by a newer Grog is not ours to resume: leave it on disk untouched (09-08).
+    // A job written by a newer Grog is not ours to resume: leave it on disk untouched.
     private static bool TooNew(ReorgJob j) => j.Schema > ReorgJob.CurrentSchema;
 
     private static ReorgJob? TryLoad(string path)

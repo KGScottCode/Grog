@@ -14,7 +14,7 @@ public sealed partial class SettingsViewModel
 {
     // ---- WHERE: extras routing. Games always target the primary; overflow is always on. The only exposed
     //      choice is "extras with the games" vs "in a separate folder", and only with both scopes + 2 folders. ----
-    /// <para>ONE gate with the card (sweep 2 #20): the card's storage row shows with extras in scope and a second
+    /// <para>ONE gate with the card: the card's storage row shows with extras in scope and a second
     /// drive, games in scope or not, and Apply commits that routing. This also asked for games in scope, so with
     /// scope = Extras only the card staged "Secondary" while the preview drew the extras on the primary, hid the
     /// secondary column and the policy line dropped the WHERE.</para>
@@ -48,7 +48,7 @@ public sealed partial class SettingsViewModel
         : "With the games.";
 
     /// <summary>Display label for the non-primary folder ("Secondary" if it has no name yet).</summary>
-    // ONE secondary lookup, the card's (sweep 2 refactor): this was a second copy of "first location that is not
+    // ONE secondary lookup, the card's: this was a second copy of "first location that is not
     // the primary", free to disagree with the card it sits beside.
     private string SecondaryFolderLabel => ExtrasCard.SecondaryName ?? "the secondary storage";
 
@@ -75,7 +75,7 @@ public sealed partial class SettingsViewModel
     public bool GroupedActive => ExtrasLayoutValue == Grog.Core.Models.ExtrasPlacement.SeparateByType;  // "By type" -> Extras/<type>/<game>
 
     // Routing to a second folder only has meaning for the separate tree: with WithGame active the pills are
-    // disabled (dimmed in place, owner 08-30: the dimmed state explains itself; no note).
+    // disabled (the dimmed state explains itself; no note).
     public bool ExtrasRoutingEnabled => ExtrasSeparateTreeActive;
 
     /// <summary>Tells the folder preview + policy strip there is more than one folder.</summary>
@@ -106,9 +106,9 @@ public sealed partial class SettingsViewModel
     }
 
     // ---- Live folder preview (Settings): a sample tree that reflects What + Where + How. The preview IS
-    //      the explanation (owner 08-30: no caption text narrating it) - the extras lines render amber so
+    //      the explanation (no caption text narrating it) - the extras lines render amber so
     //      the part the choice moves is the part that pops. ----
-    // STAGED, like the tree it frames (09-13): read from the committed values it hid the secondary column while
+    // STAGED, like the tree it frames: read from the committed values it hid the secondary column while
     // the primary tree already omitted the extras, so "AFTER APPLY" showed a layout with the extras nowhere.
     public bool ShowPreviewSecondary => ShowExtrasLocation && ExtrasCard.StagedOnSecondary
                                         && ExtrasCard.StagedPlacement != Grog.Core.Models.ExtrasPlacement.WithGame;
@@ -128,10 +128,10 @@ public sealed partial class SettingsViewModel
     {
         const string game = "Neverwinter Nights 2";
         // No (id) suffix: the sample must FIT the centered inset at 1080 without ellipsis - realism
-        // loses to a clipped line (owner-driven centering pass 08-30).
+        // loses to a clipped line.
         const string installer = "setup_neverwinter_nights_2.exe";
         // The preview answers "what will Apply do", so it reads the card's STAGED choice, never
-        // the manifest. Before 09-11 it read the committed value and could therefore promise a
+        // the manifest. Before it read the committed value and could therefore promise a
         // shape the disk did not have and no pending action would give it.
         var layout = ExtrasCard.StagedPlacement;
         bool withGame = layout == Grog.Core.Models.ExtrasPlacement.WithGame;

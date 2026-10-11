@@ -52,14 +52,14 @@ public sealed partial class LibraryViewModel
     private int _gameLangCount, _extraLangCount;
     private bool _gameHasNeutral, _extraHasNeutral;
 
-    /// <summary>Button-sized label: a COUNT, never the list (owner 09-11). A list grows without bound and
+    /// <summary>Button-sized label: a COUNT, never the list. A list grows without bound and
     /// tells the user nothing a count does not; a count has a known maximum width, so the row beside it cannot
     /// reflow as the selection changes. The +1 is the always-kept Neutral entry, which is real but not
     /// user-selectable.</summary>
     private static string LanguageListLabel(List<string> langs, int available, bool hasNeutral)
         => available <= 0 ? (langs.Count == 0 ? "All" : $"{langs.Count} languages")
          : langs.Count == 0 ? $"{available} of {available}"
-         : $"{Math.Min(langs.Count + (hasNeutral ? 1 : 0), available)} of {available}";   // +1 only when that side HAS neutral files (09-13)
+         : $"{Math.Min(langs.Count + (hasNeutral ? 1 : 0), available)} of {available}";   // +1 only when that side HAS neutral files
 
     [RelayCommand] private void SelectAllLanguages() { foreach (var o in LanguageOptions) o.IsChecked = true; }
 
@@ -100,7 +100,7 @@ public sealed partial class LibraryViewModel
         // All REAL choices ticked == no narrowing; store empty so "everything" stays the honest default.
         // The locked Neutral entry is not a choice and must not inflate the denominator.
         var chosen = picked.Count == LanguageOptions.Count(o => !o.IsLocked) ? new List<string>() : picked;
-        using (_manifest.Gate.Enter())   // (manifest gate 09-08)
+        using (_manifest.Gate.Enter())   // 
         {
             var msScope = ManifestScope();
             if (_editingExtraLanguages)
@@ -150,7 +150,7 @@ public sealed partial class LibraryViewModel
     {
         if (_manifest.Current.Scope is not { } ms)
         {
-            _manifest.Mutate(m => m.Scope = new Grog.Core.Sync.ScopeSettings   // (manifest gate 09-08)
+            _manifest.Mutate(m => m.Scope = new Grog.Core.Sync.ScopeSettings   // 
             {
                 IncludeGames = _includeGames, IncludeExtras = _includeExtras,
                 Languages = _languages.ToList(), LanguagesChosen = _settings.LanguagesChosen,
@@ -173,7 +173,7 @@ public sealed partial class LibraryViewModel
     /// <summary>The manifest's scope record, created on demand. Every scope WRITE goes through here followed
     /// by a manifest save -- the manifest is the owner, the VM fields are the cache.</summary>
     private Grog.Core.Sync.ScopeSettings ManifestScope()
-        => _manifest.Read(m => m.Scope ??= new Grog.Core.Sync.ScopeSettings());   // (manifest gate 09-08) the create-on-demand is a graph write
+        => _manifest.Read(m => m.Scope ??= new Grog.Core.Sync.ScopeSettings());   // the create-on-demand is a graph write
 
     internal Grog.Core.Sync.Scope EffectiveScope => new(_includeGames, _includeExtras,
         _languages.Count > 0 ? _languages : null,
@@ -278,7 +278,7 @@ public sealed partial class LibraryViewModel
             && PlatformOptions.All(o => _platforms.Contains(o.Key, StringComparer.OrdinalIgnoreCase)))
         {
             _platforms = new List<string>();
-            using (_manifest.Gate.Enter()) { var msHeal = ManifestScope(); msHeal.Platforms = new List<string>(); }   // (manifest gate 09-08)
+            using (_manifest.Gate.Enter()) { var msHeal = ManifestScope(); msHeal.Platforms = new List<string>(); }   // 
             Runtime.ManifestSaves.Default.SaveInBackground(_manifest, "scope");
         }
         OnPropertyChanged(nameof(HasPlatformOptions)); OnPropertyChanged(nameof(PlatformsLabel));
@@ -290,7 +290,7 @@ public sealed partial class LibraryViewModel
     // two-way binding before the bound value lands, which would fire Changed and clear the selection.
     private bool _seedingPlatforms;
 
-    // ---- CONTENT: the same three choices, but PRICED and single-pick (09-11). As pills they implied three
+    // ---- CONTENT: the same three choices, but PRICED and single-pick. As pills they implied three
     //      independent toggles and could not say what any of them costs; the decision is "which of these three",
     //      and a first-run user cannot make it without the numbers.
     public sealed class ContentOption
@@ -358,7 +358,7 @@ public sealed partial class LibraryViewModel
         // All ticked is stored as "no narrowing", matching Languages, so a later library that adds a platform
         // is not silently excluded by a stale explicit list.
         _platforms = picked.Count == PlatformOptions.Count ? new List<string>() : picked;
-        using (_manifest.Gate.Enter())   // (manifest gate 09-08)
+        using (_manifest.Gate.Enter())   // 
         {
             var msScope = ManifestScope();
             msScope.Platforms = _platforms.ToList();
@@ -403,7 +403,7 @@ public sealed partial class LibraryViewModel
         RaiseScopeButtons();
         _root.Settings.RaisePolicySummaryText();
         _root.Settings.RaisePolicyState();
-        // The extras placement (shape + device) is NOT touched here (09-13). Until then, dropping extras from
+        // The extras placement (shape + device) is NOT touched here. Until then, dropping extras from
         // scope wrote Routing[Extras] = primary straight into the manifest: half of the one two-part decision,
         // with no move plan, so extras already on the secondary stayed there while the manifest said primary --
         // and it reset the card, discarding anything the user had staged. A scope change decides what is
@@ -525,14 +525,14 @@ public sealed partial class LibraryViewModel
         if (_languages.Count > 0 && gameLangs.Count > 0 && gameLangs.All(l => _languages.Contains(l, StringComparer.OrdinalIgnoreCase)))
         {
             _languages = new List<string>();
-            using (_manifest.Gate.Enter()) { var msHeal = ManifestScope(); msHeal.Languages = new List<string>(); }   // (manifest gate 09-08)
+            using (_manifest.Gate.Enter()) { var msHeal = ManifestScope(); msHeal.Languages = new List<string>(); }   // 
             Runtime.ManifestSaves.Default.SaveInBackground(_manifest, "scope");
             OnPropertyChanged(nameof(GamesLanguageLabel));
         }
         if (_extraLanguages is { Count: > 0 } exl && extraLangs.Count > 0 && extraLangs.All(l => exl.Contains(l, StringComparer.OrdinalIgnoreCase)))
         {
             _extraLanguages = new List<string>();
-            using (_manifest.Gate.Enter()) { var msHeal = ManifestScope(); msHeal.ExtraLanguages = new List<string>(); }   // (manifest gate 09-08)
+            using (_manifest.Gate.Enter()) { var msHeal = ManifestScope(); msHeal.ExtraLanguages = new List<string>(); }   // 
             Runtime.ManifestSaves.Default.SaveInBackground(_manifest, "scope");
             OnPropertyChanged(nameof(ExtrasLanguageLabel));
         }
@@ -546,7 +546,7 @@ public sealed partial class LibraryViewModel
             if (pick is not null)
             {
                 _languages = new List<string> { pick };
-                using (_manifest.Gate.Enter())   // (manifest gate 09-08)
+                using (_manifest.Gate.Enter())   // 
                 {
                     var msScope = ManifestScope();
                     msScope.Languages = _languages.ToList();

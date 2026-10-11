@@ -196,7 +196,7 @@ public sealed class TokenStoreTests
     [Test]
     public async Task Looks_readable_rejects_an_orphaned_keyring_file()
     {
-        // The B1 predicate (Linux walk 2026-08-23): a GRGK1 file whose key is not in the keyring EXISTS
+        // The B1 predicate: a GRGK1 file whose key is not in the keyring EXISTS
         // but cannot decrypt. Judging it by existence read "already connected" and burned a real GOG
         // login; every connected-state and adopt decision must use LooksReadable instead.
         Assert.SkipUnless(OsKeyring.GetExistingKey() is null,

@@ -13,8 +13,8 @@ using Grog.Core.Models;
 using Grog.Core.Runs;
 using Grog.Core.Tests.Framework;
 
-/// <summary>(Purchase dates 09-09) Order history -> <see cref="LibraryItem.DateAcquired"/>. The payload
-/// shapes asserted here are the MEASURED ones from docs/dev/GOG_Orders_API_2026-09-09.md: epoch-second
+/// <summary>Order history -> <see cref="LibraryItem.DateAcquired"/>. The payload
+/// shapes asserted here are the MEASURED ones from docs/dev/GOG_Orders_API_2026-.md: epoch-second
 /// dates, string product ids, one order dating many products.</summary>
 [NewBatch]
 [Trait("dates")]
@@ -220,7 +220,7 @@ public class PurchaseDatesTests
         Assert.Equal(2, PurchaseDatesRun.UnansweredCount(store.Current), "worth asking about again");
     }
 
-    // ---- every account's orders (sweep 2 #9) ------------------------------------------------------------
+    // ---- every account's orders ------------------------------------------------------------
 
     private static PurchaseDatesRun.AccountOrders Orders(string id, bool complete, List<string> asked, params (long Id, long At)[] dates)
         => new(id, (pages, _) =>
@@ -290,7 +290,7 @@ public class PurchaseDatesTests
         Assert.Equal(0, store.Saves, "nothing saved");
     }
 
-    /// <summary>THE REGRESSION THIS FLAG EXISTS FOR (found on real data 09-09): 53 of a 125-item library
+    /// <summary>THE REGRESSION THIS FLAG EXISTS FOR: 53 of a 125-item library
     /// appear in no order at all. Before settling, every scan spent a request re-asking about them forever.
     /// Once answered, the pass costs nothing -- the null client proves it never reaches the network.</summary>
     [Test]

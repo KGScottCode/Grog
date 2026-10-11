@@ -38,7 +38,7 @@ public sealed class PlacementFillTests
         for (int i = 0; i < files.Count; i++) if (plan.Placements[i].RootId == "p") onP += files[i].Bytes;
         long left = primaryFree - onP;
         Console.WriteLine($"FILL total={total >> 30} GB onPrimary={onP / 1048576.0:F1} MB left={left / 1048576.0:F1} MB games={plan.Placements.Where(p => p.RootId == "p").Select(p => files.First(f => f.FileKey == p.FileKey).GameGogId).Distinct().Count()}");
-        // Games are NOT kept whole any more (in-order per-file placement, 09-11): a split game is allowed and
+        // Games are NOT kept whole any more: a split game is allowed and
         // visible on the Storage page. What still matters is that greedy in-order fill leaves the device full.
         Assert.True(left >= 0, "never over-committed");
         Assert.True(left < (20L << 20), $"left {left >> 20} MB should be under 20 MB");

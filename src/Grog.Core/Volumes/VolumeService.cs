@@ -37,7 +37,7 @@ public sealed class VolumeService
             string.Equals(Path.GetFullPath(r.PathHint), path, StringComparison.OrdinalIgnoreCase));
         if (existing is not null)
         {
-            // (09-14) Re-adding a DETACHED root's folder is the user asking for it back: reattach so the layout
+            // Re-adding a DETACHED root's folder is the user asking for it back: reattach so the layout
             // scan binds it and it takes a slot again. Returning it still Detached left "Scan and Add" adopting
             // 0 files into a root that never showed up (measured, bg2025 grog.log 14:05).
             using (_store.Gate.Enter())
@@ -65,7 +65,7 @@ public sealed class VolumeService
             LastSeen = DateTimeOffset.UtcNow,
             Removable = removable,
         };
-        using (_store.Gate.Enter())   // (manifest gate 09-08)
+        using (_store.Gate.Enter())   // 
         {
             _store.Gate.AssertHeld();
             M.Roots.Add(root);
@@ -147,22 +147,21 @@ public sealed class VolumeService
     public void SetPrimary(string labelOrId)
     {
         var root = FindRoot(labelOrId) ?? throw new ArgumentException($"No such root: {labelOrId}");
-        _store.Mutate(m =>   // (manifest gate 09-08)
+        _store.Mutate(m =>   // 
         {
-            // (09-14) A file with no RootId RESOLVES to the primary. Changing the primary without stamping them
+            // A file with no RootId RESOLVES to the primary. Changing the primary without stamping them
             // would silently re-attribute every such file to the new drive while its bytes stay on the old one.
             // Stamp the old primary's id first; then the switch moves nothing but the role.
             var old = m.PrimaryRootId;
             if (!string.IsNullOrEmpty(old) && old != root.Id)
             {
-                // Only records that HOLD bytes (review 09-15): a Forgotten drive's leftovers keep a path with no
+                // Only records that HOLD bytes: a Forgotten drive's leftovers keep a path with no
                 // bytes behind it, and stamping them with the outgoing primary strands them on a shelved drive.
                 foreach (var item in m.Items)
                     foreach (var f in item.Files.Concat(item.OldVersionFiles))
                         if (f.RootId is null && Sync.BackupScope.HoldsBytes(f)) f.RootId = old;
                 // The ROLE pins follow the role: BackupLayout.EnsurePrimary stamps every RoleRoot with the first
-                // primary explicitly, so without this "Make Primary" left new downloads going to the old drive
-                // (review 09-15).
+                // primary explicitly, so without this "Make Primary" left new downloads going to the old drive.
                 foreach (var role in m.Routing.RoleRoots.Where(kv => kv.Value == old).Select(kv => kv.Key).ToList())
                     m.Routing.RoleRoots[role] = root.Id;
             }
@@ -170,7 +169,7 @@ public sealed class VolumeService
         });
     }
 
-    /// <summary>(09-15) The user's name for a drive. Stored on the root, so it survives Change Folder and a move
+    /// <summary>The user's name for a drive. Stored on the root, so it survives Change Folder and a move
     /// of the folder. Blank resets to the folder name.</summary>
     public void RenameRoot(string labelOrId, string? newLabel)
     {
@@ -187,7 +186,7 @@ public sealed class VolumeService
            && !string.Equals(root.Label, "Primary", StringComparison.OrdinalIgnoreCase)
            && !string.Equals(root.Label, "Secondary", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>(09-14) Other storage takes a slot from the drive holding it, in one step: the slot holder goes to
+    /// <summary>Other storage takes a slot from the drive holding it, in one step: the slot holder goes to
     /// the shelf (Detached), the other drive comes off it. For the primary slot the role moves first (SetPrimary
     /// stamps the outgoing primary's files), then the old primary is detached. Files never move; the queue is
     /// re-planned by the caller.</summary>
@@ -203,7 +202,7 @@ public sealed class VolumeService
     }
 
     /// <summary>Every role pin that pointed at <paramref name="fromRootId"/> now points at
-    /// <paramref name="toRootId"/> (09-13). SetPrimary alone leaves the pins, so after "move everything and make
+    /// <paramref name="toRootId"/>. SetPrimary alone leaves the pins, so after "move everything and make
     /// it primary" a pinned role would still route new downloads onto the drive that just emptied. This is the
     /// storage half of a placement following its drive, not a shape change, so it does not go through
     /// ExtrasPlacementRun.</summary>
@@ -223,7 +222,7 @@ public sealed class VolumeService
     public void PinRole(string labelOrId, ContentRole? role)
     {
         var root = FindRoot(labelOrId) ?? throw new ArgumentException($"No such root: {labelOrId}");
-        using (_store.Gate.Enter())   // (manifest gate 09-08)
+        using (_store.Gate.Enter())   // 
         {
             if (role is null)
             {
@@ -244,7 +243,7 @@ public sealed class VolumeService
         if (holdsFiles && !force)
             throw new InvalidOperationException("Root still holds files. Relocate them first, or use --force.");
 
-        using (_store.Gate.Enter())   // (manifest gate 09-08)
+        using (_store.Gate.Enter())   // 
         {
             // Detach role assignments / overrides pointing at it (fall back to primary).
             foreach (var role in M.Routing.RoleRoots.Where(kv => kv.Value == root.Id).Select(kv => kv.Key).ToList())
@@ -255,7 +254,7 @@ public sealed class VolumeService
             foreach (var f in FilesOnRoot(root.Id).ToList())
             {
                 if (f.IsOldVersion) { f.RootId = null; continue; }   // archive records: as before, not this reset's business
-                // The import that re-adopts these on a re-add matches by the record's own NAME first (09-17), and
+                // The import that re-adopts these on a re-add matches by the record's own NAME first, and
                 // for a file that never had a CDN name recorded the leaf of its last path is that name: keep it
                 // before the path goes.
                 if (string.IsNullOrEmpty(f.ResolvedFileName) && !string.IsNullOrEmpty(f.LocalRelativePath))
@@ -270,7 +269,7 @@ public sealed class VolumeService
         }
     }
 
-    /// <summary>Put a drive on the shelf (owner, 09-13): its files stay recorded and count as backed up, nothing
+    /// <summary>Put a drive on the shelf: its files stay recorded and count as backed up, nothing
     /// is re-queued, and it frees its storage slot. Not the primary. Routing that pointed at it falls back to
     /// the primary, as on removal: nothing can be placed on a shelf.</summary>
     public void DetachRoot(string labelOrId)
@@ -303,7 +302,7 @@ public sealed class VolumeService
     public void SetRolePolicy(ContentRole role, string labelOrId)
     {
         var root = FindRoot(labelOrId) ?? throw new ArgumentException($"No such root: {labelOrId}");
-        _store.Mutate(m => m.Routing.SetRole(role, root.Id));   // (manifest gate 09-08)
+        _store.Mutate(m => m.Routing.SetRole(role, root.Id));   // 
     }
 
     // ---- relocate --------------------------------------------------------------------------
@@ -345,7 +344,7 @@ public sealed class VolumeService
                 // Re-point the manifest only after the move succeeded, so a mid-move failure can't leave the
                 // entry pointing at a root it never reached. Normalize to '/' per the manifest convention;
                 // persist per file so an interrupted batch never orphans files already moved.
-                using (_store.Gate.Enter())   // (manifest gate 09-08)
+                using (_store.Gate.Enter())   // 
                 {
                     f.RootId = target.Id;
                     f.LocalRelativePath = Path.GetRelativePath(targetRootPath, dest).Replace('\\', '/');
@@ -356,7 +355,7 @@ public sealed class VolumeService
             else
             {
                 // Not on disk (or offline): re-point only; a download will place it on the new root.
-                using (_store.Gate.Enter())   // (manifest gate 09-08)
+                using (_store.Gate.Enter())   // 
                 {
                     f.RootId = target.Id;
                     if (Sync.BackupScope.IsPresent(f.State)) f.State = FileState.Missing;
@@ -381,7 +380,7 @@ public sealed class VolumeService
         Directory.CreateDirectory(newPath);
 
         var newId = Guid.NewGuid().ToString("N")[..12];
-        using (_store.Gate.Enter())   // (manifest gate 09-08)
+        using (_store.Gate.Enter())   // 
         {
             root.PriorIds.Add(root.Id);
 
@@ -424,7 +423,7 @@ public sealed class VolumeService
     }
 
     /// <summary>Every registered root as a placement input, primary first (the planner fills in list
-    /// order). Offline roots report zero free. Three callers built this by hand before 09-02.</summary>
+    /// order). Offline roots report zero free. Three callers built this by hand before.</summary>
     public List<DeviceSpace> DeviceSpaces(IBackupLayout layout)
     {
         UiThreadGuard.NotOnUi("a drive free-space probe");
@@ -432,7 +431,7 @@ public sealed class VolumeService
         return m.Roots
             .Where(r => r.State != RootState.Detached)   // a shelved drive is not a placement target
             .OrderByDescending(r => r.Id == m.PrimaryRootId)
-            // (09-22) Less what a running move still has to write onto that volume: moves and downloads run together.
+            // Less what a running move still has to write onto that volume: moves and downloads run together.
             .Select(r => DeviceSpace.ForRoot(r.Id, Math.Max(0L, (FreeBytesForRoot(r.Id, layout) ?? 0L) - (_pending?.ForVolume(layout.RootPath(r.Id)) ?? 0L)), layout.IsOnline(r.Id), layout.RootPath(r.Id)))
             .ToList();
     }

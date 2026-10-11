@@ -219,12 +219,12 @@ public class SchedulePlannerTests
                 return new DateTimeOffset(wall, ny.GetUtcOffset(wall));
             }
             var s = Daily();
-            // Spring forward: 2026-03-08 02:00 EST -> 03:00 EDT. Asked at 04:00 on the 7th, tomorrow is EDT.
+            // Spring forward: 02:00 EST -> 03:00 EDT. Asked at 04:00 on the 7th, tomorrow is EDT.
             var next = SchedulePlanner.NextFire(s, At(2026, 3, 7, 4))!.Value;
             Assert.Equal(8, next.Day, "the next slot is on the switch day");
             Assert.Equal(3, next.Hour, "03:00 local, not 04:00");
             Assert.Equal(TimeSpan.FromHours(-4), next.Offset, "stamped with the switch day's EDT offset");
-            // Fall back: 2026-11-01 02:00 EDT -> 01:00 EST. Asked at 01:00 on the 2nd, yesterday's slot is EST.
+            // Fall back: 02:00 EDT -> 01:00 EST. Asked at 01:00 on the 2nd, yesterday's slot is EST.
             var prev = SchedulePlanner.PreviousFire(s, At(2026, 11, 2, 1))!.Value;
             Assert.Equal(1, prev.Day, "the previous slot is on the switch day");
             Assert.Equal(3, prev.Hour, "03:00 local, not 02:00");

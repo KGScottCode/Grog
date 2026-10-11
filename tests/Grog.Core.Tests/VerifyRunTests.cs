@@ -16,7 +16,7 @@ using Grog.Core.Tests.Framework;
 using Grog.Core.Verify;
 using Grog.Core.Volumes;
 
-/// <summary>The one verify sequence (S2.1, 09-08) that replaces the App's six VerifyService sites and the CLI's.</summary>
+/// <summary>The one verify sequence that replaces the App's six VerifyService sites and the CLI's.</summary>
 [NewBatch]
 [Trait("run")]
 public class VerifyRunTests

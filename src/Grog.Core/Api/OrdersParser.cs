@@ -2,7 +2,7 @@
 // Licensed under GPL-3.0-or-later
 //
 // Parses embed.gog.com/account/settings/orders/data, GOG's order history -- the ONLY place an
-// acquisition date comes from. Measured against a real account 2026-09-09 (docs/dev/GOG_Orders_API_2026-09-09.md);
+// acquisition date comes from. Measured against a real account;
 // the community reference lists the endpoint by name only, with no parameters and no response shape.
 //
 // Three facts of the payload that the shape here exists to survive:
@@ -43,7 +43,7 @@ public sealed class OrdersPage
 public static class OrdersParser
 {
     /// <summary>The endpoint, with the filter flags that are NOT optional: a bare `?page=N` answers 200 with
-    /// an EMPTY orders array, which reads exactly like an account with no orders. (Measured 09-09.)</summary>
+    /// an EMPTY orders array, which reads exactly like an account with no orders. </summary>
     public static string PageUrl(int page)
         => "https://embed.gog.com/account/settings/orders/data"
          + "?canceled=0&completed=1&in_progress=1&not_redeemed=1&pending=1&redeemed=1&page=" + page;

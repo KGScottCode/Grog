@@ -25,7 +25,7 @@ namespace Grog.Core.Tests;
 
 /// <summary>
 /// The whole backup sequence in Core (scan -> select -> place -> run -> settle -> verify -> outcome) against a
-/// fake GOG that answers both the catalog and the CDN. Written 09-02 as the net under moving the sequence
+/// fake GOG that answers both the catalog and the CDN. Written as the net under moving the sequence
 /// out of the App and the CLI; it is what makes "what works in the App works in the CLI" a tested claim.
 /// </summary>
 [Trait("run")]
@@ -39,7 +39,7 @@ public sealed class BackupRunTests
         public HashSet<long> Broken = new();           // CDN 500s: a real failure, strikes apply
         public byte[] Payload = Encoding.ASCII.GetBytes("0123456789abcdef0123456789abcdef");   // 32 bytes
         public int ScanCalls, Gets;
-        public Action<long>? OnFile;                   // (09-25) runs as a file's bytes are requested: pull a drive here
+        public Action<long>? OnFile;                   // runs as a file's bytes are requested: pull a drive here
         public HashSet<long> ExtraOnly = new();        // games whose one file is an extra (routes by the Extras role)
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage req, CancellationToken ct)
         {
@@ -227,7 +227,7 @@ public sealed class BackupRunTests
         Assert.Equal(0, f2.FailedAttempts, "no strike");
         Assert.Equal(0, r.Store.Current.Downloads.Snapshot().Count, "refused file left the queue too");
         // The journal records the refusal but never counts it as failed: Health reads that number as "files
-        // that failed in the last run", and a refusal is not one (the App writes this journal since 09-04).
+        // that failed in the last run", and a refusal is not one.
         Assert.Null(RunJournalReader.ReadLastFailure(r.ConfigDir), "no failure reported for a refusal");
         Assert.True(File.ReadAllText(result.JournalPath!).Contains("\"file.unavailable\""), "but the refusal is on the record");
         Assert.Equal((2, 0, 0L), r.Host.Placement, "host told what was placed before the engine ran");
@@ -298,7 +298,7 @@ public sealed class BackupRunTests
     [Test]
     public async Task A_drive_pulled_mid_run_leaves_its_files_waiting_with_no_strike_and_the_rest_lands()
     {
-        // (09-25, walk on the Mac) The secondary was force-detached mid-run: every file bound to it failed with a
+        // The secondary was force-detached mid-run: every file bound to it failed with a
         // strike and the end said "had no room". Now its files wait for it; the primary's keep landing.
         DriveWaits.Clear();
         using var r = new Rig();
@@ -350,7 +350,7 @@ public sealed class BackupRunTests
     [Test]
     public async Task A_second_run_over_the_same_library_never_starts_while_one_is_live()
     {
-        // (09-26) Two engines over one queue downloaded every file twice (grog.log 09-25). The gate is taken before
+        // Two engines over one queue downloaded every file twice. The gate is taken before
         // the first await, so a second RunAsync started right after the first is refused, and every file lands once.
         using var r = new Rig();
         var first = r.Run().RunAsync(new BackupRunOptions(), Timeout());
@@ -380,7 +380,7 @@ public sealed class BackupRunTests
     public async Task A_file_held_at_placement_is_admitted_when_room_appears_before_the_run_ends()
     {
         // Two 32 B installers, 40 B free: one fits at Place, one is held. The mid-run Replan only sees what the
-        // engine holds, so before 09-18 the held file stayed held, the idle re-check then flipped it, and the
+        // engine holds, so before the held file stayed held, the idle re-check then flipped it, and the
         // next Resume fetched that one file and raised the not-everything-fit dialog again (one file per run).
         // The probe keeps answering 40 B free (the slack GOG's rounded-up sizes leave, in miniature), so the
         // end-of-run pass must admit the second file and the run must end with nothing held.
@@ -402,7 +402,7 @@ public sealed class BackupRunTests
     [Test]
     public async Task The_mid_run_replan_reads_the_whole_queue_so_a_held_file_is_admitted_before_the_run_ends()
     {
-        // (QA 09-18) The old mid-run Replan saw only what the engine held: a file held at Place never got the
+        // The old mid-run Replan saw only what the engine held: a file held at Place never got the
         // room a landed file freed. The first completion triggers a whole-queue pass (the cadence clock starts
         // at zero); the probe answers 40 B free throughout, so the held second file must be admitted by THAT
         // pass, logged as a mid-run re-check, and downloaded in the same run.
@@ -415,7 +415,7 @@ public sealed class BackupRunTests
 
         Assert.Equal(1, r.Host.Placement!.Value.Held, "one file had no room at Place time");
         Assert.Equal(2, result.Completed, "both landed in one run");
-        // (09-25) Settling runs on the settler's own worker, so with one file in flight the engine can drain before its
+        // Settling runs on the settler's own worker, so with one file in flight the engine can drain before its
         // settle: then the run's tail (also a whole-queue pass) admits it instead of a mid-run pass. Either is a
         // whole-queue re-check; what matters is that the held file lands in THIS run.
         Assert.True(r.Host.Logged.Any(l => l.Contains("Re-checked what fits")), "a whole-queue pass admitted it: " + string.Join(" | ", r.Host.Logged));

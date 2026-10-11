@@ -39,7 +39,7 @@ public readonly record struct HiddenPolicy(
     /// <summary>Nothing hidden -- the default for any caller that has no user policy (CLI, tests).</summary>
     public static readonly HiddenPolicy ShowEverything = new(false, AdultAge, null, null);
 
-    /// <summary>The standard adult cutoff. One toggle, no per-board matrix or custom age (owner decision).</summary>
+    /// <summary>The standard adult cutoff. One toggle, no per-board matrix or custom age.</summary>
     public const int AdultAge = 18;
 
     /// <summary>True when this game should be hidden from view right now.</summary>
@@ -49,12 +49,12 @@ public readonly record struct HiddenPolicy(
         // "Show hidden items" is a temporary reveal, never persisted -- it unhides the per-game picks only.
         if (!RevealHidden && HiddenIds is { Count: > 0 } && HiddenIds.Contains(item.GogId)) return true;
         if (!HideMature) return false;
-        // (09-26, owner) A game the user chose to Keep in the mature review stays visible; per-game hides still apply.
+        // A game the user chose to Keep in the mature review stays visible; per-game hides still apply.
         if (KeptIds is { Count: > 0 } && KeptIds.Contains(item.GogId)) return false;
         return IsMatureRated(item);
     }
 
-    /// <summary>(09-26) The rating test alone, before any Keep: what the mature review lists.</summary>
+    /// <summary>The rating test alone, before any Keep: what the mature review lists.</summary>
     public bool IsMatureRated(LibraryItem item)
         => item is not null && EffectiveAge(item.AgeRatings) >= (MatureAgeThreshold > 0 ? MatureAgeThreshold : AdultAge);
 

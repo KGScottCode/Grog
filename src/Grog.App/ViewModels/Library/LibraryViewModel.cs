@@ -22,7 +22,7 @@ using Grog.App.Runtime;
 namespace Grog.App.ViewModels;
 
 /// <summary>
-/// The Library page's view model (S3.2, 09-08): the game rows and their filters (search, header dropdowns,
+/// The Library page's view model: the game rows and their filters (search, header dropdowns,
 /// content chips, quick filters), the hide / remove / rating scope, the multi-select and its actions, the
 /// detail pane and its art, the language / platform scope with the select-everything shortcut, and the scan
 /// panel with its summary modal. Split into partials by those topics. It owns the library-derived stats
@@ -83,7 +83,7 @@ public sealed partial class LibraryViewModel : ObservableObject
     // gogId -> row, kept in step with _allGames, so per-tick "which row?" lookups are O(1).
     internal readonly Dictionary<long, GameRowViewModel> _gameById = new();
 
-    /// <summary>THE item lookup (9 hand-rolled copies before 09-02). O(1) through the row index when the
+    /// <summary>THE item lookup. O(1) through the row index when the
     /// game has a row, else the manifest scan (packs/DLC have no row).</summary>
     internal LibraryItem? ItemById(long gogId)
         => _gameById.TryGetValue(gogId, out var g) && g.Item is not null ? g.Item
@@ -149,7 +149,7 @@ public sealed partial class LibraryViewModel : ObservableObject
         foreach (var (label, value) in new[] { ("Game", "Game"), ("Mod", "Mod"), ("Movie (Legacy)", "Movie") })
             TypeOptions.Add(new FilterOption { Label = label, Value = value, Changed = ApplyFilter });
         // "Not in Scope" starts UNCHECKED: scope in Settings wins until the user opts in here.
-        // (New items 09-09) "New" is a CROSS-CUTTING bucket, not a status: a new item also has a backup
+        // "New" is a CROSS-CUTTING bucket, not a status: a new item also has a backup
         // status. It is checked by default, and the predicate below matches it alongside the status bucket.
         foreach (var s in new[] { "Backed Up", "Downloading", "Not Downloaded", "Partial", "Missing", "Updates", NewBucket, NotInScopeBucket })
         {
@@ -235,7 +235,7 @@ public sealed partial class LibraryViewModel : ObservableObject
     public double BackedUpPercent => TotalCount == 0 ? 0 : 100.0 * CompleteCount / TotalCount;
     public string BackedUpPercentText => TotalCount == 0 ? "" : $"{BackedUpPercent:0}% backed up";
     /// <summary>GAMES with work waiting, each counted ONCE. The sum of the two figures counted a game that is
-    /// both missing a file and holding an outdated one twice, so "Back up · N games" overshot (sweep 2 #16).</summary>
+    /// both missing a file and holding an outdated one twice, so "Back up · N games" overshot.</summary>
     public int PendingTaskCount => _allGames.Count(g => g.Status.NeedsFirstBackup() || g.HasUpdate);
 
     /// <summary>Owned GOG products that aren't backable games (bundles, promos, giveaway claims). Uses the
@@ -256,7 +256,7 @@ public sealed partial class LibraryViewModel : ObservableObject
     internal void RebuildRowsCore()
     {
         if (_manifest is null) return;
-        InvalidatePendingFileCount();   // manifest / scope changed under the scoped label (UI-thread sweep 09-06 r2)
+        InvalidatePendingFileCount();   // manifest / scope changed under the scoped label
         // Keep the per-row squares' language scope in step with the current selection: localizations for
         // unselected languages drop out of the squares, matching the card + details pane.
         GameRowViewModel.ActiveLanguages = _languages.Count > 0 ? _languages : null;
@@ -291,16 +291,16 @@ public sealed partial class LibraryViewModel : ObservableObject
         if (selectedId is { } id && SelectedRow?.GogId != id)
             SelectedRow = _allGames.FirstOrDefault(g => g.GogId == id);   // re-point to the fresh row instance
         // The Settings scope pickers read the same manifest + scope as the rows, so they rebuild here, once per
-        // refresh; RaiseDashboard no longer rebuilds them at 1 Hz during a run (UI-thread sweep 09-06).
+        // refresh; RaiseDashboard no longer rebuilds them at 1 Hz during a run.
         RebuildLanguageOptions();
         RebuildPlatformOptions();
         RebuildContentOptions();   // priced against the same axes
-        RaiseNewItems();   // (New items 09-09) a scan may have flagged or an auto-clear retired some
+        RaiseNewItems();   // a scan may have flagged or an auto-clear retired some
     }
 
     /// <summary>Maps a game to its Status-filter bucket (matches the header dropdown's four options).</summary>
     private const string NotInScopeBucket = "Not in Scope";
-    /// <summary>(New items 09-09) The cross-cutting "New" bucket in the Status dropdown.</summary>
+    /// <summary>The cross-cutting "New" bucket in the Status dropdown.</summary>
     internal const string NewBucket = "New";
 
     private static string StatusBucket(GameRowViewModel g)
@@ -341,9 +341,9 @@ public sealed partial class LibraryViewModel : ObservableObject
         // Header Status dropdown: show only checked status buckets.
         var statuses = StatusOptions.Where(o => o.IsChecked).Select(o => o.Value).ToHashSet();
         if (statuses.Count < StatusOptions.Count)
-            // (New items 09-09) A row is kept when ANY checked bucket describes it: its status bucket, or
+            // A row is kept when ANY checked bucket describes it: its status bucket, or
             // "New" when the item carries the flag. New sits ACROSS the statuses, so it cannot be one of them.
-            // (owner 09-25) "New" never brings back a row Settings scope excludes: Not in Scope stays opt-in.
+            // "New" never brings back a row Settings scope excludes: Not in Scope stays opt-in.
             q = q.Where(g => statuses.Contains(StatusBucket(g)) || (g.IsNew && !g.NotInScope && statuses.Contains(NewBucket)));
 
         // Header Owner dropdown: a game stays visible while ANY checked account owns it, so a co-owned
@@ -409,7 +409,7 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     /// <summary>Make <paramref name="col"/> match <paramref name="desired"/> in place by REFERENCE identity,
     /// minimal remove/move/insert -- never Clear()+refill, which re-realizes every rendered container.</summary>
-    /// <summary>(09-22, owner) RebuildRows makes NEW row instances, and reconciling by reference removed every row and
+    /// <summary>RebuildRows makes NEW row instances, and reconciling by reference removed every row and
     /// inserted every row again: the grid dropped to the top after each landed file. Keyed by game, a row that is
     /// still there is REPLACED in its slot (one Replace notification, scroll and sort untouched).</summary>
     private static void ReconcileRowsByGame(ObservableCollection<GameRowViewModel> col, IReadOnlyList<GameRowViewModel> desired)

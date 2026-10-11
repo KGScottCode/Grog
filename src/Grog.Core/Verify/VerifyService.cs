@@ -29,7 +29,7 @@ public sealed class VerifyService
     /// Corrupt); when null, every mismatch is Corrupt (the safe default).</summary>
     public Func<GameFile, CancellationToken, Task<string?>>? FetchCurrentServerMd5 { get; set; }
 
-    /// <summary>(09-25, owner) A hashing pass also asks GOG for the checksum of a file that has none on record
+    /// <summary>A hashing pass also asks GOG for the checksum of a file that has none on record
     /// (an adopted file) through <see cref="FetchCurrentServerMd5"/>, and hashes it. A match stores the checksum
     /// and reads Verified. A mismatch changes NOTHING on the record (state, checksum): the copy may be an older
     /// build or damaged, and marking it Outdated or Corrupt would queue a download that replaces bytes the user
@@ -57,7 +57,7 @@ public sealed class VerifyService
         var result = await CheckFilesAsync(filesWithLocal, mode, ct);
 
         // Roll up game statuses and save.
-        using (_manifest.Gate.Enter())   // (manifest gate 09-08)
+        using (_manifest.Gate.Enter())   // 
             foreach (var item in _manifest.Current.Items)
                 Sync.LibrarySyncService.RecomputeStatus(item);
         await _manifest.SaveAsync(ct);
@@ -76,7 +76,7 @@ public sealed class VerifyService
 
         var result = await CheckFilesAsync(files, mode, ct);
 
-        using (_manifest.Gate.Enter())   // (manifest gate 09-08)
+        using (_manifest.Gate.Enter())   // 
             foreach (var item in itemList)
                 Sync.LibrarySyncService.RecomputeStatus(item);
         await _manifest.SaveAsync(ct);
@@ -95,7 +95,7 @@ public sealed class VerifyService
 
         var result = await CheckFilesAsync(files, VerifyMode.SizeOnly, ct);
 
-        using (_manifest.Gate.Enter())   // (manifest gate 09-08)
+        using (_manifest.Gate.Enter())   // 
             foreach (var item in itemList)
                 Sync.LibrarySyncService.RecomputeStatus(item);
         await _manifest.SaveAsync(ct);
@@ -107,14 +107,14 @@ public sealed class VerifyService
         IEnumerable<LibraryItem> parents, CancellationToken ct = default)
         => RunForFilesAsync(files, parents, VerifyMode.SizeOnly, ct);
 
-    /// <summary>(09-19) The same, in the mode asked: <see cref="VerifyMode.FullRehash"/> backs the Storage file
+    /// <summary>The same, in the mode asked: <see cref="VerifyMode.FullRehash"/> backs the Storage file
     /// row's "Rescan &amp; verify", which must read the bytes like the game row's does.</summary>
     public async Task<VerifyResult> RunForFilesAsync(IEnumerable<GameFile> files,
         IEnumerable<LibraryItem> parents, VerifyMode mode, CancellationToken ct = default)
     {
         var fileList = files.Where(f => !string.IsNullOrEmpty(f.LocalRelativePath)).ToList();
         var result = await CheckFilesAsync(fileList, mode, ct);
-        using (_manifest.Gate.Enter())   // (manifest gate 09-08)
+        using (_manifest.Gate.Enter())   // 
             foreach (var item in parents)
                 Sync.LibrarySyncService.RecomputeStatus(item);
         await _manifest.SaveAsync(ct);
@@ -123,7 +123,7 @@ public sealed class VerifyService
 
     /// <summary>One gated field write. The per-file loop below awaits between checks (hashing, a server
     /// round-trip), so each state write takes the gate on its own rather than the loop holding it across an
-    /// await. (manifest gate 09-08)</summary>
+    /// await. </summary>
     private void Gated(Action write)
     {
         using (_manifest.Gate.Enter()) write();
@@ -175,7 +175,7 @@ public sealed class VerifyService
             {
                 // A Delete that landed between our path resolve and this probe has already cleared the record
                 // (LocalRelativePath null, NotBackedUp); flagging it Missing now would leave a Missing file with
-                // no path. The user's delete is the newer fact (09-13).
+                // no path. The user's delete is the newer fact.
                 bool flagged = false;
                 Gated(() => { if (!string.IsNullOrEmpty(f.LocalRelativePath)) { f.State = FileState.Missing; flagged = true; } });
                 if (flagged) result.Missing++;
@@ -207,7 +207,7 @@ public sealed class VerifyService
                     Gated(() => f.State = FileState.Corrupt);
                     result.Corrupt++;
                 }
-                // (09-25) No checksum on record: ask GOG for it (adopted files), when the caller opted in.
+                // No checksum on record: ask GOG for it (adopted files), when the caller opted in.
                 else if (FetchMissingChecksums && mode != VerifyMode.SizeOnly && string.IsNullOrEmpty(f.ExpectedMd5)
                          && f.State is not FileState.Verified and not FileState.Corrupt && FetchCurrentServerMd5 is not null
                          && await FetchCurrentServerMd5(f, ct) is { Length: > 0 } server)
@@ -326,7 +326,7 @@ public sealed class VerifyResult
     /// <summary>Mismatches that GOG's current checksum proved are a changed build (silent repack), not damage.</summary>
     public int Updated { get; set; }
     public int Missing { get; set; }
-    /// <summary>(09-25) Files with no checksum on record whose bytes differ from GOG's current checksum (older build
+    /// <summary>Files with no checksum on record whose bytes differ from GOG's current checksum (older build
     /// or damaged). Record unchanged; counted in <see cref="SizeOnlyOk"/> too. Only a FetchMissingChecksums pass sets it.</summary>
     public int DiffersFromGog { get; set; }
     public int OfflineSkipped { get; set; }

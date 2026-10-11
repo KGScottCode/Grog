@@ -8,7 +8,7 @@ using Avalonia.Threading;
 namespace Grog.App.Services;
 
 /// <summary>
-/// Measures the UI thread instead of guessing about it (owner, 09-04: "the graph freezes every 3-5 s").
+/// Measures the UI thread instead of guessing about it ("the graph freezes every 3-5 s").
 /// <see cref="Time"/> wraps the named UI passes and records any that run longer than <see cref="SlowMs"/>;
 /// a 200 ms heartbeat notices when the dispatcher itself was blocked and logs the stall with the slow
 /// passes seen since the previous beat - or "no timed pass", which means the block came from somewhere

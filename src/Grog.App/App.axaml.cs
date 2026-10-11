@@ -46,19 +46,19 @@ public partial class App : Application
             Grog.Core.Platform.OsKeyring.Trace = s => klog.Append(System.DateTimeOffset.Now, "keyring", false, s);
             // Startup line pins WHICH build wrote the entries that follow: a stale still-running instance
             // is indistinguishable from the fresh one in the log without it, and that ambiguity burned a
-            // GOG login on the 2026-08-23 walk. Exe mtime = the build, PID = the instance.
+            // GOG login. Exe mtime = the build, PID = the instance.
             var exe = System.Environment.ProcessPath;
             var built = exe is null ? "?" : System.IO.File.GetLastWriteTime(exe).ToString("yyyy-MM-dd HH:mm:ss");
             klog.Append(System.DateTimeOffset.Now, "app", false,
                 $"startup: pid {System.Environment.ProcessId}, binary built {built}, {exe}");
-            // The App owns the profile while it runs (09-08): a CLI writer verb checks this lock and refuses.
+            // The App owns the profile while it runs: a CLI writer verb checks this lock and refuses.
             _presence = Grog.Core.Storage.ProcessPresence.TryHold(
                 Grog.Core.Storage.GrogPaths.ResolveConfigDir(), Grog.Core.Storage.ProcessPresence.AppLockName, "app");
         }
         catch { /* diagnostics only */ }
 
         // Apply the saved accent theme before the first window paints, so it opens in the right colors.
-        // (UI-thread sweep 09-06 r2) Resolve() / File.GetLastWriteTime / AppSettings.Load above and here are
+        // Resolve() / File.GetLastWriteTime / AppSettings.Load above and here are
         // synchronous disk reads on the dispatcher, kept deliberately: they run ONCE before any window exists.
         var settings = AppSettings.Load();
         ThemeService.Apply(settings.Theme);
@@ -68,7 +68,7 @@ public partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Startup milestones in grog.log (owner-hit 09-08: one launch sat with a taskbar icon and no window;
+            // Startup milestones in grog.log (one launch sat with a taskbar icon and no window;
             // nothing after "startup:" said where it stopped). Each line is one append on the diagnostics log.
             var vm = new MainWindowViewModel();
             Milestone("view model built");
@@ -89,7 +89,7 @@ public partial class App : Application
                 Services.CrashGuard.SetNotifier(msg => crashVm.ReportUnhandled(msg));
             // An OS-level quit (macOS Cmd+Q / Dock -> Quit, session logout anywhere) means QUIT, not
             // "ask close-vs-tray": without this the Closing interceptor cancels the shutdown and the app
-            // looks unkillable from the Dock (MacinCloud 2026-08-28). PauseAllForShutdown still runs via
+            // looks unkillable from the Dock. PauseAllForShutdown still runs via
             // the normal Quitting path, so in-flight work is parked exactly as with Exit Grog.
             desktop.ShutdownRequested += (_, e) =>
             {

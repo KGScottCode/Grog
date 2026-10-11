@@ -91,7 +91,7 @@ public sealed partial class LibraryViewModel
         // Count only ("104 of 120"); the static "Showing" label lives in the toolbar so the readout stays narrow.
         // The denominator is "everything the grid COULD show": the same HiddenPolicy ApplyFilter uses, never a
         // hand-rolled copy. The copy that stood here knew the per-game picks and not the mature toggle, so with
-        // mature content hidden the readout was "104 of 120" on a grid that can never show 120 (sweep 2 #17).
+        // mature content hidden the readout was "104 of 120" on a grid that can never show 120.
         get { var hidden = Hidden; int total = _allGames.Count(g => (ShowLegacyMovies || g.Type != ProductType.Movie) && (g.Item is null || hidden.IsVisible(g.Item))); return $"{Games.Count} of {total}"; }
     }
     public bool HasActiveFilters => !_allContentSelected
@@ -117,7 +117,7 @@ public sealed partial class LibraryViewModel
             OnPropertyChanged(nameof(PillShowCaption));
         }
     }
-    /// <summary>The "Filter" caption before the chips: hides with the labels, in the narrowest mode only (owner 09-16).</summary>
+    /// <summary>The "Filter" caption before the chips: hides with the labels, in the narrowest mode only.</summary>
     public bool PillShowCaption => _pillMode != PillDisplayMode.IconOnly;
     /// <summary>Icon tile shows in Full + IconOnly, hides in NameOnly.</summary>
     public bool PillShowIcon => _pillMode != PillDisplayMode.NameOnly;
@@ -174,7 +174,7 @@ public sealed partial class LibraryViewModel
         _settings.HiddenIds = _hiddenIds.ToList(); _settings.SaveSoon();
         ClearSelection();     // the affected rows are about to appear/disappear
         ApplyFilter();
-        _root.RefreshHiddenSurfaces();   // (09-19)
+        _root.RefreshHiddenSurfaces();   // 
         OnPropertyChanged(nameof(FilterSummaryText));
         OnPropertyChanged(nameof(FilterCountText)); OnPropertyChanged(nameof(HasFilterCount));
     }
@@ -209,7 +209,7 @@ public sealed partial class LibraryViewModel
         ShowRemoveItemsConfirm = false;
         var ids = _pendingRemoveIds; _pendingRemoveIds = new();
         if (_manifest is null || ids.Count == 0) return;
-        int n = _manifest.Read(m => Grog.Core.Sync.LibraryUntrack.RemoveItems(m, ids));   // (manifest gate 09-08)
+        int n = _manifest.Read(m => Grog.Core.Sync.LibraryUntrack.RemoveItems(m, ids));   // 
 
         _liveEngine?.CancelGames(ids.ToHashSet());   // queue entries are purged; stop any in-flight transfer too
         ClearSelection();
@@ -219,10 +219,10 @@ public sealed partial class LibraryViewModel
         Log($"Removed {n} game(s) from the library. Files on disk are untouched; a rescan re-adds owned games.");
     }
 
-    // ---- (New items 09-09) The New flag: clearing it, and the header's "any left?" gate ----
+    // ---- The New flag: clearing it, and the header's "any left?" gate ----
     /// <summary>How many items still carry the New flag (the rail line, the header button and the manual-
     /// rescan prompt all read this). Zero when there is no manifest yet.</summary>
-    // (owner 09-25, Linux walk) Only what the Library can show: an out-of-scope or hidden item is not "new" to
+    // Only what the Library can show: an out-of-scope or hidden item is not "new" to
     // someone whose Settings leave it out (17 New, several of them Linux-less games under a Linux-only scope).
     public int NewItemCount
     {
@@ -253,7 +253,7 @@ public sealed partial class LibraryViewModel
     }
 
     /// <summary>Right-click "Clear New Status > All Items": drop every flag at once. Was a link in the
-    /// filter bar until 09-09; among the chips it read as a label rather than an action, and the wider scope
+    /// filter bar until; among the chips it read as a label rather than an action, and the wider scope
     /// belongs beside the narrower one rather than in a different part of the screen.</summary>
     [RelayCommand]
     private async Task ClearAllNew()
@@ -287,7 +287,7 @@ public sealed partial class LibraryViewModel
         set
         {
             if (_settings.HideMatureContent == value) return;
-            // (09-26, owner) Turning it ON first shows the games it would hide; nothing changes until "Hide All".
+            // Turning it ON first shows the games it would hide; nothing changes until "Hide All".
             if (value && OpenMatureReview()) { Avalonia.Threading.Dispatcher.UIThread.Post(() => OnPropertyChanged(nameof(HideMatureContent))); return; }
             SetHideMature(value);
         }
@@ -300,10 +300,10 @@ public sealed partial class LibraryViewModel
         OnPropertyChanged(nameof(HideMatureContent));
         ApplyFilter(); RaiseChipDerived();
         OnPropertyChanged(nameof(FilterSummaryText));
-        _root.RefreshHiddenSurfaces();   // (09-19) the rail and every other list that names games read the same policy
+        _root.RefreshHiddenSurfaces();   // the rail and every other list that names games read the same policy
     }
 
-    // ---- (09-26, owner) Mature review: the games the rating filter would hide, each with a Keep box ----
+    // ---- Mature review: the games the rating filter would hide, each with a Keep box ----
     public ObservableCollection<MatureReviewRow> MatureReviewGogOnly { get; } = new();
     public ObservableCollection<MatureReviewRow> MatureReviewBoards { get; } = new();
     [ObservableProperty] private bool _showMatureReview;
@@ -311,7 +311,7 @@ public sealed partial class LibraryViewModel
     public bool MatureReviewHasGogOnly => MatureReviewGogOnly.Count > 0;
     public bool MatureReviewHasBoards => MatureReviewBoards.Count > 0;
 
-    // (owner 10-01) One ALL box per section: ticking it keeps every game in that section; it reads ticked only
+    // One ALL box per section: ticking it keeps every game in that section; it reads ticked only
     // while every row is kept, so un-ticking a single game clears it.
     private bool _settingAll;
     public bool KeepAllGogOnly
@@ -380,7 +380,7 @@ public sealed partial class LibraryViewModel
 
     [RelayCommand] private void CancelMatureReview() => ShowMatureReview = false;
 
-    /// <summary>(09-26, owner) The mature filter reads GOG's own rating only. A game GOG never rated stays visible.</summary>
+    /// <summary>The mature filter reads GOG's own rating only. A game GOG never rated stays visible.</summary>
     private static readonly string[] GogBoardOnly = { "gog" };
 
     /// <summary>The adult cutoff age; unrated games stay visible.</summary>
@@ -390,7 +390,7 @@ public sealed partial class LibraryViewModel
     /// Scope decides what is BACKED UP; this decides what is SHOWN (<see cref="Grog.Core.Sync.HiddenPolicy"/>); never hand-roll it.</summary>
     public Grog.Core.Sync.HiddenPolicy Hidden => _hidden ??= new(
         HideMatureContent, _settings.MatureAgeThreshold,
-        GogBoardOnly,   // (09-26, owner) GOG's own store rating decides; the other boards caught violent classics
+        GogBoardOnly,   // GOG's own store rating decides; the other boards caught violent classics
         _hiddenIds.Count > 0 ? _hiddenIds : null,   // the live set itself; the policy reads membership only
         _showHiddenItems,
         _settings.MatureKeptIds is { Count: > 0 } ? _settings.MatureKeptIds : null);
@@ -478,9 +478,9 @@ public sealed partial class LibraryViewModel
     [RelayCommand(AllowConcurrentExecutions = true)] private Task SyncSelectedGames()  => SyncSelectedScoped(games: true,  extras: false);
     [RelayCommand(AllowConcurrentExecutions = true)] private Task SyncSelectedExtras() => SyncSelectedScoped(games: false, extras: true);
 
-    /// <summary>(09-20, owner) The other intention: these games FIRST. Queues what is not queued, moves all of it to
+    /// <summary>The other intention: these games FIRST. Queues what is not queued, moves all of it to
     /// the front of the queue, and starts or resumes the run. Same words as the queue row's "Download this next".</summary>
-    // AllowConcurrentExecutions on the four entries (09-22): an async command is disabled while its last click is
+    // AllowConcurrentExecutions on the four entries: an async command is disabled while its last click is
     // awaited, and "All files" awaits the whole download run it starts, so the entry was dead for the run.
     [RelayCommand(AllowConcurrentExecutions = true)] private Task DownloadSelectedNext() => SyncSelectedScoped(games: true, extras: true, next: true);
     public string DownloadNextLabel => $"Download next \u00b7 {SelectedRows.Count} {(SelectedRows.Count == 1 ? "item" : "items")}";
@@ -497,7 +497,7 @@ public sealed partial class LibraryViewModel
         {
             bool removed = false;
             // Collect, then apply in two batches -- see the note in LibraryViewModel.Scope.cs: per-file this
-            // was a gate enter/exit plus a CancelFile whose Snapshot scan copies the whole queue (measured 09-10).
+            // was a gate enter/exit plus a CancelFile whose Snapshot scan copies the whole queue.
             var scope = ScopeFor(games, extras);
             var drop = new List<(long GogId, string FileKey)>();
             foreach (var q in _manifest.Current.Downloads.Snapshot())
@@ -519,7 +519,7 @@ public sealed partial class LibraryViewModel
             if (removed) await _manifest.SaveAsync();
         }
 
-        // (09-20, owner) Neither entry lifts a Pause: a paused queue is the user's, and editing it is not a Resume.
+        // Neither entry lifts a Pause: a paused queue is the user's, and editing it is not a Resume.
         // "Download next" is ALWAYS a queue edit through the one path that tells a live engine too; it starts a
         // run only when nothing is running AND nothing is paused.
         if (next && _manifest is not null)
@@ -531,9 +531,9 @@ public sealed partial class LibraryViewModel
             RefreshBackUpMenuCounts();
             return;
         }
-        // (09-22, owner) A MOVE holds the activity slot: the files are queued now and start when it ends. Starting a
+        // A MOVE holds the activity slot: the files are queued now and start when it ends. Starting a
         // run was refused ("a download or move is already running") and the queue edit was lost with it.
-        // (09-22, owner) A run is LIVE: DownloadFiltered would exit on Busy and the click did nothing (log 15:20).
+        // A run is LIVE: DownloadFiltered would exit on Busy and the click did nothing (log 15:20).
         // Queue through the path that also hands the new tasks to the running engine, at the END (no promotion).
         if (_root.DownloadRunning && !_root.DownloadPaused && _manifest is not null)
         {
@@ -579,7 +579,7 @@ public sealed partial class LibraryViewModel
         var ids = SelectedRows.Select(r => r.GogId).ToHashSet();
         await _root.RunBusy("Confirming…", async () =>
         {
-            // (S2.2) Core's VerifyRun (size-only over the selected products); the App's own line stays.
+            // Core's VerifyRun (size-only over the selected products); the App's own line stays.
             var v = await Grog.Core.Runs.VerifyRun.RunAsync(_manifest, _backupRoot, Grog.Core.Runs.VerifyRequest.ConfirmItems(ids),
                 new Grog.Core.Runs.NullBackupHost(), _cts?.Token ?? default);
             var r = v.Verify;
@@ -604,7 +604,7 @@ public sealed partial class LibraryViewModel
     /// about even if the selection changes behind the dialog.</summary>
     private Func<Task>? _pendingMark;
 
-    /// <summary>(UI-thread sweep 09-06) How many of the given files are physically on disk. ONE BackupLayout
+    /// <summary>How many of the given files are physically on disk. ONE BackupLayout
     /// (its ctor probes every root) and every File.Exists run off the dispatcher.</summary>
     private Task<int> CountFilesOnDiskAsync(System.Collections.Generic.IReadOnlyList<GameFile> files)
     {
@@ -662,7 +662,7 @@ public sealed partial class LibraryViewModel
         // fires with nothing to lose is noise.
         if (target == FileState.NotBackedUp && !_settings.SuppressMarkNotBackedUpWarning)
         {
-            int present = await LocalCopiesOnDiskAsync(ids);   // (UI-thread sweep 09-06) one layout, off the dispatcher
+            int present = await LocalCopiesOnDiskAsync(ids);   // one layout, off the dispatcher
             if (present > 0)
             {
                 _pendingMark = () => MarkSelectedNow(ids, target, label);
@@ -684,7 +684,7 @@ public sealed partial class LibraryViewModel
             changed += Grog.Core.Sync.ManualBackupState.MarkProduct(_manifest.Current, id, target);
         await _manifest.SaveAsync();
         await _root.ReconcileAndRefresh();
-        // (09-19) Say what HAPPENED: "Marked 1 item(s) as Missing" was logged for a never-downloaded game where
+        // Say what HAPPENED: "Marked 1 item(s) as Missing" was logged for a never-downloaded game where
         // the rule (only bytes Grog held can be Missing) changed nothing.
         Log(changed == 0
             ? $"Nothing to mark as {label}: {(target == FileState.Missing ? "only files Grog has downloaded can be Missing." : "the selection is already in that state.")}"
@@ -699,7 +699,7 @@ public sealed partial class LibraryViewModel
         if (parent is null) return;
         await _root.RunBusy("Confirming…", async () =>
         {
-            // (S2.2) Core's VerifyRun over the one file.
+            // Core's VerifyRun over the one file.
             var r = (await Grog.Core.Runs.VerifyRun.RunAsync(_manifest, _backupRoot,
                 Grog.Core.Runs.VerifyRequest.ForFiles(new[] { (parent.GogId, row.File.FileKey) }),
                 new Grog.Core.Runs.NullBackupHost(), _cts?.Token ?? default)).Verify;
@@ -718,7 +718,7 @@ public sealed partial class LibraryViewModel
     {
         if (_manifest is null || row is null) return;
 
-        // (UI-thread sweep 09-06) the on-disk probe runs off the dispatcher.
+        // the on-disk probe runs off the dispatcher.
         if (target == FileState.NotBackedUp && !_settings.SuppressMarkNotBackedUpWarning
             && await CountFilesOnDiskAsync(new[] { row.File }) > 0)
         {
@@ -780,7 +780,7 @@ public sealed partial class LibraryViewModel
     /// selection). Drives the scoped primary label. On-demand only.</summary>
     // Memoized per dashboard pass: SyncBackupLabel is read by up to four bindings per RaiseBarState/RaiseDashboard
     // and each read walked the whole library through BackupQueueBuilder when the chips were narrowed
-    // (UI-thread sweep 09-06 r2). The epoch bumps in RaiseDashboardCore and RebuildRows; a chip change swaps the
+    // . The epoch bumps in RaiseDashboardCore and RebuildRows; a chip change swaps the
     // _selectedContent set instance (Library.cs), which the key catches by reference.
     private long _pendingCountEpoch;
     private (long Epoch, object? Chips, bool AllContent, bool Movies, bool Games, bool Extras, int Value) _pendingCountMemo;
@@ -808,7 +808,7 @@ public sealed partial class LibraryViewModel
     public bool CanBackUpAll    => _pendAll    > 0;
     public bool CanBackUpGames  => _pendGames  > 0;
     public bool CanBackUpExtras => _pendExtras > 0;
-    /// <summary>(09-20) Every file the selection still needs is ALREADY in the queue: there is nothing to add, so the
+    /// <summary>Every file the selection still needs is ALREADY in the queue: there is nothing to add, so the
     /// "Add to queue" entry greys out and says so, and "Download next" is the one live choice.</summary>
     private bool _selectionAllQueued;
     public bool CanAddToQueue => CanBackUpAll && !_selectionAllQueued;
@@ -849,7 +849,7 @@ public sealed partial class LibraryViewModel
     }
 
     /// <summary>Back-up-selection button text; scopes to the current selection.</summary>
-    /// (09-20, owner) "Back up" read as both "add it" and "do it now": the two intentions carry their own words.
+    /// "Back up" read as both "add it" and "do it now": the two intentions carry their own words.
     public string BackUpSelectedLabel => _selectionAllQueued ? "Already queued"
         : $"Add to queue \u00b7 {SelectedRows.Count} {(SelectedRows.Count == 1 ? "item" : "items")}";
 

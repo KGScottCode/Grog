@@ -53,7 +53,7 @@ public sealed partial class OverviewViewModel
     /// healthy or not, so "good" is confirmed by glancing down a column of values.</summary>
     public System.Collections.ObjectModel.ObservableCollection<HealthCheckRow> HealthChecks { get; } = new();
 
-    // ---- The gap, end to end (Files & issues top section, owner-picked Option C 08-31): the queue's
+    // ---- The gap, end to end (Files & issues top section, owner-picked Option C): the queue's
     //      place INSIDE the gap drawn as containment, so "8 GB fits nowhere" can never hide again. ----
     private int _unplaceableQueueCount; private long _unplaceableQueueBytes;   // set by RefreshBackupLocations
     private static string FilesAndBytes(int f, long b) => $"{f} file{(f == 1 ? "" : "s")} · {ByteFormat.Size(b)}";
@@ -84,7 +84,7 @@ public sealed partial class OverviewViewModel
     }
 
     /// <param name="retally">False when the caller has JUST run RecomputeHealthTally and nothing touched the
-    /// manifest since (RaiseHealthCore, the dashboard pass): the tally is a full library walk (UI-thread sweep 09-06).</param>
+    /// manifest since (RaiseHealthCore, the dashboard pass): the tally is a full library walk.</param>
     internal void RebuildHealthChecks(bool retally = true)
     {
         RaiseGapBreakdown();
@@ -93,7 +93,7 @@ public sealed partial class OverviewViewModel
         if (retally) RecomputeHealthTally();
         var rows = new[]
         {
-            // Coverage moved to the gap-breakdown section above the checks (Option C, owner 08-31);
+            // Coverage moved to the gap-breakdown section above the checks;
             // these rows are the FAULT checks only.
             // Damaged bytes and files gone from disk are the two real faults on this page.
             new HealthCheckRow("Corrupt files", HealthCorruptCount.ToString(),
@@ -113,7 +113,7 @@ public sealed partial class OverviewViewModel
                                _lastRunFailure is { } r ? $"{r.Failed} failed{(r.ConnectionLost ? $" ({ConnectionLostShort})" : "")}" : "no failures",
                                _lastRunFailure is null ? Grog.Core.Sync.Severity.Quiet : Grog.Core.Sync.Severity.Attention,
                                "Files the most recent backup run could not download and that are no longer queued. Try Again puts them back at the top of the queue."),
-            // Not a fault, never actionable, but VISIBLE (owner 09-13: transparent): files GOG lists but does not
+            // Not a fault, never actionable, but VISIBLE (transparent): files GOG lists but does not
             // serve, refused or listed with no size. Outside every completeness number, so this is the one place
             // the user can see the count is small and not a silent hole.
             new HealthCheckRow("Not offered by GOG", HealthUnavailableCount.ToString(), Grog.Core.Sync.Severity.Quiet,
@@ -121,7 +121,7 @@ public sealed partial class OverviewViewModel
                              + "They never count against your backup. Each rescan checks again and clears the flag if GOG starts offering the file."),
         };
         // Same five rows in the same order every time: swap only the ones whose value or level changed, so
-        // a 1 Hz pass with nothing new costs no collection reset (UI-thread sweep 09-06). Records compare by value.
+        // a 1 Hz pass with nothing new costs no collection reset. Records compare by value.
         if (HealthChecks.Count != rows.Length) { HealthChecks.Clear(); foreach (var row in rows) HealthChecks.Add(row); }
         else for (int i = 0; i < rows.Length; i++) if (HealthChecks[i] != rows[i]) HealthChecks[i] = rows[i];
     }
@@ -147,7 +147,7 @@ public sealed partial class OverviewViewModel
     // (The collapsible Overview strip's toggle/glyph/count members went with the strip in 1044; the
     // dialog's RECENT ERRORS section is always expanded.)
 
-    // ---- Fix confirm (owner 08-30): one click can commit hundreds of GB of re-downloads, and for
+    // ---- Fix confirm: one click can commit hundreds of GB of re-downloads, and for
     //      files "gone" because a folder moved or was re-pointed the CHEAP cure is fixing the folder,
     //      not re-fetching. Every fix surface routes through this one dialog. ----
     [ObservableProperty] private bool _showFixConfirm;
@@ -164,7 +164,7 @@ public sealed partial class OverviewViewModel
     {
         if (_manifest is null) return;
         _pendingFixKind = kind;
-        var affected = Grog.Core.Runs.FixRun.Select(_manifest, FixSelectorFor(kind));   // (S2.2)
+        var affected = Grog.Core.Runs.FixRun.Select(_manifest, FixSelectorFor(kind));   // 
         if (affected.Count == 0) return;
         long bytes = affected.Sum(a => a.File.ExpectedSizeBytes ?? 0);
         var what = $"{affected.Count} file{(affected.Count == 1 ? "" : "s")}"
@@ -184,7 +184,7 @@ public sealed partial class OverviewViewModel
     [RelayCommand] private void CancelFix() { ShowFixConfirm = false; _pendingFixKind = ""; }
 
     /// <summary>Once the user has ADJUDICATED a finding (fixed or acknowledged), its startup-check line
-    /// leaves Recent errors (owner 08-30): the strip flags failures awaiting a decision, and a decided
+    /// leaves Recent errors: the strip flags failures awaiting a decision, and a decided
     /// one lingering in red reads as an outstanding problem. The on-disk log keeps the full history.</summary>
     private void ClearResolvedErrorEntries(string kind)
     {
@@ -206,7 +206,7 @@ public sealed partial class OverviewViewModel
         if (kind is "all" or "missing") ClearResolvedErrorEntries("missing");
     }
 
-    /// <summary>Which files a fix of <paramref name="kind"/> touches: "corrupt", "missing", or "all" (both). (S2.2)</summary>
+    /// <summary>Which files a fix of <paramref name="kind"/> touches: "corrupt", "missing", or "all" (both). </summary>
     private static Grog.Core.Runs.FixSelector FixSelectorFor(string kind) => kind switch
     {
         "corrupt" => Grog.Core.Runs.FixSelector.Corrupt,
@@ -219,10 +219,10 @@ public sealed partial class OverviewViewModel
 
     /// <summary>"Fix It" on the Overview lede: one click opens the fix confirm without a detour through
     /// Details, whenever anything is fixable. With both corrupt AND gone files in play it fixes both at once
-    /// (owner 09-02: red text with no fix beside it is not a finding, it is a chore).</summary>
+    /// (red text with no fix beside it is not a finding, it is a chore).</summary>
     public bool ShowLedeFixNow => HealthGoneCount > 0 || HealthCorruptCount > 0;
 
-    /// <summary>(09-19, owner) A finding is OFFERED, not left to be noticed: when the count of missing + corrupt
+    /// <summary>A finding is OFFERED, not left to be noticed: when the count of missing + corrupt
     /// files RISES (startup check, a verify, an import's verify), the one fix dialog opens by itself with Fix It
     /// Now / Dismiss. Dismiss changes nothing: the red line and its Fix It pill stay on the card until the files
     /// are actually back. The watermark falls with the count, so a fixed file that breaks again is offered again.</summary>
@@ -246,16 +246,16 @@ public sealed partial class OverviewViewModel
 
     /// <summary>Fix flow for corrupt/gone files: mark them not-downloaded, re-queue AT THE TOP of the queue
     /// (a fix the user just clicked outranks a backlog of hundreds), and start the download - unless the
-    /// queue is PAUSED, which the fix respects: it queues first and says so (owner call 08-30).</summary>
+    /// queue is PAUSED, which the fix respects: it queues first and says so.</summary>
     /// <summary>"Try Again" on the last run's failure: re-queue the files that failed (strikes reset, front of the
     /// queue, handed to a live engine if one is running) and drop the failure record. It used to be bound to the
     /// transport's primary command, which mid-run is PAUSE: the first click paused the run, the second resumed
-    /// it, and nothing was retried (owner-hit 09-05).</summary>
+    /// it, and nothing was retried.</summary>
     [RelayCommand]
     private async Task RetryRunFailure()
     {
         // A scan or a move holds Busy: DownloadFiltered would refuse silently after the journal was already
-        // cleared and the log said "fetching now" (review 09-06). Say so and keep the failure on the card.
+        // cleared and the log said "fetching now". Say so and keep the failure on the card.
         if (_root.Busy && _liveEngine is null) { ShowToast("Try again once the current task finishes.", 0); return; }
         ClearRunJournalFailure();
         // The run's failures are download failures (FixRun.IsFailedDownload: strikes on a file that is still a
@@ -266,9 +266,9 @@ public sealed partial class OverviewViewModel
             .Select(t => (t.File.GameGogId, t.File.FileKey)).ToHashSet();
         // The run's failed files BY NAME (the journal carries them since 1280), condemned ones included: after three
         // strikes a file is Corrupt and out of the queue, and the strike-only selector could not see it, so the card
-        // named N files and Try Again said "No failed files to fix" (QA 09-30 C1).
+        // named N files and Try Again said "No failed files to fix".
         var named = _lastRunFailureRaw?.FailedFiles().Distinct() ?? Enumerable.Empty<(long, string)>();
-        await _root.RequeueProblemFiles(Grog.Core.Runs.FixSelector.FailedOrKeys(named), "failed", active);   // (S2.2)
+        await _root.RequeueProblemFiles(Grog.Core.Runs.FixSelector.FailedOrKeys(named), "failed", active);   // 
         RaiseHealth();
     }
 
@@ -298,7 +298,7 @@ public sealed partial class OverviewViewModel
     private void RebuildHealthIssueLists()
     {
         // The rows were collected by RecomputeHealthTally's pass; the bound lists are only touched when their
-        // content actually differs (UI-thread sweep 09-06) - a clear + re-add every tick reset both drill-downs.
+        // content actually differs - a clear + re-add every tick reset both drill-downs.
         SyncRows(HealthCorruptFiles, _healthCorruptRows);
         SyncRows(HealthGoneFiles, _healthGoneRows);
     }
@@ -328,7 +328,7 @@ public sealed partial class OverviewViewModel
         var affected = _manifest.Current.Items
             .SelectMany(i => i.Files.Where(pred).Select(f => (item: i, file: f))).ToList();
         if (affected.Count == 0) { RaiseHealth(); return; }
-        using (_manifest.Gate.Enter())   // (manifest gate 09-08)
+        using (_manifest.Gate.Enter())   // 
         {
             // THE reset (GameFile.ResetLocal). The hand-rolled copy here had drifted: it kept FailedAttempts, so an
             // acknowledged corrupt file came back one failure away from being condemned again.
@@ -346,7 +346,7 @@ public sealed partial class OverviewViewModel
     internal void RaiseHealth() => Services.UiWatch.Time("RaiseHealth", RaiseHealthCore);
     internal void RaiseHealthCore()
     {
-        // Sub-timed (09-04 log: RaiseHealth 0.7-1.9 s per 1 Hz tick was every UI stall); the watchdog line
+        // Sub-timed (RaiseHealth 0.7-1.9 s per 1 Hz tick was every UI stall); the watchdog line
         // names which of these it is instead of leaving it to be guessed.
         var T = (string n, Action a) => Services.UiWatch.Time("RaiseHealth." + n, a);
         T("Tally", RecomputeHealthTally);   // one scoped tally feeds Coverage, Verified and the verdict
@@ -358,14 +358,14 @@ public sealed partial class OverviewViewModel
         OnPropertyChanged(nameof(HealthOk)); OnPropertyChanged(nameof(ShowHealthBadge));
         OnPropertyChanged(nameof(HealthBadgeText)); OnPropertyChanged(nameof(HealthBadgeTip)); OnPropertyChanged(nameof(HealthDotBrush));
         OnPropertyChanged(nameof(RailLibraryCount)); OnPropertyChanged(nameof(RailLibraryTip)); OnPropertyChanged(nameof(RailPrimaryDrive));
-        OnPropertyChanged(nameof(RailLibrarySub));   // (UX 09-08 #6)
-        OnPropertyChanged(nameof(RailLibraryExceptions));   // (Rail exceptions 09-09)
+        OnPropertyChanged(nameof(RailLibrarySub));   // 
+        OnPropertyChanged(nameof(RailLibraryExceptions));   // 
         OnPropertyChanged(nameof(HealthVerdict)); OnPropertyChanged(nameof(HealthVerdictBrush));
         OnPropertyChanged(nameof(HealthDetail));
         });
         T("LastRun", RefreshLastRunFailure);
         T("Props2", () => { OnPropertyChanged(nameof(HasRunFailure)); OnPropertyChanged(nameof(RunFailureIssueText)); });
-        T("Checks", () => RebuildHealthChecks(retally: false));   // the tally at the top of this method is current (UI-thread sweep 09-06)
+        T("Checks", () => RebuildHealthChecks(retally: false));   // the tally at the top of this method is current
         T("Props3", () => {
         OnPropertyChanged(nameof(HealthDetailTip));
         OnPropertyChanged(nameof(IssuesTriggerText)); OnPropertyChanged(nameof(HasCorrupt));

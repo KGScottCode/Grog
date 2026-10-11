@@ -4,14 +4,14 @@ namespace Grog.Core.Manifest;
 
 /// <summary>
 /// How this library's transfers run: worker count, bandwidth cap, cloud-save retention. LIBRARY facts
-/// (S2.3, 09-08): they lived in the App's settings file, so a scheduled <c>grogcli backup</c> ran with
+/// : they lived in the App's settings file, so a scheduled <c>grogcli backup</c> ran with
 /// different concurrency, no cap and no retention than the App the user had configured. The App migrates
 /// its old values in once, one-way; both hosts read here.
 /// </summary>
 public sealed class TransferSettings
 {
     /// <summary>Max concurrent downloads when <see cref="AutoConcurrency"/> is off. Kept modest: Grog is a
-    /// guest on GOG's servers. Default 2 (owner call 09-01).</summary>
+    /// guest on GOG's servers. Default 2.</summary>
     public int MaxConcurrentDownloads { get; set; } = 2;
 
     /// <summary>The worker count follows the ConcurrencyAdvisor's read of the queue head (default ON).</summary>

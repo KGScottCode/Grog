@@ -103,7 +103,7 @@ public class ThroughputMeterTests
         Assert.True(Math.Abs(m.AvgBytesPerSec - avg) < 1, "stale sample changes nothing");
     }
 
-    // ---- the two-term ETA model (09-02): per-file overhead + per-byte cost, smoothed finish time ----
+    // ---- the two-term ETA model: per-file overhead + per-byte cost, smoothed finish time ----
 
     /// <summary>Drive one file through the meter: start at t, bytes arrive linearly, done at t+secs.</summary>
     private static void RunFile(ThroughputMeter m, ref double t, ref long cum, long bytes, double secs)
@@ -170,7 +170,7 @@ public class ThroughputMeterTests
 
     [Test] void Big_files_behind_small_ones_are_priced_at_the_link_rate()
     {
-        // Walk 09-25: smallest first, three 1 MB files at 1 MB/s landed, then 540 GB remains in 300 files. The per-file
+        // Walk: smallest first, three 1 MB files at 1 MB/s landed, then 540 GB remains in 300 files. The per-file
         // fit has no byte slope; the estimate must still charge the bytes beyond the seen size at the link's rate.
         var m = new ThroughputMeter();
         double t = 0; long cum = 0;

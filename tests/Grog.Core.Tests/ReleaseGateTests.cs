@@ -18,7 +18,7 @@ using Grog.Core.Tests.Framework;
 
 namespace Grog.Core.Tests;
 
-/// <summary>The three engine/settler checks the 09-30 review deferred, written before the v0.1.0 tag: a held file
+/// <summary>The three engine/settler checks the review deferred, written before the v0.1.0 tag: a held file
 /// keeps its worker (B6), a late failure on a file already present is journaled as not counted (C6), and the
 /// first byte written stamps where the .part lives (A3).</summary>
 [Trait("runs")]

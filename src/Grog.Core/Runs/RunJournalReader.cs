@@ -62,7 +62,7 @@ public static class RunJournalReader
             var s = JsonSerializer.Deserialize<RunSummary>(File.ReadAllText(path));
             if (s is null || s.Failed <= 0) return null;
             // A run still writing its journal is not the LAST run: its strikes read as "failed in the last backup run"
-            // while it was live, and Dismiss then deleted the live journal (QA 09-30 C2). A run that died without
+            // while it was live, and Dismiss then deleted the live journal. A run that died without
             // finishing stays "running" for good; its reader (startup) treats it like a finished one.
             if (ParseState(s.State ?? "") is null && !readUnfinished) return null;
 
@@ -133,7 +133,7 @@ public static class RunJournalReader
     public static ScheduleRunOutcome? ParseState(string state) => state switch
     {
         "completed-with-failures" => ScheduleRunOutcome.Partial,
-        "cancelled" => ScheduleRunOutcome.Canceled,   // journals written before the 09-01 US-spelling rename
+        "cancelled" => ScheduleRunOutcome.Canceled,   // journals written before the US-spelling rename
         "running" or ""           => null,
         _ => Enum.TryParse<ScheduleRunOutcome>(state, ignoreCase: true, out var o) ? o : null,
     };

@@ -19,7 +19,7 @@ public partial class OverviewPage : UserControl
         {
             if (_vm is not null) _vm.ShowWontFitRequested -= OnShowWontFit;
             // The page's DataContext is the shell; the OverviewViewModel is rebased onto the root Grid (S3.3). Casting
-            // the page's own context to OverviewViewModel was always null, so this event was never heard (09-17).
+            // the page's own context to OverviewViewModel was always null, so this event was never heard.
             _vm = (DataContext as MainWindowViewModel)?.Overview;
             if (_vm is not null) _vm.ShowWontFitRequested += OnShowWontFit;
         };

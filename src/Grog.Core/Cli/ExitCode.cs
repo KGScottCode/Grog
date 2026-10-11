@@ -18,7 +18,7 @@ public enum ExitCode
     NetworkError = 6,      // GOG unreachable / transient network problem -- safe to retry later
     InsufficientSpace = 7, // the backup won't fit and can't spill -- add or free space
     IntegrityFailed = 8,   // verification found corrupt or missing files
-    AppRunning = 9,        // the Grog app is open and owns the profile; a writer verb refused to run (09-08)
+    AppRunning = 9,        // the Grog app is open and owns the profile; a writer verb refused to run
     StorageOffline = 10,   // files are waiting for a disconnected drive and stay queued -- reconnect it and re-run
 }
 

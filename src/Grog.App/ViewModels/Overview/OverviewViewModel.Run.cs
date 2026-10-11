@@ -137,8 +137,8 @@ public sealed partial class OverviewViewModel
 
     /// <summary>The rows this run can REACH: a won't-fit row is queued but has nowhere to land, so pricing it
     /// into Files left / ETA / "finishes about" promised a week-long run over files that will not download
-    /// (owner-hit 09-18: 748 left, 7d 12h, with every fitting file done). Same rule as DownloadStatsText.</summary>
-    /// (QA 09-30 A11) Nor a row whose transfer this run has given up on (its engine task failed or was turned away,
+    /// (748 left, 7d 12h, with every fitting file done). Same rule as DownloadStatsText.</summary>
+    /// Nor a row whose transfer this run has given up on (its engine task failed or was turned away,
     /// and a run does not re-admit it) or that waits for a disconnected drive: "1 left" with an ETA over nothing moving.
     private IEnumerable<QueueRow> ReachableRows => ActiveRows.Concat(WaitingRows).Where(r => !r.WontFit && !UnreachableThisRun(r));
     private bool UnreachableThisRun(QueueRow r)
@@ -157,7 +157,7 @@ public sealed partial class OverviewViewModel
         get
         {
             // Only while bytes move: MarkIdle zeroes the live rate but the average survives a Pause, so the ETA
-            // and "finishes about" kept counting from Now on every raise while nothing moved (QA 09-18).
+            // and "finishes about" kept counting from Now on every raise while nothing moved.
             if (ReachableCount == 0 || !_root.DownloadRunning || _root.DownloadPaused) return "--";
             var secs = _meter.EtaSeconds(ReachableRemainingBytes, ReachableCount);
             return secs is null ? "Estimating…" : FormatDuration(TimeSpan.FromSeconds(secs.Value));
@@ -177,12 +177,12 @@ public sealed partial class OverviewViewModel
     public bool ShowDownloadStats => RunActive
         && (_runFilesDone + ActiveRows.Count + WaitingRows.Count) > 0;   // never "0 of 0 files · 0 B of 0 B"
     /// <summary>The white half has something to say: files done or files that can land. With every queued row
-    /// red it read "0 of 0 files · 0 B of 0 B" beside the red segment (QA 09-18); only the red half shows then.</summary>
+    /// red it read "0 of 0 files · 0 B of 0 B" beside the red segment; only the red half shows then.</summary>
     public bool ShowReachStats => _runFilesDone + ReachableCount > 0;
     /// <summary>A queue row's total for FOOTER arithmetic: the learned length when known, never below
     /// what has actually arrived - so a file GOG under-sized (or served without a length) cannot zero
     /// its remaining while bytes still flow. That mismatch (session meter climbing, remaining clamped)
-    /// is what made the footer's denominator creep at download speed (owner-caught 08-31).</summary>
+    /// is what made the footer's denominator creep at download speed.</summary>
     private static long EffectiveRowTotal(Grog.Core.Download.DownloadTask t)
         => Math.Max(Math.Max(t.BytesTotal ?? 0, t.File.PlanSizeBytes ?? 0), t.BytesReceived);
     private static long StillNeedsOf(Grog.Core.Download.DownloadTask t) => Grog.Core.Volumes.PlacementPlanner.StillNeeds(t.File);
@@ -193,7 +193,7 @@ public sealed partial class OverviewViewModel
     {
         get
         {
-            // Only the rows this run can REACH (09-13): a won't-fit row is queued but has nowhere to land, so
+            // Only the rows this run can REACH: a won't-fit row is queued but has nowhere to land, so
             // counting it in "of N files / of X GB" promised a total the run could never hit. Those rows get
             // their own red segment (WontFitStatsText) beside this one.
             var rows = ActiveRows.Concat(WaitingRows).Where(r => !r.WontFit).ToList();
@@ -214,7 +214,7 @@ public sealed partial class OverviewViewModel
         {
             var red = ActiveRows.Concat(WaitingRows).Where(r => r.WontFit).ToList();
             if (red.Count == 0) return "";
-            long bytes = red.Sum(r => StillNeedsOf(r.Task));   // what is still to come, as the banner and the dialogs count it (QA 09-30 A8)
+            long bytes = red.Sum(r => StillNeedsOf(r.Task));   // what is still to come, as the banner and the dialogs count it
             return $"{red.Count} won't fit · {ByteFormat.Size(bytes)}";
         }
     }
@@ -245,7 +245,7 @@ public sealed partial class OverviewViewModel
     public string FilesDoneInlineText  => RunActive && _runFilesDone > 0 ? $"{FilesDoneText} done this run" : "";
 
     /// <summary>The row the free-space readouts speak for: the primary when it is online, else any online
-    /// device (three copies of this fallback before 09-02).</summary>
+    /// device.</summary>
     private BackupLocationRow? PrimaryOnlineRow
         => _root.Storage.BackupLocations.FirstOrDefault(r => r.IsPrimary && r.IsOnline)
         ?? _root.Storage.BackupLocations.FirstOrDefault(r => r.IsOnline);
@@ -318,7 +318,7 @@ public sealed partial class OverviewViewModel
         get
         {
             if (_library.CatalogBusy) return "Scanning GOG library";
-            // (09-19) A run that ended with only won't-fit rows left is not downloading: nothing can move.
+            // A run that ended with only won't-fit rows left is not downloading: nothing can move.
             if (RunActive && !_root.DownloadRunning && !_root.DownloadPaused && ReachableCount == 0) return "Waiting";
             if (RunActive) return _root.DownloadPaused ? "Paused" : "Downloading";
             return "Idle";
@@ -329,7 +329,7 @@ public sealed partial class OverviewViewModel
     public bool BottomActive => _library.CatalogBusy || RunActive;
     // Right-side readout: scan count while scanning, run bytes while downloading, blank when idle.
     public string RunLeadDoneText => ByteFormat.Size(_meter.SessionBytes);
-    // (09-19) THIS RUN's total is what the run can REACH: done + what still fits. It used the whole queue, so
+    // THIS RUN's total is what the run can REACH: done + what still fits. It used the whole queue, so
     // with won't-fit rows the bar read "1.76 GB / 542 GB - 0%" beside a finish time and a files-left count that
     // were both "what fits": a bar that could never fill. Equal to the queue total when everything fits.
     public string RunTotalText => ByteFormat.Size(_meter.SessionBytes + ReachableRemainingBytes);
@@ -407,7 +407,7 @@ public sealed partial class OverviewViewModel
     {
         // Runs on every 1 Hz dashboard pass (the legend's sizes follow landed bytes), so the bound list is DIFFED:
         // reset only when the set of legend entries changed, otherwise swap just the entries whose bytes moved
-        // (records compare by value). A Clear + re-add per tick re-created the legend for nothing (UI-thread sweep 09-06).
+        // (records compare by value). A Clear + re-add per tick re-created the legend for nothing.
         var fresh = new List<ExtraTypeSegment>();
         for (int i = 0; i < _extraCols.Length; i++) _extraCols[i] = new Avalonia.Controls.GridLength(0, Avalonia.Controls.GridUnitType.Star);
         for (int i = 0; i < _extraBrushes.Length; i++) _extraBrushes[i] = null;
@@ -458,7 +458,7 @@ public sealed partial class OverviewViewModel
     public string ExtrasPercentText => Pct(_rollup.Extras.Percent);
 
     /// <summary>One decimal, but never "0.0%" for something that IS held: 0.13 GB of 472 GB is 0.03%, the bar
-    /// shows its sliver, and a text that rounds it to nothing contradicts the bar beside it (owner-hit 09-13).
+    /// shows its sliver, and a text that rounds it to nothing contradicts the bar beside it.
     /// Same at the top: 99.97% is not "100.0%" until the last byte lands.</summary>
     private static string Pct(double p)
         => p <= 0 ? "0.0%"
@@ -485,7 +485,7 @@ public sealed partial class OverviewViewModel
     public string GamesDataTotalText => $"{(double)_stats.GameSizeBytes / CoverageUnitScale:0.00}";
     public string ExtrasDataDoneText => $"{(double)ExtraShownBytes / CoverageUnitScale:0.00}";
     public string ExtrasDataTotalText => $"{(double)_stats.ExtraSizeBytes / CoverageUnitScale:0.00}";
-    // Totals row under the table (owner 08-31): games + extras summed, same unit, same split-halves
+    // Totals row under the table: games + extras summed, same unit, same split-halves
     // cells so the slashes stack; done sides include in-flight partials, so they tick live.
     public string TotalCovFilesDoneText  => $"{_stats.GameDoneFileCount + _stats.ExtraDoneFileCount}";
     public string TotalCovFilesTotalText => $"{_stats.GameFileCount + _stats.ExtraFileCount}";
@@ -519,7 +519,7 @@ public sealed partial class OverviewViewModel
         OnPropertyChanged(nameof(RunLedeIsClock)); OnPropertyChanged(nameof(RunLedeIsScan)); OnPropertyChanged(nameof(RunLedeValue));
         OnPropertyChanged(nameof(RunLedeHeadline)); OnPropertyChanged(nameof(RunLedeDetail));
         OnPropertyChanged(nameof(RunLedeBrush));
-        OnPropertyChanged(nameof(RunLedePausedReason)); OnPropertyChanged(nameof(RunActive));   // (UX 09-08 #2)
+        OnPropertyChanged(nameof(RunLedePausedReason)); OnPropertyChanged(nameof(RunActive));   // 
         OnPropertyChanged(nameof(FreeAfterRunText)); OnPropertyChanged(nameof(FreeAfterRunShort));
         OnPropertyChanged(nameof(AvgSpeedInlineText)); OnPropertyChanged(nameof(FilesDoneInlineText));
         OnPropertyChanged(nameof(StatusBackupLabel));

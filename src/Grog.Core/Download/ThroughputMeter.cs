@@ -11,7 +11,7 @@ using System.Collections.Generic;
 ///
 /// <para>THE ETA is a two-term model, not bytes over speed. A run of small files spends most of its time
 /// on per-file work (resolve round-trips, the checksum fetch, the rename) during which no bytes move, so a
-/// byte rate collapses and an ETA built on it swings by minutes as each file lands (owner 09-02). Each
+/// byte rate collapses and an ETA built on it swings by minutes as each file lands. Each
 /// completed file contributes (bytes, wall seconds); a least-squares fit gives seconds = a + b*bytes, and
 /// what remains costs a*files + b*bytes, divided by the run's measured parallelism. Until three files have
 /// finished the byte rate stands in. The FINISH TIME is then smoothed exponentially, so the clock the user
@@ -51,7 +51,7 @@ public sealed class ThroughputMeter
     private double? _smoothFinish;       // seconds-since-origin of the smoothed finish estimate
     private double _smoothAt = -1;       // the sample time the last smoothing step ran at
     private const int MinFilesForModel = 3;
-    /// <summary>Bytes the run must have moved before an estimate that is mostly bytes may speak (09-25).</summary>
+    /// <summary>Bytes the run must have moved before an estimate that is mostly bytes may speak.</summary>
     private const long MinBytesForEstimate = 64L * 1024 * 1024;
     private const double SmoothAlpha = 0.2;
 
@@ -124,7 +124,7 @@ public sealed class ThroughputMeter
         ? _transferBytes / _transferSeconds : null;
 
     /// <summary>The byte term's rate. The per-file fit measures ONE file's transfer and the parallelism
-    /// division assumes N files each get that much, which a shared link does not allow (owner, 09-04: three
+    /// division assumes N files each get that much, which a shared link does not allow (three
     /// big installers will not each run at a small file's burst). So the modelled rate is capped by the
     /// aggregate the link has actually delivered while moving. Early in a run of small files that observed
     /// rate is dragged down by ramp-up, so the estimate starts conservative and comes IN as big files sustain,
@@ -143,7 +143,7 @@ public sealed class ThroughputMeter
     public double? EtaSeconds(long bytesRemaining, int filesRemaining)
     {
         if (filesRemaining <= 0 && bytesRemaining <= 0) { _smoothFinish = null; return null; }
-        // (09-25, owner walk) Not enough seen yet to speak for what is left: a smallest-first run had moved a few MB of
+        // Not enough seen yet to speak for what is left: a smallest-first run had moved a few MB of
         // tiny files and promised 2-3 minutes for 540 GB. Until the run has moved a meaningful share, say nothing
         // ("Estimating..."): an honest blank beats a confident number that is off by a factor of 200.
         if (bytesRemaining > 0 && _transferBytes < MinBytesForEstimate && bytesRemaining > 16 * Math.Max(1, _transferBytes))
@@ -157,7 +157,7 @@ public sealed class ThroughputMeter
             {
                 // A fit that put every second on the per-file term (all files so far about one size) has no byte rate:
                 // the per-file cost already covers files of the size seen. It used to drop the REST of the bytes too,
-                // so 540 GB behind a few MB of tiny files read "2-3 minutes" (walk 09-25). Price only the bytes beyond
+                // so 540 GB behind a few MB of tiny files read "2-3 minutes". Price only the bytes beyond
                 // the seen size, at what the link has actually delivered.
                 double meanSeen = 0; foreach (var (b, _) in _files) meanSeen += b; meanSeen /= Math.Max(1, _files.Count);
                 priced = Math.Max(0, bytesRemaining - (long)(meanSeen * Math.Max(0, filesRemaining)));

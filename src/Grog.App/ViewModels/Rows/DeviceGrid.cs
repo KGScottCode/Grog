@@ -218,7 +218,7 @@ public sealed partial class DeviceGridViewModel : ObservableObject
             _                 => _sort.Asc ? _groups.OrderBy(g => g.SizeBytes).ThenBy(g => g.Title, StringComparer.OrdinalIgnoreCase)
                                           : _groups.OrderByDescending(g => g.SizeBytes).ThenBy(g => g.Title, StringComparer.OrdinalIgnoreCase),
         };
-        // ONE notification for the whole list (stress run 09-06): per-row Add re-laid the grid thousands of times.
+        // ONE notification for the whole list: per-row Add re-laid the grid thousands of times.
         var grouped = new List<object>();
         var files = new List<InventoryRow>();
         foreach (var g in ordered)
@@ -305,7 +305,7 @@ public sealed partial class DeviceGridViewModel : ObservableObject
         GroupedRows.Clear(); FileRows.Clear(); Selected.Clear(); _groups.Clear(); _allFiles.Clear();
         // The hidden set SURVIVES a clear: BuildGridRows clears before every rebuild (one per landed file during a
         // run), and wiping it here reset "Show: Game only" to "All types" two seconds after the user picked it
-        // (QA 09-18). RebuildTypeOptions prunes a hidden type the device no longer holds, so a drive that lost
+        // . RebuildTypeOptions prunes a hidden type the device no longer holds, so a drive that lost
         // all its files still comes back unfiltered.
         TypeOptions.Clear();
         SelAnchor = null; Raise(); RaiseTypeFilter();
@@ -337,14 +337,14 @@ public sealed partial class InventoryGroupRow : ObservableObject
     public IReadOnlyList<InventoryRow> Files { get; }
     public int PresentCount { get; }
     public int TotalCount { get; }
-    /// <summary>(09-14) The game's files that sit on the OTHER device: listed dimmed under the game so "4 of 7"
+    /// <summary>The game's files that sit on the OTHER device: listed dimmed under the game so "4 of 7"
     /// over two rows is not a mystery. Never selectable, never counted in this grid's header or moves.</summary>
     public IReadOnlyList<InventoryElsewhereRow> Elsewhere { get; }
 
     /// <summary>"Primary" / "Secondary" (the role, as the cards say it), not the folder's raw label.</summary>
     public string DeviceName { get; set; } = "this device";
 
-    // ---- consolidate (owner 09-14): bring the game's files from the other device HERE.
+    // ---- consolidate: bring the game's files from the other device HERE.
     public bool HasElsewhere => Elsewhere.Count > 0;
     /// <summary>The queue/placement menu block shows for a partial game OR one with files elsewhere.</summary>
     public bool ShowPlacementBlock => !IsComplete || HasElsewhere;
@@ -372,7 +372,7 @@ public sealed partial class InventoryGroupRow : ObservableObject
     public System.Windows.Input.ICommand? OpenGameFolderCommand { get; set; }
     public System.Windows.Input.ICommand? CopyGamePathsCommand { get; set; }
     public System.Windows.Input.ICommand? RedownloadGameCommand { get; set; }
-    /// <summary>Delete this game's downloaded files on THIS device (owner, 09-13). Red, last, sized like Re-download.</summary>
+    /// <summary>Delete this game's downloaded files on THIS device. Red, last, sized like Re-download.</summary>
     public System.Windows.Input.ICommand? DeleteGameCommand { get; set; }
     public string DeleteAllLabel => Files.Count == 1
         ? "Delete downloaded file"
@@ -385,7 +385,7 @@ public sealed partial class InventoryGroupRow : ObservableObject
     /// device -- there's nothing to re-check for a game with zero backed-up files.</summary>
     public bool CanVerify => PresentCount > 0;
 
-    // COLLAPSED by default (owner call, 2026-08-29): a fresh Folders inventory reads as a tidy game
+    // COLLAPSED by default: a fresh Folders inventory reads as a tidy game
     // list, and the "Expand all" button's label agrees with what is on screen.
     [ObservableProperty] private bool _isExpanded;
     [ObservableProperty] private bool _isSelected;
@@ -396,7 +396,7 @@ public sealed partial class InventoryGroupRow : ObservableObject
     public bool IsComplete => PresentCount >= TotalCount;
     public string CompletenessText => IsComplete ? "● Complete" : "◐ Partial";
     /// <summary>Always show the count, complete or not ("15 / 15" reads as "all here"). A split game adds where the rest
-    /// is ("2 / 2 (1 on Secondary)"; owner 10-01): the dimmed elsewhere rows it replaces read as
+    /// is ("2 / 2 (1 on Secondary)";): the dimmed elsewhere rows it replaces read as
     /// files that were here. "Here" is implied; "of" is the whole game across both storages.</summary>
     public string CountText
     {
@@ -404,7 +404,7 @@ public sealed partial class InventoryGroupRow : ObservableObject
         {
             var text = $"{PresentCount} / {TotalCount}";
             if (Elsewhere.Count == 0) return text;
-            // Spelled out, in parentheses (owner 10-01): the title column takes the squeeze (it trims with an ellipsis).
+            // Spelled out, in parentheses: the title column takes the squeeze (it trims with an ellipsis).
             return text + " (" + string.Join(", ", Elsewhere.GroupBy(e => e.DeviceLabel).Select(g => $"{g.Count()} on {g.Key}")) + ")";
         }
     }
@@ -435,7 +435,7 @@ public sealed partial class InventoryGroupRow : ObservableObject
     public void ReflectSelection() => IsSelected = Files.Count > 0 && Files.All(f => f.IsSelected);
 }
 
-/// <summary>(09-14) A file of a game shown under its rollup on the device it is NOT on: name, which device holds
+/// <summary>A file of a game shown under its rollup on the device it is NOT on: name, which device holds
 /// it, size. Read-only context; it carries no selection, no menu, and no bytes for this grid.</summary>
 public sealed class InventoryElsewhereRow
 {

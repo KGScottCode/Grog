@@ -36,7 +36,7 @@ public sealed record ImportRunResult(BackupRoot Root, ImportRunStatus Status, Im
                                      IReadOnlyList<string> Problems, Exception? Error = null)
 {
     public bool NeedsHuman => Problems.Count > 0;
-    /// <summary>(1284) The folder turned out to be a storage Grog already tracked (its files matched that root's
+    /// <summary>The folder turned out to be a storage Grog already tracked (its files matched that root's
     /// records): <see cref="Root"/> is that root, re-pointed to the folder, not a new one.</summary>
     public bool MatchedExisting { get; init; }
 }
@@ -44,7 +44,7 @@ public sealed record ImportRunResult(BackupRoot Root, ImportRunStatus Status, Im
 /// <summary>
 /// THE import sequence: register the folder as a root, and either defer (empty library: the flag lives on
 /// the manifest so a restart before the first scan does not forget the promise) or plan against the library
-/// and adopt the confident matches, stamped with the root's id. Both hosts had their own copy before 09-08
+/// and adopt the confident matches, stamped with the root's id. Both hosts had their own copy before
 /// (the App's AddIntentExisting / ImportRootAsync / RunPendingImportsAsync, the CLI's `import`).
 ///
 /// <para>Disk work throughout (folder walks, size stats): call from a worker.</para>
@@ -57,7 +57,7 @@ public static class ImportRun
         public Action<int, int>? Progress { get; init; }
         /// <summary>How deep the planner walks before giving up on a folder (the CLI's --depth).</summary>
         public int MaxDepth { get; init; } = 2;
-        /// <summary>(09-19) Verify what was adopted, straight after. On by default; tests of the adoption alone turn it off.</summary>
+        /// <summary>Verify what was adopted, straight after. On by default; tests of the adoption alone turn it off.</summary>
         public bool VerifyAdopted { get; init; } = true;
         /// <summary>Handed to the verify pass (see <see cref="VerifyRequest.FetchCurrentServerMd5"/>).</summary>
         public Func<GameFile, CancellationToken, Task<string?>>? FetchCurrentServerMd5 { get; init; }
@@ -71,7 +71,7 @@ public static class ImportRun
     public static async Task<ImportRunResult> AddAndImportAsync(IManifestStore store, string path, ImportMode mode,
                                                                 IBackupHost host, CancellationToken ct, Options? options = null)
     {
-        // (1284) A folder whose files are a storage Grog already tracks IS that storage, back under another path
+        // A folder whose files are a storage Grog already tracks IS that storage, back under another path
         // (a re-lettered stick, a renamed mount): re-point it instead of registering a second root beside an
         // empty first one. The backup folder carries no marker of Grog's; its content is the identity.
         if (MatchExistingRoot(store, path, options?.MaxDepth ?? 2) is { } matched)
@@ -204,7 +204,7 @@ public static class ImportRun
             // its own graph change and saves.
             if (plan.MatchedFileCount > 0) await planner.ApplyAsync(plan, mode, ct);
             host.Log($"Adopted {plan.AdoptedFiles} file(s) into {root.Label}.");
-            // (09-19, owner) Adoption matches by name and size; that is not "the bytes are good". Every adopted
+            // Adoption matches by name and size; that is not "the bytes are good". Every adopted
             // file is verified at once, the way a download is: MD5 where GOG's checksum is known, size otherwise.
             if (plan.AdoptedKeys.Count > 0 && options.VerifyAdopted)
                 await VerifyAdoptedAsync(store, root, path, plan, host, options, ct).ConfigureAwait(false);

@@ -40,7 +40,7 @@ public sealed class ReorgRunner
     /// <summary>Is the storage under this absolute path reachable right now? Overridable for tests. The default asks
     /// the drive resolver (a pulled removable reads offline), not <c>Path.GetPathRoot</c>: on macOS and Linux that is
     /// always "/", so a pulled source drive read "reachable" and every remaining move was Skipped and repathed at
-    /// files that were never there (QA 09-30 B1). The callers pass the STORAGE folder (the move's absolute path with
+    /// files that were never there. The callers pass the STORAGE folder (the move's absolute path with
     /// its relative part stripped), so an unmounted mount point whose folder is gone reads offline on Linux too.</summary>
     public Func<string, bool> VolumeReachable { get; set; } = path =>
     {
@@ -89,7 +89,7 @@ public sealed class ReorgRunner
     private bool TargetReachable(ReorgMove mv) => Reachable(mv.ToAbs, mv.ToRel);
 
     /// <summary>Failures in a row before the runner stops trying and pauses the job. A pulled drive fails every
-    /// move in milliseconds; without this the whole tail is burned through (owner-hit 09-04: 43 files).</summary>
+    /// move in milliseconds; without this the whole tail is burned through (43 files).</summary>
     public const int ConsecutiveFailurePause = 3;
 
     /// <summary>Runs (or resumes) the job to completion, or until paused/canceled. Settled moves are
@@ -103,7 +103,7 @@ public sealed class ReorgRunner
         {
             job.Paused = false;
             // A start or resume re-admits earlier failures: a move that failed because a drive blinked out is
-            // worth another go, and the user's Resume click is the retry (before 09-04 Failed moves were
+            // worth another go, and the user's Resume click is the retry (before Failed moves were
             // never picked up again, whatever the comment said).
             foreach (var x in job.Moves)
                 if (x.State == ReorgMoveState.Failed) { x.State = ReorgMoveState.Pending; x.Error = null; }
@@ -236,7 +236,7 @@ public sealed class ReorgRunner
     /// <summary>The inverse of <see cref="Repath"/>: points the manifest back at the original location.</summary>
     private void RepathBack(ReorgMove mv)
     {
-        using (_store.Gate.Enter())   // (manifest gate 09-08)
+        using (_store.Gate.Enter())   // 
         {
             var m = _store.Current;
             var item = m.ItemById(mv.GogId);
@@ -366,7 +366,7 @@ public sealed class ReorgRunner
         if (File.Exists(mv.FromAbs) && !samePath) File.Delete(mv.FromAbs);
         lock (job.SyncRoot) { mv.State = ReorgMoveState.Done; mv.CopiedBytes = 0; }
         // Same tidy-up the rename path does: an emptied game folder on the source drive is ours to remove
-        // (owner 09-04: a drive emptied by a cross-drive move kept every Games/<slug>/ shell).
+        // (a drive emptied by a cross-drive move kept every Games/<slug>/ shell).
         if (!samePath) PruneEmptySourceDirs(mv.FromAbs);
         PruneEmptySourceDirs(mv.FromAbs);
     }
@@ -389,7 +389,7 @@ public sealed class ReorgRunner
         foreach (var mv in open) DiscardPart(mv, job);
     }
 
-    /// <summary>The emptied source chain goes (owner-hit 2026-08-30: a layout reorg left every old game/bucket
+    /// <summary>The emptied source chain goes (a layout reorg left every old game/bucket
     /// folder behind as an empty husk). One rule, shared with Delete: <see cref="FolderPruner"/>.</summary>
     private static void PruneEmptySourceDirs(string fromAbs) => FolderPruner.PruneEmptyChainAbove(fromAbs);
 
@@ -440,7 +440,7 @@ public sealed class ReorgRunner
 
     private void Repath(ReorgMove mv)
     {
-        using (_store.Gate.Enter())   // (manifest gate 09-08)
+        using (_store.Gate.Enter())   // 
         {
             var m = _store.Current;
             var item = m.ItemById(mv.GogId);

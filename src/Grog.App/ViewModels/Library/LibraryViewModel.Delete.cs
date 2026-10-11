@@ -14,7 +14,7 @@ using Grog.Core.Sync;
 namespace Grog.App.ViewModels;
 
 /// <summary>
-/// Delete downloaded files (owner, 09-11). ONE flow at three sizes -- a file row, a section of the detail
+/// Delete downloaded files. ONE flow at three sizes -- a file row, a section of the detail
 /// pane (game files / extras), the grid selection (whole games) -- so it reads as one action. Confirms once
 /// with the real count and bytes; "Don't ask again" is an app setting, per machine. The work itself is
 /// <see cref="LocalDeletion"/>; this file only decides WHICH files and asks.
@@ -51,7 +51,7 @@ public sealed partial class LibraryViewModel
         => group is null ? Task.CompletedTask
          : BeginDelete(group.Files.Select(r => r.File).ToList(), $"{group.Title} on {(string.IsNullOrEmpty(group.Grid?.Label) ? "this device" : group.Grid!.Label)}");
 
-    /// <summary>(09-20) Nothing downloaded, nothing to delete: the entry is dead on a game that holds no bytes
+    /// <summary>Nothing downloaded, nothing to delete: the entry is dead on a game that holds no bytes
     /// (records only, no disk). Re-asked whenever the menu counts are (selection and download-state changes).</summary>
     private bool CanDeleteSelected()
         => SelectedRows.Select(r => ItemById(r.GogId)).Any(i => i is not null && i.Files.Concat(i.OldVersionFiles).Any(Grog.Core.Sync.BackupScope.HoldsBytes));
@@ -104,7 +104,7 @@ public sealed partial class LibraryViewModel
     {
         var manifest = _manifest; var root = _backupRoot;
         if (manifest is null || string.IsNullOrEmpty(root)) return;
-        // Three steps (09-13): records read and paths resolved under the gate, the DISK WORK OFF it (a whole-game
+        // Three steps: records read and paths resolved under the gate, the DISK WORK OFF it (a whole-game
         // delete on a slow drive held the gate for seconds and froze every UI read), records written under it.
         var result = await Task.Run(() =>
         {
@@ -121,7 +121,7 @@ public sealed partial class LibraryViewModel
         try { await manifest.SaveAsync(); } catch { /* the next save persists it */ }
         await _root.ReconcileAndRefresh();
         _root.Storage.RefreshBackupLocations();
-        _root.Storage.RebuildInventory();   // the Storage grids list bytes on disk: the deleted rows leave now (owner-hit 09-17)
+        _root.Storage.RebuildInventory();   // the Storage grids list bytes on disk: the deleted rows leave now
 
         if (result.Deleted > 0)
             Log($"You deleted {result.Deleted} downloaded file{(result.Deleted == 1 ? "" : "s")} ({ByteFormat.Size(result.Bytes)}) from your backup drive"

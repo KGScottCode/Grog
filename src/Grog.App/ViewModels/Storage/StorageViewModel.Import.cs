@@ -29,7 +29,7 @@ public sealed partial class StorageViewModel
     private Grog.Core.Verify.ImportPlan? _lastImportPlan;
     [ObservableProperty] private string _importSummary = "";
     [ObservableProperty] private bool _importCanAdopt;
-    /// <summary>(09-25, owner) The Add dialog's "Verify file integrity with GOG's checksums". On by default (it was
+    /// <summary>The Add dialog's "Verify file integrity with GOG's checksums". On by default (it was
     /// the behavior before the box existed); this session only.</summary>
     [ObservableProperty] private bool _importVerifyChecksums = true;
     // adopt behavior is chosen BEFORE scanning (mirrors the CLI --mode flag)
@@ -147,7 +147,7 @@ public sealed partial class StorageViewModel
     private async Task ImportPickerSelect(long gogId)
     {
         if (_importPickerTarget is null || _lastImportPlan is null || _session.Manifest is null) { ShowImportPicker = false; return; }
-        // (UI-thread sweep 09-06 r2) MatchFolderToItem walks the folder on the backup drive (EnumerateFiles,
+        // MatchFolderToItem walks the folder on the backup drive (EnumerateFiles,
         // AllDirectories): off the dispatcher. Target/plan/manifest are captured first and re-checked after.
         var target = _importPickerTarget; var plan = _lastImportPlan; var manifest = _session.Manifest; var root = _session.BackupRoot;
         var targetPath = target.Path;
@@ -185,7 +185,7 @@ public sealed partial class StorageViewModel
 
     /// <summary>The App's side of an import that ran: the results rows and summary from the plan, the grid
     /// refresh after adoption, and the results screen when something needs a human (unattended, the 03:00
-    /// run, it waits on the Storage page instead of sitting as a modal until morning). (S2.2)</summary>
+    /// run, it waits on the Storage page instead of sitting as a modal until morning). </summary>
     private async Task ShowImportOutcome(Grog.Core.Runs.ImportRunResult result, bool interactive)
     {
         if (result.Status == Grog.Core.Runs.ImportRunStatus.Failed) throw result.Error!;
@@ -203,7 +203,7 @@ public sealed partial class StorageViewModel
     }
 
     /// <summary>Run the imports that were deferred at add time, now that a scan has stored library items.
-    /// Core clears and saves each root as it runs (a failure is logged, not retried forever). (S2.2)</summary>
+    /// Core clears and saves each root as it runs (a failure is logged, not retried forever). </summary>
     internal async Task RunPendingImportsAsync(bool interactive)
     {
         if (_session.Manifest is null) return;
@@ -212,13 +212,13 @@ public sealed partial class StorageViewModel
         // A sleeping USB or network root can take seconds to answer: the whole run is a worker call.
         var results = await Task.Run(() => Grog.Core.Runs.ImportRun.RunPendingAsync(manifest,
             new MainWindowViewModel.AppRunHost(_root, LogCategory.General), _session.Cts?.Token ?? default,
-            new Grog.Core.Runs.ImportRun.Options { VerifyAdopted = false }));   // (09-19) verified below, after the refresh
+            new Grog.Core.Runs.ImportRun.Options { VerifyAdopted = false }));   // verified below, after the refresh
         if (!ReferenceEquals(_session.Manifest, manifest)) return;
         foreach (var r in results)
         {
             if (r.Status is Grog.Core.Runs.ImportRunStatus.Unreachable or Grog.Core.Runs.ImportRunStatus.Failed) continue;   // Core logged it
             await ShowImportOutcome(r, interactive);
         }
-        foreach (var r in results) await _root.VerifyAdoptedAsync(r, ImportVerifyChecksums);   // (09-19) after the outcome, one visible pass per drive
+        foreach (var r in results) await _root.VerifyAdoptedAsync(r, ImportVerifyChecksums);   // after the outcome, one visible pass per drive
     }
 }

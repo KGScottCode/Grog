@@ -33,7 +33,7 @@ public sealed partial class StorageViewModel
 
     // Move affordances. Right sends Primary -> Secondary, left the reverse; "Selection" acts on highlighted
     // rows, "All" on the whole grid. Each lights up only when it can act -- the enabled state is the hint.
-    /// <summary>(09-19) A running BACKUP does not block a move any more: the move asks it to finish what is in
+    /// <summary>A running BACKUP does not block a move any more: the move asks it to finish what is in
     /// progress and start nothing new (RunReorgWithPaneAsync). Anything else that holds Busy (a scan) still does.</summary>
     private bool MovesBlocked => _root.Busy && !_root.DownloadRunning;
     public bool CanMoveSelToSecondary => PrimaryGrid.HasSelection && HasSecondary && !MovesBlocked;
@@ -55,7 +55,7 @@ public sealed partial class StorageViewModel
         InventoryRow.DeviceLookup = Grog.Core.Sync.ConditionRules.LookupFrom(_session.Manifest.Current);   // Missing vs Disconnected
 
         string primaryId = _session.Manifest.Current.PrimaryRootId ?? "";
-        // (09-14) The secondary SLOT is the first non-primary root that is not on the shelf: a Detached root has no
+        // The secondary SLOT is the first non-primary root that is not on the shelf: a Detached root has no
         // slot, and binding the grid to it listed its files as "elsewhere" beside an empty Secondary card.
         var secondaryRoot = _session.Manifest.Current.Roots.FirstOrDefault(r => r.Id != primaryId && r.State != RootState.Detached);
         PrimaryGrid.RootId = primaryId;
@@ -63,7 +63,7 @@ public sealed partial class StorageViewModel
         SecondaryGrid.RootId = secondaryRoot?.Id ?? "";
         SecondaryGrid.Label = secondaryRoot?.Label ?? "Secondary";
 
-        // (UI-thread sweep 09-06) unsettled moves indexed ONCE per rebuild: the per-file lookup was a scan of the
+        // unsettled moves indexed ONCE per rebuild: the per-file lookup was a scan of the
         // whole job (Files x Moves) on the dispatcher.
         _movingKeys = IsReorgRunning && _activeReorgJob is not null
             ? new HashSet<(long, string)>(_activeReorgJob.Moves.Where(mv => !mv.IsSettled).Select(mv => (mv.GogId, mv.FileKey)))
@@ -80,7 +80,7 @@ public sealed partial class StorageViewModel
     {
         // The rebuild runs after every file that lands (a run of small files = one every second), and it
         // replaced the rows with fresh objects: every expanded game folded and every tick was lost, so the
-        // user could not keep a game open long enough to pick a file (owner-hit 09-17). Keep what is the
+        // user could not keep a game open long enough to pick a file. Keep what is the
         // user's -- expansion and selection -- by game id / file key and put it back on the new rows.
         var wasExpanded = new HashSet<long>(grid.GroupedRows.OfType<InventoryGroupRow>().Where(g => g.IsExpanded).Select(g => g.GogId));
         var wasSelected = new HashSet<(long, string)>(grid.Selected.Select(r => (r.Item.GogId, r.File.FileKey)));
@@ -95,7 +95,7 @@ public sealed partial class StorageViewModel
         string ElsewhereLabel(string rootId)
             => rootsById.TryGetValue(rootId, out var r) && r.State == RootState.Detached ? $"{r.Label} (detached)" : SlotNameOf(rootId);
         long? gridFree = BackupLocations.FirstOrDefault(l => l.RootId == grid.RootId)?.FreeBytes;
-        // (09-19) Hiding conceals NAMES: a hidden game (the mature toggle, a per-game Hide) has no row here. Its
+        // Hiding conceals NAMES: a hidden game (the mature toggle, a per-game Hide) has no row here. Its
         // BYTES stay in the card's totals above the grid, which read the manifest, never these rows. "Move all"
         // moves the rows SHOWN, as it already does under the type filter, and its label states that count.
         var hiddenPolicy = _root.Library.Hidden;
@@ -109,7 +109,7 @@ public sealed partial class StorageViewModel
                 if (!Grog.Core.Sync.BackupScope.HasLocalCopy(f)) continue;   // inventory = bytes on disk, superseded included
                 var on = f.RootId ?? _session.Manifest.Current.PrimaryRootId;
                 if (on == grid.RootId) fileRows.Add(new InventoryRow(item, f) { IsMoving = IsFileMoving(item.GogId, f.FileKey) });
-                else if (!string.IsNullOrEmpty(on)) elsewhere.Add(new InventoryElsewhereRow(f, ElsewhereLabel(on!)));   // (09-14) the other slot, or a detached drive, named
+                else if (!string.IsNullOrEmpty(on)) elsewhere.Add(new InventoryElsewhereRow(f, ElsewhereLabel(on!)));   // the other slot, or a detached drive, named
             }
             if (fileRows.Count == 0) continue;
 
@@ -276,7 +276,7 @@ public sealed partial class StorageViewModel
     }
 
     // ---- Center move buttons. Right = Primary->Secondary, left = Secondary->Primary.
-    // AllowConcurrentExecutions (09-20): an async command is disabled while its last run is awaited, and that run is
+    // AllowConcurrentExecutions: an async command is disabled while its last run is awaited, and that run is
     // the whole move, so "Selected" went dead until the first move ended. More files join the move in progress.
     [RelayCommand(AllowConcurrentExecutions = true)] private async Task MoveSelToSecondary() => await MoveRowsTo(PrimaryGrid.Selected.ToList(), SecondaryGrid.RootId);
     [RelayCommand(AllowConcurrentExecutions = true)] private async Task MoveAllToSecondary() { _moveAllFromRootId = PrimaryGrid.RootId; try { await MoveRowsTo(PrimaryGrid.FileRows.ToList(), SecondaryGrid.RootId); } finally { _moveAllFromRootId = null; } }
@@ -294,14 +294,14 @@ public sealed partial class StorageViewModel
     /// pane, pausable, restart-resumable. Each file settles copy -> verify -> delete source individually.</summary>
     public async Task MoveRowsTo(IReadOnlyList<InventoryRow> rows, string? targetRootId)
     {
-        // A click that does nothing is a bug (owner 09-04: "All" did nothing, no toast, no log). Every way
+        // A click that does nothing is a bug ("All" did nothing, no toast, no log). Every way
         // out of here says why, in the log at least.
         if (_session.Manifest is null) return;
         if (string.IsNullOrEmpty(targetRootId)) { _root.Log("Move: no destination storage is registered.", isError: true, category: LogCategory.Move); return; }
         // Every row must actually leave its current device -- a no-op move (already on target) is skipped.
         var moving = rows.Where(r => (r.File.RootId ?? _session.Manifest.Current.PrimaryRootId) != targetRootId).ToList();
         var pairs = moving.Select(x => (x.Item, x.File)).ToList();
-        // (QA 09-30 B9) "Move all" empties a drive: its Old Versions archive goes too, or the irreplaceable old builds are
+        // "Move all" empties a drive: its Old Versions archive goes too, or the irreplaceable old builds are
         // stranded there and read Missing once the drive is forgotten. The grid lists current files only, so they are
         // added here, for the whole-drive move alone (a selection is the user's pick), before the empty checks: a drive
         // whose grid is empty can still hold the archive.
@@ -393,9 +393,9 @@ public sealed partial class StorageViewModel
     {
         if (_session.Manifest is null) return;
         Grog.Core.Volumes.ReorgJob job;
-        // (UI-thread sweep 09-06) BackupLayout probes every root on disk: build it and plan off the dispatcher
+        // BackupLayout probes every root on disk: build it and plan off the dispatcher
         // (the planner is pure). The activity slot is taken inside RunReorgWithPaneAsync, as before.
-        // (UI-thread sweep 09-06 r2) captured once, used for the plan AND the config dir below.
+        // captured once, used for the plan AND the config dir below.
         var manifest = _session.Manifest; var root = _session.BackupRoot;
         var pendingWrites = _session.PendingWrites;
         try
@@ -440,14 +440,14 @@ public sealed partial class StorageViewModel
 
         // RunReorgWithPaneAsync populates the Moving pane on the UI thread BEFORE the copy starts, then
         // updates it per file as the runner settles each one.
-        if (!ReferenceEquals(_session.Manifest, manifest) || _session.BackupRoot != root) { _root.Log("Move: storage changed while planning; not started.", category: LogCategory.Move); return; }   // (UI-thread sweep 09-06 r2)
-        var configDir = await Task.Run(() => Grog.Core.Storage.GrogPaths.Resolve(root).ConfigDir);   // (UI-thread sweep 09-06; r2: same captured root as the layout)
+        if (!ReferenceEquals(_session.Manifest, manifest) || _session.BackupRoot != root) { _root.Log("Move: storage changed while planning; not started.", category: LogCategory.Move); return; }   // 
+        var configDir = await Task.Run(() => Grog.Core.Storage.GrogPaths.Resolve(root).ConfigDir);   // (same captured root as the layout)
         var targetLabel = LabelOfRoot(targetRootId);
-        // (09-22) The other half of running side by side: a move onto a drive that queued downloads will also land on
+        // The other half of running side by side: a move onto a drive that queued downloads will also land on
         // is priced against the room left AFTER them. Said up front; the copy itself is the last gate (a file that
         // does not fit stays where it was, and Resume retries it).
 
-        // (owner 09-20) A move is already running: these files JOIN it, whichever way they are going. The runner
+        // A move is already running: these files JOIN it, whichever way they are going. The runner
         // picks its next file from the job's list on every pass, so the list can grow under it.
         if (TryJoinRunningMove(job, targetRootId, targetLabel)) return;
         var allFrom = _moveAllFromRootId is { } from ? (from, targetRootId) : ((string, string)?)null;

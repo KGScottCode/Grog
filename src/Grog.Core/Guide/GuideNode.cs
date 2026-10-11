@@ -49,7 +49,7 @@ public readonly record struct GuideNode(
     string DoneTarget = "",
     // An ALTERNATE face for a different situation (not a payoff): the empty-library wording of a stop, or
     // the control to ring when the usual one is not on screen. Chosen by IsAlt; distinct from the landed face
-    // so "this stop's payoff arrived" and "this stop reads differently here" are never one hook (09-02).
+    // so "this stop's payoff arrived" and "this stop reads differently here" are never one hook.
     string AltCaption = "",
     string AltTarget = "",
     string Detail = "",

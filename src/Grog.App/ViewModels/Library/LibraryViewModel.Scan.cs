@@ -179,14 +179,14 @@ public sealed partial class LibraryViewModel
 
     /// <summary>False when the full scan just run stored NOTHING (every account pass failed or was
     /// skipped). Gates EndCatalog's completed flag so CatalogScanned stays honest: a failed scan on an
-    /// empty library must leave the bar at "Scan GOG Library", never "Library Backed Up" (owner-hit
-    /// 09-01, GOG 500 after a fresh-library reset). Single-account runs (null passes) throw on failure
+    /// empty library must leave the bar at "Scan GOG Library", never "Library Backed Up" (
+    /// , GOG 500 after a fresh-library reset). Single-account runs (null passes) throw on failure
     /// and never reach EndCatalog, so null reads true.</summary>
     internal bool LastScanStoredAnything => _lastScanPasses is null || _lastScanPasses.Any(p => p.Result is not null);
 
     public bool ShowScanAccountsLine => _lastScanPasses is { Count: > 1 };
 
-    // ---- What changed since the last scan (owner 09-06) ----
+    // ---- What changed since the last scan ----
     // The first scan makes everything "new", so the line and the button appear only on a rescan of a
     // library that already had items; the ids come from the scan itself, not from a diff of the grid.
     private int _itemsBeforeScan;
@@ -242,7 +242,7 @@ public sealed partial class LibraryViewModel
     {
         var m = _manifest;
         if (m is null) return;
-        // The report write (and the shell open) run off the dispatcher (UI-thread sweep 09-06 r2).
+        // The report write (and the shell open) run off the dispatcher.
         var seen = _lastProductsSeen; var failed = _lastScanFailedIds;
         string? path;
         try
@@ -365,7 +365,7 @@ public sealed partial class LibraryViewModel
                 2, "Accounts");
             return;
         }
-        // Every pass FAILED = nothing was scanned either (owner-hit 09-01: a GOG 500 after a library
+        // Every pass FAILED = nothing was scanned either (a GOG 500 after a library
         // reset looked like "nothing came back" -- the only trace was one log line). Name the error,
         // never open the summary as if a scan ran.
         if (userAsked && _lastScanPasses is { Count: > 0 } fp && fp.All(x => x.Result is null) && fp.Any(x => !x.Skipped))

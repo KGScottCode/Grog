@@ -33,7 +33,7 @@ public sealed class ReorgResult
     /// <summary>Why the runner paused ITSELF (a drive went away, failures in a row); null for a user pause.</summary>
     public string? PauseReason { get; set; }
     /// <summary>The root (destination or source) whose drive was not reachable when the runner paused itself;
-    /// the host resumes the move on its own when that drive is back (walk 5.6).</summary>
+    /// the host resumes the move on its own when that drive is back.</summary>
     public string? PausedForRootId { get; set; }
 }
 

@@ -21,7 +21,7 @@ using Grog.Core.Sync;
 using Grog.Core.Tests.Framework;
 
 /// <summary>
-/// (New items 09-09) The New flag end to end: the first scan of an EMPTY library is the baseline and
+/// The New flag end to end: the first scan of an EMPTY library is the baseline and
 /// flags nothing, whatever GOG's isNew says; every later scan flags what the manifest never had and ignores isNew entirely; a rescan never
 /// touches an existing item's flag; the auto-clear fires only on real in-scope completeness; the explicit
 /// clears work; and a manifest written before the field existed reads back as not-new.
@@ -101,7 +101,7 @@ public class NewItemsTests
         Assert.Equal(0, NewItems.Count(rig.Store.Current), "flagged count");
     }
 
-    // (09-19) The sizeless rule lived only in MergeInto, so a brand-new item skipped it: on a first scan the
+    // The sizeless rule lived only in MergeInto, so a brand-new item skipped it: on a first scan the
     // file was queued as "Size unknown" until GOG refused it mid-run.
     [Test]
     public async Task A_brand_new_items_sizeless_file_is_Unavailable_from_its_first_scan()
@@ -117,7 +117,7 @@ public class NewItemsTests
         Assert.Equal(FileState.NotBackedUp, rig.Item(1).Files.Single().State, "a sized file is untouched");
     }
 
-    // (09-19, walk pass 3) The art hook runs BEFORE the merge makes a new item, so the host had nowhere to put a
+    // The art hook runs BEFORE the merge makes a new item, so the host had nowhere to put a
     // new game's age ratings and dropped them: after a first scan no game had any and Hide mature content hid nothing.
     [Test]
     public async Task Metadata_fetched_for_a_brand_new_item_lands_on_it_at_the_merge()

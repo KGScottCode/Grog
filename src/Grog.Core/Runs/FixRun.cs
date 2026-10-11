@@ -31,7 +31,7 @@ public enum FixKind
     /// <summary>The one file (<see cref="FixSelector.GogId"/>, <see cref="FixSelector.FileKey"/>).</summary>
     File = 16,
     /// <summary>A named set of files (<see cref="FixSelector.Keys"/>), whatever their state short of present: the
-    /// Health card's Try Again names the run's failed files, condemned ones included (QA 09-30 C1).</summary>
+    /// Health card's Try Again names the run's failed files, condemned ones included.</summary>
     Keys = 32,
 }
 
@@ -77,7 +77,7 @@ public sealed record FixResult(IReadOnlyList<(long GogId, string FileKey)> Keys)
 /// partial forgotten, state NotBackedUp) and put them AT THE FRONT of the persisted queue in selection
 /// order (a fix the user just clicked outranks a backlog of hundreds), roll the touched products up, save.
 /// The App spelled this out in RequeueProblemFiles, RetryRunFailure, RedownloadGame and
-/// RedownloadInventoryFile before 09-08. Nothing downloads here: the caller runs a
+/// RedownloadInventoryFile before. Nothing downloads here: the caller runs a
 /// <see cref="BackupRun"/> with <c>FromPersistedQueue</c>, or hands the keys to its live engine.
 /// </summary>
 public static class FixRun
@@ -118,7 +118,7 @@ public static class FixRun
                                                      CancellationToken ct = default)
     {
         List<(long, string)> keys;
-        using (store.Gate.Enter())   // (manifest gate 09-08) select + reset + reorder are one atomic change
+        using (store.Gate.Enter())   // select + reset + reorder are one atomic change
         {
             var m = store.Current;
             var affected = Select(m, selector, exclude);

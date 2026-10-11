@@ -55,7 +55,7 @@ public sealed class DeleteBackupService
         return new Plan(files, total);
     }
 
-    /// <summary>Execute a plan through <see cref="LocalDeletion"/>, THE delete (sweep 2 #7: this was a hand
+    /// <summary>Execute a plan through <see cref="LocalDeletion"/>, THE delete (this was a hand
     /// loop that cleared two fields, left RootId / LocalRelativePath / the verify stamp pointing at nothing,
     /// kept the file's Old Versions and .part, never pruned the folders, and raced a queued download).
     /// Plan and Apply hold the manifest gate; the disk work does not. Returns files removed and bytes freed.</summary>

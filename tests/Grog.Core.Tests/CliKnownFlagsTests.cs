@@ -36,7 +36,7 @@ public class CliKnownFlagsTests
     [Test]
     void Every_flag_literal_in_the_CLI_is_in_knownFlags()
     {
-        // knownFlags lives in Program.cs; the verbs that READ flags moved to CliVerbs.cs (09-02), so the
+        // knownFlags lives in Program.cs; the verbs that READ flags moved to CliVerbs.cs, so the
         // literal sweep covers every source file in the CLI project.
         var dir = FindCliDir();
         var src = string.Concat(Directory.EnumerateFiles(dir, "*.cs", SearchOption.AllDirectories)

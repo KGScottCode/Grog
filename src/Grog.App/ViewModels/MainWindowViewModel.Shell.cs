@@ -79,7 +79,7 @@ public partial class MainWindowViewModel
             if (RailCollapsed || !value.IsAbsolute) return;
             var px = System.Math.Clamp(value.Value, RailMinExpanded, RailMaxExpanded);
             if (System.Math.Abs(_settings.RailExpandedWidth - px) < 0.5) return;
-            _settings.RailExpandedWidth = px; _settings.SaveSoon();   // (UI-thread sweep 09-06) per-drag-delta: debounced, off-thread
+            _settings.RailExpandedWidth = px; _settings.SaveSoon();   // per-drag-delta: debounced, off-thread
             OnPropertyChanged();
         }
     }
@@ -98,7 +98,7 @@ public partial class MainWindowViewModel
             if (!value.IsAbsolute) return;
             var px = System.Math.Clamp(value.Value, 96, 420);
             if (System.Math.Abs(_settings.ActivityTopHeight - px) < 0.5) return;
-            _settings.ActivityTopHeight = px; _settings.SaveSoon();   // (UI-thread sweep 09-06) per-drag-delta: debounced, off-thread
+            _settings.ActivityTopHeight = px; _settings.SaveSoon();   // per-drag-delta: debounced, off-thread
             OnPropertyChanged();
         }
     }
@@ -187,7 +187,7 @@ public partial class MainWindowViewModel
     }
 
     // ---- Close-confirmation (an X-close asks "Confirm Close or Minimize?") ----
-    /// <summary>(09-09) Queue sort pills: the two-word labels fit on one line at 1920 and WRAP at 1366,
+    /// <summary>Queue sort pills: the two-word labels fit on one line at 1920 and WRAP at 1366,
     /// and the wrapped second row overlaps the pane's Bottom-docked stats footer (a DockPanel does not clip,
     /// so a Top child that outgrows its share paints over the Bottom one). Shortening the labels below this
     /// width keeps the row to one line instead; the tooltips carry the full wording either way.</summary>
@@ -197,7 +197,7 @@ public partial class MainWindowViewModel
     {
         OnPropertyChanged(nameof(SortLabelInstallers)); OnPropertyChanged(nameof(SortLabelExtras));
     }
-    // Kind is TWO pills, not one toggle (owner 09-10). A single pill has to name one end of the toggle, and
+    // Kind is TWO pills, not one toggle. A single pill has to name one end of the toggle, and
     // then says the opposite of what it does after the second click -- what made "Primary first" unreadable.
     // Two pills mean each caption is a promise about what pressing it does.
     public string SortLabelInstallers => NarrowChrome ? "Installers" : "Installers first";
@@ -225,7 +225,7 @@ public partial class MainWindowViewModel
         try { Task.Run(() => _manifest?.SaveAsync() ?? Task.CompletedTask).Wait(TimeSpan.FromSeconds(5)); }
         catch { /* best-effort: never block a quit on a failing disk */ }
         try { _logFile?.Flush(TimeSpan.FromSeconds(2)); _logFile?.Close(); } catch { }   // drain the background writer, then release the file
-        try { AppSettings.FlushPendingSave(); } catch { }   // (UI-thread sweep 09-06) a debounced splitter save must not die with the process
+        try { AppSettings.FlushPendingSave(); } catch { }   // a debounced splitter save must not die with the process
     }
 
     /// <summary>Tray escalation levels for a notification the user might MISS (window hidden/minimized):
@@ -239,7 +239,7 @@ public partial class MainWindowViewModel
     private void NotifyUser(string title, string body, bool isError = true, string? toastBody = null,
                             int? attention = null, ToastFix? fixNav = null)
     {
-        // (09-19) Logged either way: a desktop notification leaves no trace in the app, so "did it fire?" had
+        // Logged either way: a desktop notification leaves no trace in the app, so "did it fire?" had
         // no answer on a walk. The line says which path carried it.
         bool os = Grog.App.Notifier.Notify(title, body);
         if (!os) ShowToast(toastBody ?? body, isError ? 2 : 0, fixNav);
@@ -286,13 +286,13 @@ public partial class MainWindowViewModel
     {
         get
         {
-            // A queue whose every row is red is not "0 Files" (QA 09-18): the rail counts the queue when nothing
+            // A queue whose every row is red is not "0 Files": the rail counts the queue when nothing
             // can land, the reachable files while a run has work.
             var n = Overview.RunActive && Overview.ReachableCount > 0 ? Overview.FilesLeftText : Overview.DownloadQueueCount.ToString();
             return $"{n} File{(n == "1" ? "" : "s")}";
         }
     }
-    /// <summary>(Rail exceptions 09-09) Overview's outstanding items. Only states that BLOCK the queue are
+    /// <summary>Overview's outstanding items. Only states that BLOCK the queue are
     /// reported here, and they are Faults: work merely outstanding is not an exception, it is the standing
     /// fact line 2 already carries ("N files queued"). This is what retired the red count pill -- a queue
     /// count is Attention at most, and red on it broke the colour law (red is loss or breakage, never
@@ -310,7 +310,7 @@ public partial class MainWindowViewModel
     }
 
     /// <summary>Queued work with NO connected account to serve it: as dead as fits-nowhere, so it
-    /// shares the red (owner 08-31). Cleared the moment any account connects.</summary>
+    /// shares the red. Cleared the moment any account connects.</summary>
     public bool QueueNeedsAccount => !IsConnected && !Overview.QueueIsEmpty;
     /// <summary>The queue chip's color IS the queue's health: amber while everything queued has a home
     /// (work outstanding is Attention), red once part of the queue fits on no device - the owner's chosen
@@ -335,7 +335,7 @@ public partial class MainWindowViewModel
             if (_queueUnplaceableBytes == value) return;
             _queueUnplaceableBytes = value;
             OnPropertyChanged(nameof(QueueUnplaceableBytes));
-            OnPropertyChanged(nameof(RailOverviewExceptions));   // (Rail exceptions 09-09)
+            OnPropertyChanged(nameof(RailOverviewExceptions));   // 
         }
     }
 
@@ -351,7 +351,7 @@ public partial class MainWindowViewModel
             _queueHasUnplaceable = value;
             OnPropertyChanged(nameof(QueueHasUnplaceable));
             OnPropertyChanged(nameof(ShowRailActivity));
-            OnPropertyChanged(nameof(RailOverviewExceptions));   // (Rail exceptions 09-09)
+            OnPropertyChanged(nameof(RailOverviewExceptions));   // 
             OnPropertyChanged(nameof(RailActivityBrush));
             OnPropertyChanged(nameof(RailActivityTip));
         }

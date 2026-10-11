@@ -240,7 +240,7 @@ public sealed class FileTokenStore : ITokenStore
     /// <summary>Cheap honesty probe: could the token file plausibly load in THIS process right now? Reads only
     /// the magic; a locked/canceled keyring makes a GRGK1 row read signed OUT rather than claiming a token
     /// it cannot use. Never throws.</summary>
-    // ---- Remembered readability (review 09-06) ----
+    // ---- Remembered readability ----
     // The App asks "is this token readable" for every account on every 1 Hz dashboard pass and on every scan
     // progress flush. Each ask is a stat + open + read on the config dir (a USB stick, portable) and, for a
     // keyring-sealed token on Linux, possibly a secret-tool process. Remembered for a few seconds per path;

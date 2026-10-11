@@ -23,7 +23,7 @@ public sealed class LibrarySyncService
     private readonly IManifestStore _manifest;
 
     /// <summary>Max concurrent gameDetails requests. Keep low; we are guests on this API.</summary>
-    // 6, up from 3 (owner call 09-01): scan wall time is ~products x RTT / parallelism, and the detail
+    // 6, up from 3: scan wall time is ~products x RTT / parallelism, and the detail
     // calls are tiny -- doubling the overlap roughly halves a scan. The shared backoff gate still slows
     // everything politely if GOG answers 429, so the ceiling is self-correcting.
     public int MaxParallelism { get; init; } = 6;
@@ -41,8 +41,8 @@ public sealed class LibrarySyncService
     /// Stamped onto every item so multi-account merges can group/attribute.</summary>
     public string AccountId { get; set; } = "";
 
-    /// <summary>(New items 09-09) The whole RUN started with an EMPTY library: this scan is the BASELINE
-    /// and flags nothing New (owner 09-19; GOG's own `isNew` is not consulted). Set by the RUN's host, not
+    /// <summary>The whole RUN started with an EMPTY library: this scan is the BASELINE
+    /// and flags nothing New. Set by the RUN's host, not
     /// per pass: account 2's pass already sees account 1's items, so a per-pass emptiness check is wrong.</summary>
     public bool BaselineScan { get; set; }
 
@@ -57,7 +57,7 @@ public sealed class LibrarySyncService
     /// for a multi-account run. Corrupt items are left alone (their red means something else already).
     /// An item owned ONLY by accounts no longer registered is UNANSWERABLE: no connected account can ask
     /// GOG about it, so "unseen" says nothing -- it is never flagged, and a stale flag is withdrawn
-    /// (owner-hit 2026-08-30: removing an account painted its 15 games "delisted by GOG", all false).
+    /// (removing an account painted its 15 games "delisted by GOG", all false).
     /// Returns how many items were newly flagged.</summary>
     public static int ApplyDelistedSweep(LibraryManifest manifest, IReadOnlyCollection<long> seenIds)
     {
@@ -97,7 +97,7 @@ public sealed class LibrarySyncService
     /// "this title's data and its art are both done." Best-effort: the sync ignores any art failure.</summary>
     public Func<long, CancellationToken, Task>? FetchArtAsync { get; set; }
 
-    /// <summary>(09-19, walk pass 3) Store-page metadata (languages, age ratings) fetched for a product that is
+    /// <summary>Store-page metadata (languages, age ratings) fetched for a product that is
     /// NOT IN THE LIBRARY YET. The art hook runs during the fetch phase, before the merge creates the item, so on
     /// a first scan the host had no item to write to and threw the metadata away for EVERY game: "Hide mature
     /// content" had nothing to act on and the detail pane showed no ratings until a second scan. The host stashes
@@ -126,7 +126,7 @@ public sealed class LibrarySyncService
     /// them, and the delisting pass is skipped so unchecked items aren't wrongly flagged.</summary>
     /// <summary>One scan, in stages: the listing (owned ids, rich rows, mod tags), the parallel detail
     /// fetch, the excluded list, the merge into the manifest, optional product enrichment, then the
-    /// delisted sweep and the log entry. Was one 265-line method until 09-02; each stage is below.</summary>
+    /// delisted sweep and the log entry. Was one 265-line method until; each stage is below.</summary>
     public async Task<SyncResult> RunAsync(IReadOnlyCollection<long>? onlyIds, CancellationToken ct = default)
     {
         var startedAt = DateTimeOffset.UtcNow;
@@ -136,7 +136,7 @@ public sealed class LibrarySyncService
         var targetIds = onlyIds is { Count: > 0 } ? listing.OwnedIds.Where(onlyIds.Contains).ToList() : listing.OwnedIds;
         var fetch = await FetchDetailsAsync(targetIds, ct);
 
-        // The merge is the scan's write to the graph: under the manifest gate (09-08), so the App's reads,
+        // The merge is the scan's write to the graph: under the manifest gate, so the App's reads,
         // the settler and a concurrent save see either the old library or the new one, never a half-merge.
         HashSet<long> seenIds;
         using (_manifest.Gate.Enter())
@@ -273,7 +273,7 @@ public sealed class LibrarySyncService
             catch (Auth.AuthExpiredException) { throw; }   // dead session: every later fetch fails too
             catch (Exception fex)
             {
-                // Same rule as parse failures (owner-hit 09-01: ONE product 500ing at 157/158 aborted the
+                // Same rule as parse failures (ONE product 500ing at 157/158 aborted the
                 // whole scan and threw away 157 fetched products): record, continue, report at the end.
                 lock (o.FetchFailedIds) { o.FetchFailedIds.Add(id); o.FetchFailReason ??= fex.Message; }
             }
@@ -319,14 +319,14 @@ public sealed class LibrarySyncService
     /// merged) so it cannot drift from what GOG last said; multi-account hosts rebuild the union instead.</summary>
     /// <para><paramref name="scopedTo"/> (a "check selected" pass): this scan asked about THOSE ids only, so it
     /// may only replace THEIR entries. Rebuilding the whole list from a subset wiped every other excluded
-    /// product until the next full scan (sweep 2 #14).</para>
+    /// product until the next full scan.</para>
     private void RecordExcluded(SyncResult result, FetchOutcome fetch, Listing listing, IReadOnlyCollection<long>? scopedTo = null)
     {
         result.ExcludedProducts = fetch.NoDetailIds
             .Select(id => MakeExcluded(id, listing, null))
             .OrderBy(e => e.Title, System.StringComparer.OrdinalIgnoreCase)
             .ToList();
-        // FETCH-FAILED products join the excluded list with their own reason (owner call 09-01, NWN
+        // FETCH-FAILED products join the excluded list with their own reason (NWN
         // Diamond: a delisted promo claim whose gameDetails 500s server-side).
         result.ExcludedProducts.AddRange(fetch.FetchFailedIds.Select(id => MakeExcluded(id, listing, FetchFailedReason)));
         if (!listing.RichOk) result.ExcludedProducts = new List<ExcludedProduct>(_manifest.Current.Excluded);   // keep last known
@@ -348,7 +348,7 @@ public sealed class LibrarySyncService
     /// delisted. Only genuinely-unlisted products stay unseen.</summary>
     private HashSet<long> ApplyFetched(SyncResult result, FetchOutcome fetch, Listing listing)
     {
-        _manifest.Gate.AssertHeld();   // canary (manifest gate 09-08): the caller holds the gate around the whole apply
+        _manifest.Gate.AssertHeld();   // canary: the caller holds the gate around the whole apply
         var existingById
  = _manifest.Current.Items.ToDictionary(i => i.GogId);
         var seenIds = new HashSet<long>();
@@ -367,14 +367,14 @@ public sealed class LibrarySyncService
             else
             {
                 // A brand-new item's files are owned by the account this scan runs as.
-                // (09-19) The sizeless rule runs here too: MergeInto was its only caller, so on the FIRST scan
+                // The sizeless rule runs here too: MergeInto was its only caller, so on the FIRST scan
                 // (every item is brand new) a file GOG lists with no size was queued as "Size unknown".
                 foreach (var f in incoming.Files)
                 {
                     if (!f.OwnerIds.Contains(AccountId)) f.OwnerIds.Add(AccountId);
                     MarkSizelessUnavailable(f);
                 }
-                // (New items 09-09) The one place newness is decided: the first scan of an empty library
+                // The one place newness is decided: the first scan of an empty library
                 // is the baseline and flags nothing; every later scan flags what the manifest had never seen.
                 incoming.IsNew = !BaselineScan;
                 if (_stashedMeta.TryRemove(id, out var meta))
@@ -436,7 +436,7 @@ public sealed class LibrarySyncService
             {
                 var info = await _api.GetProductInfoAsync(item.GogId, ct);
                 if (info is null) continue;
-                using (_manifest.Gate.Enter())   // (manifest gate 09-08) Languages is a list swap on the graph
+                using (_manifest.Gate.Enter())   // Languages is a list swap on the graph
                 {
                     item.GameType = string.IsNullOrEmpty(info.GameType) ? item.GameType : info.GameType;
                     if (info.ReleaseDate is { } rd) item.ReleaseDate = rd;
@@ -558,7 +558,7 @@ public sealed class LibrarySyncService
         existing.Dlcs = incoming.Dlcs; // DLC handled shallowly: replaced wholesale each sync
     }
 
-    /// <summary>A file GOG lists with NO size (blank, or "0 MB") is nothing to download (owner, 09-13). It is
+    /// <summary>A file GOG lists with NO size (blank, or "0 MB") is nothing to download. It is
     /// treated exactly like a file GOG refuses to serve: <see cref="FileState.Unavailable"/>, so it is never
     /// queued, never enters a completeness number, and shows in the "can't be downloaded" list with its
     /// reason. Until then it sat in the queue as "Size unknown" and sorted as the smallest file. Sync
@@ -588,7 +588,7 @@ public sealed record SyncProgress(int Completed, int Total);
 public sealed class SyncResult
 {
     /// <summary>The sum over a multi-account run's passes, every field. The App and CLI each kept a
-    /// hand-rolled copy before 09-02 and the CLI's dropped five fields (it reported 0 fetch failures).</summary>
+    /// hand-rolled copy before and the CLI's dropped five fields (it reported 0 fetch failures).</summary>
     public static SyncResult Aggregate(System.Collections.Generic.IEnumerable<AccountSyncPass> passes)
     {
         var agg = new SyncResult();
@@ -609,7 +609,7 @@ public sealed class SyncResult
         }
         // A product two accounts own was seen by both passes: the RUN saw it once. Summed, a 100-game library
         // shared by two accounts reported "200 products" and the "N non-downloadable" readout doubled with it
-        // (sweep 2 #15). SeenIds already is the union; the no-detail ids are made one the same way.
+        // . SeenIds already is the union; the no-detail ids are made one the same way.
         if (agg.SeenIds.Count > 0) agg.GamesSeen = agg.SeenIds.Count;
         agg.NoDetailProductIds = agg.NoDetailProductIds.Distinct().ToList();
         agg.NoDetailsProducts = agg.NoDetailProductIds.Count;

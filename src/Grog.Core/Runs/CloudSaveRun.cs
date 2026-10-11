@@ -26,7 +26,7 @@ public sealed record CloudSaveSelection(CloudSaveSelectionKind Kind, IReadOnlyLi
     public static CloudSaveSelection All { get; } = new(CloudSaveSelectionKind.All, Array.Empty<long>(), null);
     public static CloudSaveSelection ForGames(IEnumerable<long> gogIds) => new(CloudSaveSelectionKind.Games, gogIds.Distinct().ToList(), null);
     public static CloudSaveSelection ForAccount(string accountId) => new(CloudSaveSelectionKind.Account, Array.Empty<long>(), accountId);
-    /// <summary>One (game, account) archive: the App's per-row Download. (S2.2)</summary>
+    /// <summary>One (game, account) archive: the App's per-row Download. </summary>
     public static CloudSaveSelection ForEntry(long gogId, string accountId) => new(CloudSaveSelectionKind.Entry, new[] { gogId }, accountId);
 
     internal bool Includes(LibraryItem item, CloudAccountSave entry) => Kind switch
@@ -73,7 +73,7 @@ public sealed record CloudSavePruneResult(IReadOnlyList<CloudSavePruneEntry> Ent
 /// a dated local save into that ACCOUNT's archive folder (co-saved games never mix), apply retention, and record
 /// the bookkeeping -- per-account entry first, legacy single-slot fields mirrored -- ONLY when files were
 /// actually written. Retention alone is <see cref="PruneAsync"/>. The App's CloudSavesViewModel and the
-/// CLI's Cloudsaves verb each carried a copy until 09-08 (the CLI's recorded a listing as a backup).
+/// CLI's Cloudsaves verb each carried a copy until (the CLI's recorded a listing as a backup).
 ///
 /// <para>Sessions: per-account chains (<see cref="AccountSessions"/>, non-interactive, can never pop a login)
 /// when accounts are registered, the legacy tokens.json session otherwise -- the App's CloudServiceFor rule.</para>
@@ -118,7 +118,7 @@ public sealed class CloudSaveRun
     /// the rows the App's page shows. Read under the gate (SeedLegacy migrates pre-account manifests first).</summary>
     public IReadOnlyList<(LibraryItem Item, CloudAccountSave Entry)> Targets(CloudSaveSelection selection)
     {
-        using (_store.Gate.Enter())   // (manifest gate 09-08)
+        using (_store.Gate.Enter())   // 
         {
             var m = _store.Current;
             CloudSaveReconciler.SeedLegacy(m);
@@ -192,7 +192,7 @@ public sealed class CloudSaveRun
             if (!string.IsNullOrEmpty(clientId))
             {
                 var cid = clientId;
-                _store.Mutate(_ => item.CloudClientId = cid);   // (manifest gate 09-08)
+                _store.Mutate(_ => item.CloudClientId = cid);   // 
                 await _store.SaveAsync(ct);
             }
         }
@@ -221,7 +221,7 @@ public sealed class CloudSaveRun
         catch { /* best-effort prune; the local save itself is already safely written */ }
 
         var now = Now();
-        using (_store.Gate.Enter())   // (manifest gate 09-08)
+        using (_store.Gate.Enter())   // 
         {
             entry.LastBackup = now;
             entry.LocalSaveCount += 1;
@@ -271,7 +271,7 @@ public sealed class CloudSaveRun
             {
                 // Per-account entry first, mirror second (the reconciler's single write path); RecordLocalSaves
                 // owns the empty-history reset. Same re-derive the App's DeleteLocalSave does.
-                using (_store.Gate.Enter())   // (manifest gate 09-08)
+                using (_store.Gate.Enter())   // 
                     CloudSaveReconciler.RecordLocalSaves(item, entry.AccountId, remaining.Count,
                         remaining.Count > 0 ? remaining[0].StampUtc : (DateTimeOffset?)null);
                 changed = true;

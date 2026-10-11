@@ -22,16 +22,16 @@ public sealed record BackupLocationRow(
     long GrogBytes, long FreeBytes, long TotalBytes, int FileCount, string FitColor)
 {
     /// <summary>Which content roles this device holds (By-content mode). Highlights the role chips.</summary>
-    /// <summary>The card's take-out button (09-13): the primary cannot be detached, so it says Forget; every other
+    /// <summary>The card's take-out button: the primary cannot be detached, so it says Forget; every other
     /// storage says Detach. The dialog it opens uses the same word.</summary>
     public string DetachLabel => IsPrimary ? "Forget…" : "Detach…";
-    /// <summary>(09-15) The user's name for the drive (root.Label), shown before the path only when it is not just
+    /// <summary>The user's name for the drive (root.Label), shown before the path only when it is not just
     /// the folder name. Set by the builder.</summary>
     public string Name { get; init; } = "";
     public bool ShowName { get; init; }
     public string NameInParens => $"({Name})";
     /// <summary>The drive by its own name (custom label or folder name), never the slot word: for log lines
-    /// about a slot change, where "Secondary is now the primary" says nothing once the roles have moved (09-16).</summary>
+    /// about a slot change, where "Secondary is now the primary" says nothing once the roles have moved.</summary>
     public string DriveName => string.IsNullOrEmpty(Name) ? Label : Name;
     public string RenameTip => ShowName ? $"Rename {Name}" : "Name this storage";
     public bool HoldsGames { get; init; }
@@ -43,7 +43,7 @@ public sealed record BackupLocationRow(
     /// <summary>The card's "nothing here yet" placeholder keys on FILES, not on the bar's own visibility:
     /// with exactly one content bucket the bar hides (solid bar says nothing) but files ARE here, and
     /// borrowing !HasComposition made the card claim "Nothing backed up here yet" under a header counting
-    /// 1 game / 33 MB (MacinCloud 2026-08-28).</summary>
+    /// 1 game / 33 MB.</summary>
     public bool NothingBackedUpHere => FileCount == 0;
 
     // Fixed slots, because a proportional bar needs star-sized grid columns and those can't be generated
@@ -156,8 +156,8 @@ public sealed record BackupLocationRow(
     /// <summary>Offline BUT removable = safely detached, not a problem. Suppressed until status is known.</summary>
     public bool IsDisconnected => StatusKnown && !IsOnline && Removable;
     public string StatusWord => !StatusKnown ? "" : JustReattached ? "Reconnected" : IsOnline ? "Connected" : Removable ? "Disconnected" : "Offline";
-    /// <summary>(1282) "Verifying 37 / 192" while this storage's adopted files are being checked; "" otherwise. A verify
-    /// defers moves and showed nowhere before (walk 09-30: a queued move "waits for the current scan or verify" over
+    /// <summary>"Verifying 37 / 192" while this storage's adopted files are being checked; "" otherwise. A verify
+    /// defers moves and showed nowhere before (a queued move "waits for the current scan or verify" over
     /// a card that read plain Connected).</summary>
     public string VerifyText { get; init; } = "";
     public bool IsVerifying => VerifyText.Length > 0;
@@ -182,7 +182,7 @@ public sealed record BackupLocationRow(
     // Split halves so the VALUES stay white and the connecting words go dim (value outweighs label).
     public string CapacityFreeText  => F(FreeBytes);
     public string CapacityTotalText => F(TotalBytes);
-    /// <summary>(Storage math 09-09) What Grog holds IN THIS FOLDER, as a size. It replaced a percentage of
+    /// <summary>What Grog holds IN THIS FOLDER, as a size. It replaced a percentage of
     /// the DRIVE in the Storage Status row: on a 952 GB volume holding 252 MB that percentage rounded to
     /// "0.0%", so the row announced nothing was here while 22 files sat in the folder. A folder-scoped
     /// quantity beside a drive-scoped capacity is the honest pairing; the percentage was neither.</summary>

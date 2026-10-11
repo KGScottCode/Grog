@@ -12,14 +12,14 @@ namespace Grog.Core.Sync;
 
 /// <summary>
 /// The ONE place Grog deletes a user's downloaded bytes, and it does so only on the user's explicit
-/// Delete (right-click on a file, a game, or a section -- owner, 09-11; this reverses the older "never
+/// Delete (right-click on a file, a game, or a section --; this reverses the older "never
 /// delete user files" rule, which now reads "never delete without being told to"). Per file: the copy on
 /// disk goes, so do its archived builds under Old Versions/ (they are builds OF that file; a file the user
 /// no longer wants has no revert path to keep) and its resumable .part, the record goes back to
 /// never-downloaded, and the now-empty folders Grog made are removed. A file that is queued or in flight is
 /// skipped, not raced: the download is the newer intent.
 ///
-/// THREE STEPS, so the disk work never runs under the manifest gate (09-13): <see cref="Plan"/> reads the
+/// THREE STEPS, so the disk work never runs under the manifest gate: <see cref="Plan"/> reads the
 /// records and resolves paths (gate held), <see cref="Execute"/> touches the disk (no gate), <see cref="Apply"/>
 /// rewrites the records for what actually went (gate held). <see cref="Delete"/> composes them for callers
 /// that already hold the gate and do not mind (tests, the CLI).
@@ -159,7 +159,7 @@ public static class LocalDeletion
     }
 
     /// <summary>Step 3 (gate held): the records, for what actually went. Back to never-touched (owner,
-    /// 09-13): no local facts, no download history, no verify stamp, no carried strikes. What GOG told us
+    /// ): no local facts, no download history, no verify stamp, no carried strikes. What GOG told us
     /// about the file (version, md5, size, resolved name) stays; those are facts about the file, not our copy.</summary>
     public static Result Apply(LibraryManifest m, DeletePlan plan, IReadOnlyList<Outcome> outcomes, List<string> failures)
     {

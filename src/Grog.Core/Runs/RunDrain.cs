@@ -16,7 +16,7 @@ public enum DrainState
     PausedAfterFinish,
 }
 
-/// <summary>(09-19, one state since 09-22) "Finish current files": the clean stop. It applies to the Back-up run in
+/// <summary>"Finish current files": the clean stop. It applies to the Back-up run in
 /// flight only (the per-file executor never drains); a request made before that run's engine exists is applied
 /// the moment it does. One state instead of the seven flags it grew from; the host only reads it.</summary>
 public sealed class RunDrain
@@ -24,7 +24,7 @@ public sealed class RunDrain
     private readonly object _gate = new();
     private DownloadEngine? _engine;
     private bool _runLive;
-    // (09-25, owner) "Finish current files" from a pause: armed before the Resume starts its run, applied to that run.
+    // "Finish current files" from a pause: armed before the Resume starts its run, applied to that run.
     private System.Collections.Generic.IReadOnlySet<(long, string)>? _armedOnly, _only;
 
     /// <summary>Arm a finish of ONLY these files (the ones in progress) for the run the next Resume starts.</summary>
@@ -54,7 +54,7 @@ public sealed class RunDrain
         }
     }
 
-    /// <summary>(09-22, owner) "Keep downloading": take the request back while the run is live. Before the engine
+    /// <summary>"Keep downloading": take the request back while the run is live. Before the engine
     /// exists it is just forgotten; after, the engine starts taking files again. False = too late (the run ended).</summary>
     public bool Cancel()
     {

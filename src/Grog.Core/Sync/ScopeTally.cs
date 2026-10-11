@@ -6,7 +6,7 @@ using Grog.Core.Models;
 namespace Grog.Core.Sync;
 
 /// <summary>
-/// What each choice on ONE scope axis would COST, priced against the user's other choices (09-11).
+/// What each choice on ONE scope axis would COST, priced against the user's other choices.
 ///
 /// The rule every axis follows, and the reason this is not just a filtered sum: the axis being priced is
 /// LIFTED out of the scope first. An option the user has not picked must show what picking it would cost,

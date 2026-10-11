@@ -42,7 +42,7 @@ public sealed class LibraryManifest
 
     /// <summary>Keep the build an update replaces, under "Old Versions/". A LIBRARY fact, not an app
     /// preference: it travels with the backup so a cron `grog backup` honours it too (it silently overwrote
-    /// superseded builds while this lived in the App's settings file; 09-02). The App migrates its old
+    /// superseded builds while this lived in the App's settings file;). The App migrates its old
     /// setting in once, one-way.</summary>
     public bool KeepOldVersions { get; set; }
 
@@ -73,7 +73,7 @@ public sealed class LibraryManifest
     }
 
     /// <summary>The CLI's game query: an exact GOG id, else the first title containing the text
-    /// (case-insensitive). Six verbs each spelled this out before 09-02.</summary>
+    /// (case-insensitive). Six verbs each spelled this out before.</summary>
     public LibraryItem? FindItem(string query)
         => Items.FirstOrDefault(i => i.GogId.ToString() == query
                                   || (i.Title?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false));

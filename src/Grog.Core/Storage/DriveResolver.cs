@@ -75,7 +75,7 @@ public static class DriveResolver
     /// for a path probes synchronously (startup, drive idle); after that a stale entry is returned as-is and
     /// refreshed on a worker. GetDiskFreeSpaceEx on a removable volume with write-through, while the engine is
     /// writing to it, can block for seconds - on the UI thread that froze the whole window every few seconds
-    /// (owner-hit 09-04). Pass <paramref name="fresh"/> = true to force a synchronous probe.</summary>
+    /// . Pass <paramref name="fresh"/> = true to force a synchronous probe.</summary>
     public static DriveState Probe(string path, bool fresh = false)
     {
         string key;
@@ -98,7 +98,7 @@ public static class DriveResolver
         return e.State;
     }
 
-    // (09-25, owner) "Waiting for H: to respond": every real call into a volume's metadata is registered here while it
+    // "Waiting for H: to respond": every real call into a volume's metadata is registered here while it
     // runs, so the App can say which drive is slow to answer instead of freezing or spinning in silence.
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, long> _busySince = new(StringComparer.OrdinalIgnoreCase);
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> _busyDepth = new(StringComparer.OrdinalIgnoreCase);
@@ -162,7 +162,7 @@ public static class DriveResolver
                 // macOS (and any firmlinked/bind-mounted layout): the longest-prefix mount match above can
                 // land on the WRONG volume - /Users/... reaches the data volume through a firmlink, so its
                 // literal prefix matches "/" (the SEALED READ-ONLY system snapshot) and the free figure
-                // freezes forever (owner chased this for an evening, 2026-08-29; dotnet/runtime#28902).
+                // freezes forever (owner chased this for an evening,; dotnet/runtime#28902).
                 // statfs the actual path instead: the Unix DriveInfo(name) ctor stats the path it is given,
                 // which follows the firmlink to the volume the bytes really land on.
                 try
@@ -193,7 +193,7 @@ public static class DriveResolver
 
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (string? Root, long At)> _mountRootCache
         = new(StringComparer.Ordinal);
-    /// <summary>(Mac walk 09-25: "UI thread ran a mount-table scan") <see cref="MountRootOf"/> for UI-thread callers: the
+    /// <summary>("UI thread ran a mount-table scan") <see cref="MountRootOf"/> for UI-thread callers: the
     /// last answer for this path, refreshed on a worker after a minute. The first call for a path returns null (the
     /// caller's own-volume fallback) and fills the cache in the background. Windows computes it inline (a name only).</summary>
     public static string? MountRootCached(string path)
@@ -227,13 +227,13 @@ public static class DriveResolver
 
     /// <summary>The largest single file the volume behind <paramref name="path"/> can hold, or long.MaxValue when
     /// it has no practical limit. FAT32 stops at 4 GiB - 1 and Windows reports the overrun as "not enough space on
-    /// the disk": a 6.1 GB installer died at byte 4,294,981,975 on a FAT32 stick the planner said it fit (walk 09-19).</summary>
+    /// the disk": a 6.1 GB installer died at byte 4,294,981,975 on a FAT32 stick the planner said it fit.</summary>
     public static long MaxFileBytes(string path)
     {
         try
         {
             // The UI thread never scans the mount table (For on Unix): it reads the cached answer for the volume, or
-            // "no known limit" while a worker fills it (Mac walk 10-10: one startup ask still scanned on the UI thread).
+            // "no known limit" while a worker fills it (one startup ask still scanned on the UI thread).
             if (!OperatingSystem.IsWindows() && UiThreadGuard.IsUiThread?.Invoke() == true)
             {
                 if (MountRootCached(path) is { } uiRoot)
@@ -265,7 +265,7 @@ public static class DriveResolver
                     }
                     return hit.Max;
                 }
-            // (09-25) The first ask for a volume from the UI thread no longer waits for the drive: the answer is fetched
+            // The first ask for a volume from the UI thread no longer waits for the drive: the answer is fetched
             // in the background and "no known limit" stands in until it lands. Every planner asks off the UI thread,
             // where this still waits for the real answer, so placement never runs on the stand-in.
             if (UiThreadGuard.IsUiThread?.Invoke() == true)
@@ -285,9 +285,9 @@ public static class DriveResolver
     private static readonly Dictionary<string, (long Max, long At)> _maxFileCache = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The per-file ceiling for a filesystem name as DriveInfo reports it (Windows "FAT32"/"FAT", Unix "vfat"/"msdos").</summary>
-    // ---- cluster size (1288): what one file really costs the disk is its size rounded up to the allocation unit. The
+    // ---- cluster size: what one file really costs the disk is its size rounded up to the allocation unit. The
     // plan used to add a flat 256 KB per file instead, and gave it back on landing, so the end-of-run re-check found
-    // room for one more small file after every landing (walk 10-01: 23 planned, 34 landed, one at a time).
+    // room for one more small file after every landing (23 planned, 34 landed, one at a time).
     private static readonly Dictionary<string, long> _clusterCache = new(StringComparer.OrdinalIgnoreCase);
     /// <summary>The volume's allocation unit in bytes, asked of the filesystem (Windows GetDiskFreeSpace, POSIX statvfs),
     /// else a conservative figure for the format. Cached per volume for the process; the first ask from the UI thread

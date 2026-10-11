@@ -54,10 +54,10 @@ public static class Rollups
     }
 
     /// <summary>FILE-COUNT progress for one product, 0-100, in the unit the Library row's bar and fraction use
-    /// (owner 09-16): every present in-scope file is one, and a file mid-transfer is the fraction of it that
+    /// : every present in-scope file is one, and a file mid-transfer is the fraction of it that
     /// has arrived, so the bar still climbs smoothly. The row's live figure was byte-weighted while its resting
     /// figure was file-weighted, and the bar took the larger: a game whose one big file was done read 90%
-    /// while downloading and fell to 20% (1/5) the moment the run ended (sweep 2 #18). Same scoped set as
+    /// while downloading and fell to 20% (1/5) the moment the run ended. Same scoped set as
     /// <see cref="BackupScope.Scoped"/>.</summary>
     public static double GameFilePercent(LibraryItem item, Scope scope, InFlightBytes? inFlight = null)
     {

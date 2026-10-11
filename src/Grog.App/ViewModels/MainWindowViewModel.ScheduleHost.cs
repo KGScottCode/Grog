@@ -16,7 +16,7 @@ public partial class MainWindowViewModel : IScheduleHost
     internal Grog.Core.Scheduling.BackupSchedule? Sched => _servicesReady ? _manifest.Current.Schedule : null;
 
     Grog.Core.Scheduling.BackupSchedule? IScheduleHost.Schedule => Sched;
-    Grog.Core.Manifest.ManifestGate? IScheduleHost.ManifestGate => _servicesReady ? _manifest.Gate : null;   // (manifest gate 09-08)
+    Grog.Core.Manifest.ManifestGate? IScheduleHost.ManifestGate => _servicesReady ? _manifest.Gate : null;   // 
 
     bool IScheduleHost.Busy => Busy;
     bool IScheduleHost.DownloadRunning => DownloadRunning;

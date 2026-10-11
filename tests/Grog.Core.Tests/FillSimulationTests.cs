@@ -22,9 +22,9 @@ using Grog.Core.Volumes;
 namespace Grog.Core.Tests;
 
 /// <summary>
-/// FILL SIMULATION (owner 09-19). Every fit rule has its own unit test; what nothing tested was the LOOP: plan,
+/// FILL SIMULATION. Every fit rule has its own unit test; what nothing tested was the LOOP: plan,
 /// download, the drive fills, re-plan, hold the rest, stop, resume, add a drive. The owner's 16 GB FAT32 stick was
-/// the only thing that exercised it, at twenty minutes a fill, and on 09-19 it found a whole family of defects in
+/// the only thing that exercised it, at twenty minutes a fill, and on it found a whole family of defects in
 /// one afternoon (FAT32's per-file ceiling, a dead partial holding the drive full, packing to the byte, disk-full
 /// strikes, orphaned partials).
 ///
@@ -205,7 +205,7 @@ public sealed class FillSimulationTests
                 e.DebugTrace = msg => { if (msg.StartsWith("room ") || msg.StartsWith("FAIL")) lock (Host.Logged) Host.Logged.Add(DateTime.Now.ToString("mm:ss.fff ") + msg + " | used=" + Drives[0].Used()); };
                 e.FreeBytesProbe = p => DriveOf(p)?.Free();
                 e.MaxFileBytesProbe = p => DriveOf(p)?.MaxFile ?? long.MaxValue;
-                e.ClusterBytesProbe = _ => Cluster;   // the sim drive's own unit (1288)
+                e.ClusterBytesProbe = _ => Cluster;   // the sim drive's own unit
             };
         }
 
@@ -285,7 +285,7 @@ public sealed class FillSimulationTests
             Sample("plan");
             var primary = Store.Current.PrimaryRootId;
             return Drives.OrderByDescending(d => d.RootId == primary)
-                .Select(d => new DeviceSpace(d.RootId, Math.Max(0, d.Free() - Pending.ForVolume(d.Path) - DownloadEngine.FloorBytes), true, (d.Host ?? d).RootId)   // as DeviceSpace.ForRoot does: the floor off the top (1288)
+                .Select(d => new DeviceSpace(d.RootId, Math.Max(0, d.Free() - Pending.ForVolume(d.Path) - DownloadEngine.FloorBytes), true, (d.Host ?? d).RootId)   // as DeviceSpace.ForRoot does: the floor off the top
                 { MaxFileBytes = d.MaxFile, Path = d.Path, ClusterBytes = Cluster }).ToList();
         }
 
@@ -384,7 +384,7 @@ public sealed class FillSimulationTests
                 if (real > d.MaxFile) continue;
                 long partialHere = f.HasPartial && (f.PartialRootId ?? m.PrimaryRootId) == d.RootId ? f.PartialBytes ?? 0 : 0;
                 long need = Grog.Core.Storage.DriveResolver.OnDisk(Math.Max(f.PlanSizeBytes ?? 0, real), Cluster) - partialHere;
-                long spendable = d.Free() - DownloadEngine.FloorBytes;   // the floor is nobody's (1288)
+                long spendable = d.Free() - DownloadEngine.FloorBytes;   // the floor is nobody's
                 Assert.True(need > spendable, P($"{f.FileKey} is held but needs {need} and {Path.GetFileName(d.Path)} has {spendable} spendable"));
             }
         }
@@ -580,7 +580,7 @@ public sealed class FillSimulationTests
         AssertSettledState(s, await s.RunAsync(resume: true), tag + " after the drain");
     }
 
-    /// <summary>(09-22, owner "Keep downloading") Finish current files, taken back a moment later: whether the undo
+    /// <summary>Finish current files, taken back a moment later: whether the undo
     /// lands (the run carries on) or comes too late (it ends drained), the end state is the settled fill.</summary>
     private static async Task UndoDrainStory(Sim s, string tag, int seed)
     {
@@ -591,7 +591,7 @@ public sealed class FillSimulationTests
         AssertSettledState(s, r, tag + " after keep downloading");
     }
 
-    /// <summary>(09-22, owner) Moves and downloads run side by side. A move onto drive A registers what it still has
+    /// <summary>Moves and downloads run side by side. A move onto drive A registers what it still has
     /// to write there (PendingWrites); a fill of A running at the same time must plan around it: never over-commit,
     /// never fail a transfer. The move here is simulated by a registered pending-write ledger that drains over time.</summary>
     private static async Task ParallelMoveStory(Sim s, string tag, int seed)

@@ -33,7 +33,7 @@ public sealed record HealthFileRow(string Title, string Name, string SizeText, s
         var name = !string.IsNullOrEmpty(f.LocalRelativePath)
             ? System.IO.Path.GetFileName(f.LocalRelativePath) : f.FileKey;
         long bytes = Grog.Core.Sync.Rollups.HeldBytesOf(f);
-        // (09-19) A hidden game's problem file is still a problem and still listed and counted; it is not named.
+        // A hidden game's problem file is still a problem and still listed and counted; it is not named.
         if (QueueRow.IsHiddenGame(item.GogId))
             return new HealthFileRow(QueueRow.HiddenLabel, "", Grog.Core.Format.ByteFormat.Size(bytes), f.UnavailableReason ?? "");
         return new HealthFileRow(item.Title, name, Grog.Core.Format.ByteFormat.Size(bytes),
@@ -41,7 +41,7 @@ public sealed record HealthFileRow(string Title, string Name, string SizeText, s
     }
 }
 
-/// <summary>(Rail exceptions 09-09) One outstanding item on a rail entry: the words, and the SEVERITY that
+/// <summary>One outstanding item on a rail entry: the words, and the SEVERITY that
 /// decides both its order in the stack and its colour. It carries the severity rather than a brush so
 /// <see cref="SeverityBrush"/> stays the one place a grading becomes a colour (the d234 rule).</summary>
 public sealed record RailException(string Text, Grog.Core.Sync.Severity Severity)

@@ -6,7 +6,7 @@ using Grog.Core.Runs;
 namespace Grog.App.ViewModels;
 
 /// <summary>
-/// What <see cref="ExtrasPlacementEditor"/> needs from the shell, and nothing else (09-11).
+/// What <see cref="ExtrasPlacementEditor"/> needs from the shell, and nothing else.
 ///
 /// The editor took the concrete MainWindowViewModel, which made the one card that carries a real bug fix
 /// the one card that could not be tested: constructing the root view model means constructing the app.
@@ -30,7 +30,7 @@ public interface IExtrasPlacementHost
     IReadOnlyList<(string? RootId, string? Label)> Locations { get; }
 
     /// <summary>Extras are in the backup scope, which is what shows the card at all. Out of scope the card is
-    /// hidden, and a hidden card must hold no staging (sweep 2 #29).</summary>
+    /// hidden, and a hidden card must hold no staging.</summary>
     bool ExtrasInScope { get; }
 
     /// <summary>True while the Storage page is holding an unanswered move question.</summary>

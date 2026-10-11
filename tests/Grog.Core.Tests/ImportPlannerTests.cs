@@ -50,7 +50,7 @@ public class ImportPlannerTests
         Assert.Equal(2L, plan.Matched[0].GogId, "matched the more specific DOOM 3: Phobos");
     }
 
-    /// <summary>(09-17) A name the record carries beats GOG's rounded size: a forgotten drive re-added dropped
+    /// <summary>A name the record carries beats GOG's rounded size: a forgotten drive re-added dropped
     /// 5 of 44 files because a 2.7 GB part is reported as 2.68 GB and tiny extras as "1 MB". The last-held path's
     /// leaf and the CDN name are authoritative, whatever the size says.</summary>
     [Test]
@@ -69,7 +69,7 @@ public class ImportPlannerTests
         Assert.Equal("k1,k2", string.Join(",", plan.Matched[0].Files.Select(f => f.FileKey).OrderBy(k => k)), "both adopted by name");
     }
 
-    /// <summary>(09-17) A game whose only files are extras has no installer at its top level; its folder must
+    /// <summary>A game whose only files are extras has no installer at its top level; its folder must
     /// still count as a game folder or the walk's depth cap skips it.</summary>
     [Test]
     void Extras_only_game_folder_is_scanned()
@@ -85,7 +85,7 @@ public class ImportPlannerTests
         Assert.Equal("k1", plan.Matched[0].Files.Single().FileKey);
     }
 
-    /// <summary>(09-19, walk pass 3) A backup root keeps an empty top-level Extras folder after a separate extras
+    /// <summary>A backup root keeps an empty top-level Extras folder after a separate extras
     /// tree was ever applied. The root then read as ONE game folder ("no library match") and nothing under Games
     /// was scanned: a forgotten drive re-added adopted 0 files.</summary>
     [Test]
@@ -189,7 +189,7 @@ public class ImportPlannerTests
     {
         // GOG serves one extra under two products with the SAME download path (Ultima Underworld I and II both
         // list Ultima_Underworld_1_2_QRC.zip). A manifest-wide FileKey map adopted game 1's entry twice and left
-        // game 2 "gone from disk" (owner-hit 09-04). The lookup is per game.
+        // game 2 "gone from disk". The lookup is per game.
         var (store, root) = NewManifest();
         store.Current.Items.Add(Item(1, "Ultima Underworld I", "ultima_underworld_i", ("/downloads/uw1/setup", "Setup", 50000), ("/downloads/uw/qrc", "QRC", 9000)));
         store.Current.Items.Add(Item(2, "Ultima Underworld II", "ultima_underworld_ii", ("/downloads/uw2/setup", "Setup", 60000), ("/downloads/uw/qrc", "QRC", 9000)));

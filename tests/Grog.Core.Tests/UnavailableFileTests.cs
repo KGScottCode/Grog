@@ -20,7 +20,7 @@ public class UnavailableFileTests
             {
                 GameGogId = 7, FileKey = key, Kind = FileKind.Installer, Name = key, State = state,
                 LocalRelativePath = state is FileState.Present or FileState.Verified ? $"Games/venba/{key}" : null,
-                ExpectedSizeBytes = 100,   // a real download: sizeless files are Unavailable by rule (09-13)
+                ExpectedSizeBytes = 100,   // a real download: sizeless files are Unavailable by rule
             });
         return it;
     }

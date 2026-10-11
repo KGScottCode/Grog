@@ -158,7 +158,7 @@ public class ReorgPlannerRoomTests
         job.Moves.Add(Mv("patch.exe", 27_000_000));       // fits
         int dropped = ReorgPlanner.DropWhatNoLongerFits(job, new MoveRoom(FreeBytes: 700_000_000, MaxFileBytes: 4_294_967_295));
         Assert.Equal(2, dropped, "two cannot fit");
-        // (1283) Dropped moves leave the plan: marked Failed they were re-admitted and retried into a full drive.
+        // Dropped moves leave the plan: marked Failed they were re-admitted and retried into a full drive.
         Assert.Equal("done.bin,patch.exe", string.Join(",", job.Moves.Select(x => x.FileKey)), "the two that cannot fit are out of the plan");
         Assert.Equal(ReorgMoveState.Pending, job.Moves[1].State, "the small one still moves");
         Assert.Equal(ReorgMoveState.Done, job.Moves[0].State, "landed files are untouched");
@@ -178,7 +178,7 @@ public class ReorgPlannerRoomTests
         public string? ResolveCloudDir(string slug, out string rootId) { rootId = "a"; return null; }
     }
 
-    // 1283 (QA 09-30 B3): a journal's absolute paths follow the roots to where they are now (a drive back under
+    // 1283: a journal's absolute paths follow the roots to where they are now (a drive back under
     // another letter); a root the layout cannot place keeps the journal's path; settled moves are left alone.
     [Test]
     public void Rebase_follows_the_roots_current_paths()
@@ -201,7 +201,7 @@ public class ReorgPlannerRoomTests
         Assert.Equal("E:old", job.Moves[1].FromAbs, "settled: untouched");
     }
 
-    // 1283 (QA 09-30 B2): a Change Folder job carries its follow-up (which root flips to which path) in the journal.
+    // 1283: a Change Folder job carries its follow-up (which root flips to which path) in the journal.
     [Test]
     public void ForRootPathChange_records_the_repoint_and_the_journal_keeps_it()
     {

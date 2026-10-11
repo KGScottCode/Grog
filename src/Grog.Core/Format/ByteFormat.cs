@@ -10,7 +10,7 @@ public static class ByteFormat
 {
     /// <summary>THE byte formatter (every other one forwards here). E.g. 1610612736 -> "1.50 GB",
     /// 357564416 -> "341.00 MB", 8192 -> "8.00 KB", 2 TB -> "2.000 TB". Two decimals at every scale
-    /// above bytes (mixing precisions reads as a bug), THREE at TB (owner call 2026-08-29: at two the last
+    /// above bytes (mixing precisions reads as a bug), THREE at TB (at two the last
     /// digit only moves per ~10 GB and a creeping figure looks stuck).</summary>
     public static string Size(long bytes)
     {

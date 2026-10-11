@@ -34,7 +34,7 @@ public sealed partial class StorageViewModel
     // Roots that just came back online: shown with a brief green "Reconnected" flash before settling.
     private readonly HashSet<string> _justReattached = new(StringComparer.OrdinalIgnoreCase);
 
-    // ---- (09-25, owner) "Waiting for H: to respond…" ----
+    // ---- "Waiting for H: to respond…" ----
     // A drive that is slow to answer (asleep, busy with a big write, a USB hub) used to freeze or stall in silence.
     // Every real call into a volume's metadata is registered by DriveResolver while it runs; this half-second UI tick
     // reads that map (no I/O) and names a drive that has not answered for a second. Four places read it: the Overview's
@@ -107,11 +107,11 @@ public sealed partial class StorageViewModel
             PollCliPresence();   // same 2 s worker tick: a blocked CLI verb, or a CLI writer running
             Dictionary<string, bool> now;
             try { now = OnlineMap(); } catch { return; }   // probe off the UI thread
-            CheckWaitedDrivesBack(now);   // (09-25) every tick: a short flap does not change the signature
+            CheckWaitedDrivesBack(now);   // every tick: a short flap does not change the signature
             var sig = Sig(now);
             if (sig == _onlineSignature && _watchSeeded) return;   // the first map always lands: it seeds the cards' status
             _onlineSignature = sig;
-            // (09-15) Presence changed: re-measure every root's capacity sample HERE, on this worker, before the
+            // Presence changed: re-measure every root's capacity sample HERE, on this worker, before the
             // cards rebuild. The rebuild reads StorageReport.DriveSample, a separate cache that otherwise still
             // holds the unplugged reading; with nothing else refreshing the cards while idle, a re-plugged drive
             // stayed "Offline".
@@ -138,7 +138,7 @@ public sealed partial class StorageViewModel
         }
     }
 
-    // ---- The other host (09-08): the CLI shares this profile. The App has priority, so a CLI writer verb
+    // ---- The other host: the CLI shares this profile. The App has priority, so a CLI writer verb
     // that ran while we were open left a note (it was refused); a CLI verb that was already running when we
     // opened holds its own lock, and we warn once rather than fight it.
     private string? _cliRunningNoted;
@@ -176,20 +176,20 @@ public sealed partial class StorageViewModel
             bool was = _prevOnline.TryGetValue(id, out var w) && w;
             var root = _session.Manifest?.Current.Roots.FirstOrDefault(r => r.Id == id);
             bool removable = root?.Removable ?? false;
-            // (09-17) Presence changes are logged: the walk (and a user reading the log) could not tell WHEN a
+            // Presence changes are logged: the walk (and a user reading the log) could not tell WHEN a
             // drive went away or came back; the cards showed it and nothing recorded it.
             if (_prevOnline.ContainsKey(id) && was != online && root is not null)
             {
                 _root.Log(online ? $"{DriveLabel(id)} is connected again." : $"{DriveLabel(id)} is not connected.", category: LogCategory.General);
                 // The file rows read the root's State (ConditionRules.LookupFrom), which only a BackupLayout
                 // construction wrote: the card said Disconnected while its rows still said Verified, and after a
-                // re-plug the reverse (QA 09-18). Keep the slot states in step with the watch; a shelved drive
+                // re-plug the reverse. Keep the slot states in step with the watch; a shelved drive
                 // (Detached) is a place, not a presence, and is left alone.
                 if (root.State is RootState.Online or RootState.Offline)
                 {
-                    _session.Manifest?.Mutate(_ => root.State = online ? RootState.Online : RootState.Offline);   // (manifest gate 09-08)
+                    _session.Manifest?.Mutate(_ => root.State = online ? RootState.Online : RootState.Offline);   // 
                     presenceChanged = true;
-                    // (owner 09-25, Mac walk) Any storage leaving during a backup stops it, even when no file was
+                    // Any storage leaving during a backup stops it, even when no file was
                     // writing there at that moment (the engine only notices when a file touches the drive).
                     if (!online) OnStorageDisconnected(id);
                     // Back, and still back after the same 4 s a waiting download gets (a drive spinning up flaps):

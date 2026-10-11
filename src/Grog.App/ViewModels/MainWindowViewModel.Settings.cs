@@ -40,7 +40,7 @@ public partial class MainWindowViewModel
         var verb = firstSync ? "Scanning your library"
                  : scoped ? $"Checking {ids!.Count} selected"
                  : "Rescanning GOG library";
-        if (!await ConfirmManualRescanAsync()) return;   // (New items 09-09) manual scan: ask about standing flags
+        if (!await ConfirmManualRescanAsync()) return;   // manual scan: ask about standing flags
         Library.NoteScanStarting();
         await RunBusy($"{verb}…", async () =>
         {
@@ -49,7 +49,7 @@ public partial class MainWindowViewModel
             Grog.Core.Sync.SyncResult syncResult;
             if (ids is { Count: > 0 })
             {
-                // Scoped "check selected": one account's view is fine (no sweep runs on a scoped pass). (S2.2)
+                // Scoped "check selected": one account's view is fine (no sweep runs on a scoped pass).
                 var scopedHost = new AppRunHost(this, LogCategory.Scan)
                 {
                     ScanDress = (svc, _) =>
@@ -81,7 +81,7 @@ public partial class MainWindowViewModel
             _settings.LastProductsSeen = syncResult.GamesSeen;
             _settings.SaveSoon();
             // The changes walk is a manifest read the sync thread already owns: build the line here, not
-            // inside the UI post (UI-thread sweep 09-06 r2). PendingTaskCount stays on the UI side below.
+            // inside the UI post. PendingTaskCount stays on the UI side below.
             var summary = new Grog.Core.Sync.ChangesService(_manifest).OneLineSummary();
             Dispatcher.UIThread.Post(() =>
             {
@@ -94,7 +94,7 @@ public partial class MainWindowViewModel
                 Library.EndCatalog(completed: ids is { Count: > 0 } || Library.LastScanStoredAnything);
                 // ON THE UI THREAD, AFTER RebuildRows: PendingTaskCount enumerates _allGames, and the
                 // worker thread reading it while first-sync preview inserts / the rebuild mutate the
-                // list is a real NRE (owner-hit 09-01, first scan after a fresh-library reset).
+                // list is a real NRE (first scan after a fresh-library reset).
                 Log(Library.PendingTaskCount > 0 ? summary : "");
             });
         });
@@ -130,12 +130,12 @@ public partial class MainWindowViewModel
         if (!RequireAccount("download this file")) return;
         if (Grog.Core.Sync.BackupScope.IsPresent(row.State) || row.IsDownloading || row.IsQueued) return;
         // Enqueue is an Action: append to the PERSISTED queue (the source of truth), then run the executor.
-        if (_manifest.Read(m => m.Downloads.Enqueue(row.GogId, row.File.FileKey)))   // (manifest gate 09-08)
+        if (_manifest.Read(m => m.Downloads.Enqueue(row.GogId, row.File.FileKey)))   // 
         {
             SaveInBackground("queue file");
-            // (09-26) A run is live: hand the file to THAT engine. Starting the file-queue executor here built a
+            // A run is live: hand the file to THAT engine. Starting the file-queue executor here built a
             // second engine over the same persisted queue, and both downloaded every pending file (duplicate
-            // completions, "in use by another process" on the shared .part, false strikes). grog.log 09-25 23:50.
+            // completions, "in use by another process" on the shared.part, false strikes). grog.log 23:50.
             if (_liveEngine is { } live) HandToLiveEngine(live, row);
             else if (DownloadRunning) _joinLiveOnReady.Add(row);   // a run is starting: EngineReady hands it over
             else { _fileQueue.Enqueue(row); _fileQueueTotal++; }
@@ -179,10 +179,10 @@ public partial class MainWindowViewModel
     }
 
     /// <summary>The one "queue this game's remaining files (and maybe put them first)" path, live run or not: the
-    /// Storage rollup's entries and (09-20) the Library's "Download next" during a run both come through here, so
+    /// Storage rollup's entries and the Library's "Download next" during a run both come through here, so
     /// the ENGINE is told too (new tasks, Reorder). The Library's first cut moved only the persisted entries and
     /// the promoted file sat at the head reading DOWNLOADING while the engine worked on in its old order.</summary>
-    /// <param name="refresh">False inside a per-game loop (09-25): the caller saves and refreshes ONCE after the loop.
+    /// <param name="refresh">False inside a per-game loop: the caller saves and refreshes ONCE after the loop.
     /// A 100-game "Download next" ran 100 saves, 100 activity passes and 100 storage refreshes on the UI thread.</param>
     internal void QueueRemainingForItem(LibraryItem item, bool toTop, bool filtered, Grog.Core.Sync.Scope? scope = null, bool refresh = true)
     {
@@ -201,7 +201,7 @@ public partial class MainWindowViewModel
         // the whole set to the front (0..n-1), preserving the game's own file order.
         int slot = 0;
         var newRows = new List<DetailFileRow>();
-        using (_manifest.Gate.Enter())   // (manifest gate 09-08)
+        using (_manifest.Gate.Enter())   // 
             foreach (var f in remaining)
             {
                 if (!_manifest.Current.Downloads.Contains(item.GogId, f.FileKey))
@@ -239,11 +239,11 @@ public partial class MainWindowViewModel
         RefreshStorageIfIdle();
     }
 
-    /// <summary>(09-26) Files clicked while a run was starting (DownloadRunning, no engine yet); EngineReady hands
+    /// <summary>Files clicked while a run was starting (DownloadRunning, no engine yet); EngineReady hands
     /// them to the engine, which built its list before they were queued.</summary>
     internal readonly List<DetailFileRow> _joinLiveOnReady = new();
 
-    /// <summary>(09-26) Add one file to the live engine unless it already holds it; no second engine, ever.</summary>
+    /// <summary>Add one file to the live engine unless it already holds it; no second engine, ever.</summary>
     internal void HandToLiveEngine(DownloadEngine live, DetailFileRow row)
     {
         // An engine that is unwinding takes nothing: the file waits for the next run instead of vanishing into it.
@@ -298,16 +298,16 @@ public partial class MainWindowViewModel
     {
         // Backstop scaffold: guide-skips, scheduled runs and CLI-set folders all arrive here without one.
         // CreateDirectory is idempotent, so this costs nothing when already done. Off the dispatcher: the
-        // BackupLayout ctor + CreateDirectory xN stat a possibly-slow drive (UI-thread sweep 09-06 r2).
+        // BackupLayout ctor + CreateDirectory xN stat a possibly-slow drive.
         // The running flag goes up BEFORE that first await so a second click cannot start a second executor.
-        // (09-26) ONE engine at a time: a live run (the Back-up / Resume path never sets _fileQueueRunning) or one
+        // ONE engine at a time: a live run (the Back-up / Resume path never sets _fileQueueRunning) or one
         // still starting (DownloadRunning before EngineReady) owns the persisted queue; files join it instead.
         if (_liveEngine is not null || DownloadRunning) return;
         _fileQueueRunning = true;
         _stopRequested = false;
         try
         {
-            // Inside the try (final check 09-06): a throw here must still clear the running flag, or the
+            // Inside the try: a throw here must still clear the running flag, or the
             // per-file queue is dead for the session.
             await ScaffoldChosenFolderAsync();
             if (_stopRequested) return;   // Stop clicked during the scaffold
@@ -330,14 +330,14 @@ public partial class MainWindowViewModel
                 while (_fileQueue.Count > 0) { _fileQueue.Dequeue(); }
                 var host = new AppBackupHost(this, activityStrip: false);
                 // BackupLayout ctor (ensures the primary root, scaffolds) is disk work: build the run off the
-                // dispatcher, which this per-file path otherwise sits on (UI-thread sweep 09-06 r2).
+                // dispatcher, which this per-file path otherwise sits on.
                 var run = await Task.Run(() => NewBackupRun(host));
                 var r = await run.RunAsync(
                     AppRunOptions(new Grog.Core.Runs.BackupRunOptions(FromPersistedQueue: true), "download"),
                     _downloadCts?.Token ?? default);
                 if (r.Error is Grog.Core.Runs.RunAlreadyActiveException)
                 {
-                    Log("A download run is already active: the files joined its queue.", category: LogCategory.Download);   // (09-26) backstop, not a failure
+                    Log("A download run is already active: the files joined its queue.", category: LogCategory.Download);   // backstop, not a failure
                     break;
                 }
                 if (r.Error is { } err)
@@ -388,10 +388,10 @@ public partial class MainWindowViewModel
         if (m is null) return;
         // The Items x Files status walk runs on the thread pool whichever thread called (RunFileQueue resumed
         // here on the dispatcher after each batch); the snapshot ToArray keeps a concurrent UI render from
-        // tripping enumeration (UI-thread sweep 09-06 r2).
+        // tripping enumeration.
         await Task.Run(() =>
         {
-            using (m.Gate.Enter())   // (manifest gate 09-08) status rollup writes item.Status under the gate
+            using (m.Gate.Enter())   // status rollup writes item.Status under the gate
                 foreach (var item in m.Current.Items.ToArray())
                     LibrarySyncService.RecomputeStatus(item);
         });
@@ -409,7 +409,7 @@ public partial class MainWindowViewModel
         {
             // Multi-account: any signed-in account can serve its files, so a lapsed session must NOT pop a
             // login here. Only when NO account is connected does the login window open.
-            if (await AnyAccountConnectedAsync()) return true;   // token probes off the dispatcher (UI-thread sweep 09-06 r2)
+            if (await AnyAccountConnectedAsync()) return true;   // token probes off the dispatcher
             await Dispatcher.UIThread.InvokeAsync(async () => await _auth.EnsureAuthenticatedAsync());
             return true;
         }
@@ -435,7 +435,7 @@ public partial class MainWindowViewModel
         var sel = Library._selectedContent; bool movies = Library.ShowLegacyMovies;
         return new Grog.Core.Runs.BackupRunOptions(
             FromPersistedQueue: fromQueue, UpdatesOnly: updatesOnly, OnlyGameIds: onlyGameIds, ScopeOverride: scope,
-            PromotePicked: promotePicked,   // (09-20) the App's "Back up" joins the end; only "Download next" jumps the queue
+            PromotePicked: promotePicked,   // the App's "Back up" joins the end; only "Download next" jumps the queue
             ViewFilter: (item, f) => (item.Type != ProductType.Movie || movies)
                                      && (allContent || sel.Contains(GameRowViewModel.ContentKey(f, item.Type))));
     }
@@ -447,7 +447,7 @@ public partial class MainWindowViewModel
         // Cleared before ANY early return, so a stale refusal never suppresses a later run's stamp.
         _downloadRefused = false; _downloadRefusedReason = null;
         if (Busy) return;
-        // (09-26) ONE engine at a time: a per-file run holds neither Busy nor the activity slot. DownloadRunning is up
+        // ONE engine at a time: a per-file run holds neither Busy nor the activity slot. DownloadRunning is up
         // for the whole of either run and down once it unwinds; a PAUSED engine (kept for Resume) is not a live run.
         if (_fileQueueRunning || DownloadRunning)
         {
@@ -457,7 +457,7 @@ public partial class MainWindowViewModel
         }
         // A refusal below ran nothing, so it records nothing: SyncBackupCore reads the flag and stamps no outcome.
         if (!await EnsureReadyToDownloadAsync()) { _downloadRefused = true; _downloadRefusedReason = RefusedSignInNotReady; return; }
-        // A schedule lifts the user's pause (owner 10-01: "pause now, let the 03:00 run do it" is the point of a
+        // A schedule lifts the user's pause ("pause now, let the 03:00 run do it" is the point of a
         // schedule). Grog's own pause for a missing drive is different: the drive is still gone, so the slot waits
         // for the next tick (transient) instead of starting a run that stops on its first file.
         if (unattended && DownloadPaused && Storage.PausedForDriveLabel is { } gone)
@@ -485,7 +485,7 @@ public partial class MainWindowViewModel
             BackupRunBegan();
             var host = new AppBackupHost(this, activityStrip: true);
             var r = await NewBackupRun(host).RunAsync(AppRunOptions(selection, "backup"), _cts?.Token ?? default);
-            _lastRunOutcome = r.Outcome;   // the run's own verdict (Partial counts a strike the App's GaveUp count does not; QA 09-30 C4)
+            _lastRunOutcome = r.Outcome;   // the run's own verdict (Partial counts a strike the App's GaveUp count does not;)
 
             if (r.NothingToDo)
             {
@@ -502,7 +502,7 @@ public partial class MainWindowViewModel
             }
             if (r.Error is Grog.Core.Runs.RunAlreadyActiveException)
             {
-                // (09-26) The Core backstop refused: nothing ran, so nothing failed and nothing is stamped.
+                // The Core backstop refused: nothing ran, so nothing failed and nothing is stamped.
                 _downloadRefused = true; _downloadRefusedReason = "a download run is already active";
                 _liveEngine = null;
                 Log("A download run is already active: this one did not start.", category: LogCategory.Download);
@@ -522,11 +522,11 @@ public partial class MainWindowViewModel
                 return;
             }
 
-            // (09-19) "Finish current files" ran to its end: the files in progress landed and nothing new started.
+            // "Finish current files" ran to its end: the files in progress landed and nothing new started.
             // With files still queued it ends as a pause for that reason; a user Pause in the meantime wins.
             if (Drain.Finishing)
             {
-                // (review 09-19) Nothing left (the finish caught the last files, or the user cleared the queue
+                // Nothing left (the finish caught the last files, or the user cleared the queue
                 // meanwhile): this is a finished run, not a pause. Fall through to the normal ending.
                 bool anythingLeft = _manifest is not null && !_manifest.Current.Downloads.IsEmpty;
                 if (anythingLeft)
@@ -553,7 +553,7 @@ public partial class MainWindowViewModel
             if (DownloadPaused)
             {
                 // No log line here: PauseDownloads (the only path that sets the flag) already logged the pause on
-                // the click, and a second line when the run unwinds read as two pauses (09-17).
+                // the click, and a second line when the run unwinds read as two pauses.
                 Dispatcher.UIThread.Post(EndActivity);   // hide the modal activity strip; keep everything else frozen
                 return;
             }
@@ -568,7 +568,7 @@ public partial class MainWindowViewModel
             });
             Dispatcher.UIThread.Post(RecomputeActivity);
             // Stop / Clear queue ended the run: the user did that, so no "Backup finished", no failure toast, no
-            // "stay queued" over a queue they just emptied (QA 09-30). CancelDownloads logged the stop already.
+            // "stay queued" over a queue they just emptied. CancelDownloads logged the stop already.
             if (_stopRequested) return;   // not r.Canceled: a drain ("Finish current files") also reports Canceled and is a finished run here
             int completed = r.Completed;
             int failedCount = r.NotLanded;
@@ -580,7 +580,7 @@ public partial class MainWindowViewModel
             Log(failedCount > 0
                 ? $"Backup finished: {completed} of {completed + failedCount} file(s) downloaded, {failedCount} failed.{refusedTail}"
                 : $"Backup finished: {completed} file(s) downloaded.{refusedTail}", isError: failedCount > 0, category: LogCategory.Download);
-            // (09-25) Not failures: their storage went away. They stay queued for it (the card offers the choices).
+            // Not failures: their storage went away. They stay queued for it (the card offers the choices).
             if (r.DriveOffline > 0)
                 Log($"{r.DriveOffline} file{(r.DriveOffline == 1 ? "" : "s")} stopped because their storage was disconnected. They wait for it.",
                     category: LogCategory.Download);
@@ -592,11 +592,11 @@ public partial class MainWindowViewModel
                     NotifyUser("Grog - backup finished with errors",
                         $"{failedCount} file{(failedCount == 1 ? "" : "s")} couldn't be backed up - open Grog to review.",
                         toastBody: $"{failedCount} file{(failedCount == 1 ? "" : "s")} couldn't be backed up.",
-                        fixNav: ToastFix.Retry);   // (09-22, owner) the toast's action RETRIES the queue, it does not just navigate
+                        fixNav: ToastFix.Retry);   // the toast's action RETRIES the queue, it does not just navigate
             }
             else if (r.DriveOffline > 0)
             {
-                // (review 09-25) Not "complete, no errors": files are waiting for a disconnected storage.
+                // Not "complete, no errors": files are waiting for a disconnected storage.
                 if (Settings.NotifyOnErrors)
                     NotifyUser("Grog - waiting for storage",
                         $"{r.DriveOffline} file{(r.DriveOffline == 1 ? " is" : "s are")} waiting for a disconnected storage. Reconnect it to finish.",
@@ -622,9 +622,9 @@ public partial class MainWindowViewModel
         {
             BackupRunOver();
             EndActivitySlot();
-            Dispatcher.UIThread.Post(Storage.RefreshDriveWait);   // (09-25) what still waits for a disconnected drive, now the run is over
+            Dispatcher.UIThread.Post(Storage.RefreshDriveWait);   // what still waits for a disconnected drive, now the run is over
             // The rate meter stops with the run: a finished run with files left queued kept the last live
-            // speed and an ETA on the card (owner-hit 09-17).
+            // speed and an ETA on the card.
             _meter.MarkIdle(); DownloadSpeedBytes = 0;
             DownloadRunning = false;
             // A run that reached its end (not paused) clears any lingering paused flag.
@@ -657,14 +657,14 @@ public partial class MainWindowViewModel
         var item = Library.ItemById(gogId);
         // v2 metadata (languages / age ratings) rides along in the same response as the art;
         // once captured, skip re-fetching for meta.
-        // (09-19) A product not in the library yet NEEDS the metadata too: the merge has not made its item, so it
+        // A product not in the library yet NEEDS the metadata too: the merge has not made its item, so it
         // is stashed on the sync service, which puts it on the new item. It used to be dropped (first scan: all of it).
         bool needMeta = item is null || item.AgeRatings.Count == 0;
         var art = await Services.ArtCache.CacheProductAsync(_api, gogId, dir, needMeta, ct);
         if (art is not null && item is null) svc.StashMeta(gogId, art.Languages, art.AgeRatings);
         if (art is not null && item is not null && _manifest is not null)
         {
-            using (_manifest.Gate.Enter())   // (manifest gate 09-08)
+            using (_manifest.Gate.Enter())   // 
             {
                 if (art.Languages.Count > 0) item.Languages = art.Languages.ToList();
                 if (art.AgeRatings.Count > 0) item.AgeRatings = new Dictionary<string, int>(art.AgeRatings);
@@ -676,7 +676,7 @@ public partial class MainWindowViewModel
     /// once and points the grid at it so rebuilt rows read art already on disk.</summary>
     private void AttachArtHook(LibrarySyncService svc)
     {
-        var dir = Grog.Core.Storage.GrogPaths.ResolveNoProbe(_backupRoot).ArtDir;   // art dir only; no backup-root probe (UI-thread sweep 09-06 r2)
+        var dir = Grog.Core.Storage.GrogPaths.ResolveNoProbe(_backupRoot).ArtDir;   // art dir only; no backup-root probe
         Directory.CreateDirectory(dir);
         GameRowViewModel.ArtDir = dir;
         svc.FetchArtAsync = (id, ct) => CacheArtForProductAsync(svc, id, dir, ct);
@@ -684,7 +684,7 @@ public partial class MainWindowViewModel
 
     /// <summary>On a hash mismatch, ask GOG for the file's current checksum so a repack reads as
     /// UpdateAvailable, not Corrupt. Null unless connected; offline treats every mismatch as corruption.
-    /// Handed to <see cref="Grog.Core.Runs.VerifyRequest.FetchCurrentServerMd5"/>. (S2.2)</summary>
+    /// Handed to <see cref="Grog.Core.Runs.VerifyRequest.FetchCurrentServerMd5"/>. </summary>
     internal Func<GameFile, CancellationToken, Task<string?>>? ServerChecksumFetcher()
     {
         if (_api is null || !IsConnected) return null;
@@ -710,7 +710,7 @@ public partial class MainWindowViewModel
     private void RequestQueueRebuild()
         => (_queueUi ??= new Services.UiCoalescer(TimeSpan.FromMilliseconds(250), () => { Overview.RebuildQueue(); RequestSizing(); })).Request();
 
-    // (1287) Real sizes for queued files, learned in the background so the plan prices them at bytes, not GOG's label.
+    // Real sizes for queued files, learned in the background so the plan prices them at bytes, not GOG's label.
     // Starts when something is queued (every queue change comes through RequestQueueRebuild), never at launch.
     private Grog.Core.Runs.QueueSizer? _sizer;
     private Grog.Core.Manifest.JsonManifestStore? _sizerManifest;
@@ -746,7 +746,7 @@ public partial class MainWindowViewModel
     internal void OpenUrl(string? url)
     {
         if (string.IsNullOrEmpty(url)) return;
-        _ = Task.Run(() =>   // ShellExecute off the dispatcher (final check 09-06)
+        _ = Task.Run(() =>   // ShellExecute off the dispatcher
         {
             try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); }
             catch { /* best-effort */ }
@@ -771,12 +771,12 @@ public partial class MainWindowViewModel
         }
         else
         {
-            await Task.Run(() => System.IO.Directory.CreateDirectory(full));   // (UI-thread sweep 09-06 r2)
+            await Task.Run(() => System.IO.Directory.CreateDirectory(full));   // 
             await BindToRootAsync(full);
             _settings.ChosenRoot = Grog.Core.Storage.GrogPaths.StorePath(_backupRoot); _settings.SaveSoon();
         }
         // Same order as before (tidy the old default, then scaffold the new folder), disk work off the
-        // dispatcher (UI-thread sweep 09-06 r2).
+        // dispatcher.
         await TidyAutoCreatedDefaultAsync(previous, full);
         await ScaffoldChosenFolderAsync();
         Storage.RefreshBackupLocations();
@@ -785,10 +785,10 @@ public partial class MainWindowViewModel
 
     /// <summary>Create Games / Extras / Cloud Saves under the primary folder. Called ONLY once the user has
     /// deliberately settled on a folder -- binding alone must not write to a still-tentative path.</summary>
-    public void ScaffoldChosenFolder() => _ = ScaffoldChosenFolderAsync();   // (09-25) folder creation off the UI thread; best-effort either way
+    public void ScaffoldChosenFolder() => _ = ScaffoldChosenFolderAsync();   // folder creation off the UI thread; best-effort either way
 
     /// <summary><see cref="ScaffoldChosenFolder"/> off the dispatcher: the manifest and root are captured on
-    /// the calling thread and only the locals are used inside (UI-thread sweep 09-06 r2).</summary>
+    /// the calling thread and only the locals are used inside.</summary>
     private Task ScaffoldChosenFolderAsync()
     {
         var m = _manifest; var root = _backupRoot;
@@ -802,7 +802,7 @@ public partial class MainWindowViewModel
 
     /// <summary>Remove the auto-created default folder once the user picks elsewhere. THREE conditions, all
     /// required (the only place the app deletes anything): Grog-created, DEFAULT path, and EMPTY.
-    /// The exists/enumerate/delete run off the dispatcher; the settings flag flips back on it (UI-thread sweep 09-06 r2).</summary>
+    /// The exists/enumerate/delete run off the dispatcher; the settings flag flips back on it.</summary>
     private async Task TidyAutoCreatedDefaultAsync(string previous, string chosen)
     {
         if (!_settings.DefaultRootAutoCreated) return;
@@ -832,14 +832,14 @@ public partial class MainWindowViewModel
 
     /// <summary>The "not everything fit" dialog is shown ONCE per set of leftovers: a user who read it, kept the red
     /// rows queued (the banner's stated contract) and later resumed to fetch one new file got the identical
-    /// modal at that run's end, every time (QA 09-18). The banner and the divider carry the fact; the log line
+    /// modal at that run's end, every time. The banner and the divider carry the fact; the log line
     /// above records each run. A different count or size is news and shows again.</summary>
     private (int Count, long Bytes)? _noSpaceShownFor;
     private void OfferNoSpaceSummary(int held, long heldBytes)
     {
         if (_noSpaceShownFor is { } prev && prev.Count == held && prev.Bytes == heldBytes) return;
         _noSpaceShownFor = (held, heldBytes);
-        // (09-19) The dialog reads these fields; Placed() filled them from the plan at the START of the run, and
+        // The dialog reads these fields; Placed() filled them from the plan at the START of the run, and
         // mid-run re-plans move the line (749 in the dialog beside 744 in the log). The run's END result is the fact.
         _heldNoSpaceCount = held; _heldNoSpaceBytes = heldBytes;
         Dispatcher.UIThread.Post(() => { RaiseNoSpaceText(); ShowNoSpaceSummary = true; });

@@ -27,12 +27,12 @@ public sealed partial class QueueRow : ObservableObject, IDropTargetRow
     public QueueRow(DownloadTask task, bool live) { Task = task; IsLiveTask = live; _nameHidden = IsHiddenGame(task.File.GameGogId); }
     public DownloadTask Task { get; private set; }
     /// <summary>True when <see cref="Task"/> is the engine's own instance; false for a display task derived from the
-    /// manifest. A display row is REUSED across rebuilds (its task refreshed in place): before 09-16 every rebuild
+    /// manifest. A display row is REUSED across rebuilds (its task refreshed in place): before every rebuild
     /// with no live task built a new task and so a new row, and the whole tail was torn down and re-realized on
-    /// each pass -- the "my row vanished" drop (owner-hit).</summary>
+    /// each pass -- the "my row vanished" drop.</summary>
     public bool IsLiveTask { get; private set; }
 
-    /// <summary>(09-19) The same file's row takes another task: the engine's instance when a run starts, a display
+    /// <summary>The same file's row takes another task: the engine's instance when a run starts, a display
     /// task when it ends. The row used to be REPLACED at both edges, so Pause and Resume tore down and re-realized
     /// the whole tail (measured: RebuildQueue 586 ms on ~400 rows, a 780 ms UI stall on Pause).</summary>
     public void Rebind(DownloadTask task, bool live)
@@ -43,7 +43,7 @@ public sealed partial class QueueRow : ObservableObject, IDropTargetRow
         OnPropertyChanged(nameof(SizeText)); OnPropertyChanged(nameof(RemainingBytes));
     }
 
-    /// <summary>(09-19) The Library's hidden rule (mature toggle, per-game Hide), set once by the window's view
+    /// <summary>The Library's hidden rule (mature toggle, per-game Hide), set once by the window's view
     /// model. A hidden game's row STAYS -- the queue's order, counts and bytes are facts -- but it is not NAMED:
     /// title and file name read <see cref="HiddenLabel"/>. Hiding conceals names, never bytes.</summary>
     public static Func<long, bool> IsHiddenGame { get; set; } = _ => false;
@@ -56,7 +56,7 @@ public sealed partial class QueueRow : ObservableObject, IDropTargetRow
     private bool _nameHidden;
     public bool IsNameHidden => _nameHidden;
 
-    /// <summary>(09-19, owner) This file cannot download until an account that owns it is signed in: nobody is
+    /// <summary>This file cannot download until an account that owns it is signed in: nobody is
     /// connected, or every owner stamped on it has been removed. The row keeps its place (the order is the
     /// user's; nothing clears a queue but the user) and says why it waits, in the WON'T FIT slot, in the warning
     /// orange the Library's "(account removed)" caption uses. Red stays "has nowhere to land".</summary>
@@ -67,7 +67,7 @@ public sealed partial class QueueRow : ObservableObject, IDropTargetRow
     public string GameTitle => IsNameHidden ? HiddenLabel : Task.GameTitle;
     /// <summary>GOG's label for the file ("Agony (Part 2 of 5)"): the tooltip. Line two is the real file name
     /// (<see cref="FileNameText"/>) on every row, active or waiting, so a file never changes its name the
-    /// moment it starts, and the Moving pane reads the same way (owner 09-04).</summary>
+    /// moment it starts, and the Moving pane reads the same way.</summary>
     public string LabelText => IsNameHidden ? HiddenLabel : Task.File.Name;
     /// <summary>Extras show their classified bucket ("Soundtracks"), not the bare word "Extra".</summary>
     public string TypeLabel => Task.File.Kind == FileKind.Extra
@@ -129,7 +129,7 @@ public sealed partial class QueueRow : ObservableObject, IDropTargetRow
     public bool ShowOsBadge => !IsExtra && OsBadge.Length > 0 && GameSpansPlatforms;
     /// <summary>Known byte count once we have one -- GOG's approximate size up front, the real
     /// Content-Length once the download resolves. Zero/absent means genuinely unknown, not empty.</summary>
-    /// <summary>What this row still has to download: the ONE price every queue figure uses (owner 09-19: the dialog
+    /// <summary>What this row still has to download: the ONE price every queue figure uses (the dialog
     /// read 531.93 GB queued over 527.92 GB to back up, the gap being a partial counted on one line only). Same
     /// rule as PlacementPlanner.StillNeeds: the real size once known, less what is already on the drive.</summary>
     internal long RemainingBytes => Math.Max(0, (Task.BytesTotal ?? Task.File.PlanSizeBytes ?? 0) - Task.BytesReceived);
@@ -153,7 +153,7 @@ public sealed partial class QueueRow : ObservableObject, IDropTargetRow
             OnPropertyChanged(nameof(WontFit)); OnPropertyChanged(nameof(IsActive)); OnPropertyChanged(nameof(ShowWontFitShort)); OnPropertyChanged(nameof(ShowWontFitLong));
         }
     }
-    /// <summary>(09-19) What the red row says: "WON'T FIT", or "TOO BIG FOR THIS DRIVE (FAT32)" when a per-file
+    /// <summary>What the red row says: "WON'T FIT", or "TOO BIG FOR THIS DRIVE (FAT32)" when a per-file
     /// ceiling is the reason (<see cref="Grog.Core.Runs.QueueShaper.FileLimitBlocking"/>). Set by the queue rebuild.</summary>
     private string? _fileLimit;
     public string? FileLimit { get => _fileLimit; set { if (_fileLimit == value) return; _fileLimit = value; OnPropertyChanged(nameof(FileLimit)); OnPropertyChanged(nameof(WontFitText)); OnPropertyChanged(nameof(ShowWontFitShort)); OnPropertyChanged(nameof(ShowWontFitLong)); OnPropertyChanged(nameof(WontFitTip)); } }
@@ -161,13 +161,13 @@ public sealed partial class QueueRow : ObservableObject, IDropTargetRow
     public bool ShowWontFitShort => WontFit && _fileLimit is null;
     public bool ShowWontFitLong => WontFit && _fileLimit is not null;
     public string? WontFitTip => _fileLimit is null ? null : $"Too big for this drive ({_fileLimit}): one file here cannot be larger than 4 GB.";
-    /// <summary>(09-16) Lit for a moment after a drop or a menu move, so the row that moved is unmistakable where it
+    /// <summary>Lit for a moment after a drop or a menu move, so the row that moved is unmistakable where it
     /// landed. Set and cleared by the Overview view-model; the view paints it.</summary>
     private bool _justMoved;
     public bool JustMoved { get => _justMoved; set { if (_justMoved == value) return; _justMoved = value; OnPropertyChanged(nameof(JustMoved)); } }
     public bool IsActive => !WontFit && Task.State == DownloadTaskState.Active;
     /// <summary>The engine's percent once the total is known; before the CDN answers a resume request the
-    /// expected size stands in, so a 476-of-486 MB partial never reads "0%" (owner-hit 09-04).</summary>
+    /// expected size stands in, so a 476-of-486 MB partial never reads "0%".</summary>
     public double Percent => Task.BytesTotal is { } t && t > 0 ? Task.PercentComplete
         : Task.File.PlanSizeBytes is { } e && e > 0 ? Math.Min(100.0, 100.0 * Task.BytesReceived / e) : 0;
     /// <summary>The row has partial progress worth a bar (e.g. a paused file that was mid-download) -- used
@@ -179,7 +179,7 @@ public sealed partial class QueueRow : ObservableObject, IDropTargetRow
     /// <summary>The in-flight eyebrow: DOWNLOADING while bytes arrive, then the finishing phase the engine
     /// reports (drive flush, hash) so a file sitting at 100% says what it is waiting on.</summary>
     /// <summary>The queue's Paused fact, mirrored by the host: while it is set every in-flight row says PAUSED,
-    /// never one row PAUSED and its neighbours DOWNLOADING with a live rate (owner 09-08). Workers take a
+    /// never one row PAUSED and its neighbours DOWNLOADING with a live rate. Workers take a
     /// moment to stop, so the task state alone lags the button.</summary>
     public static bool QueuePaused { get; set; }
     public string PhaseText => QueuePaused ? "PAUSED" : Task.FinishingPhase is { } p ? p.ToUpperInvariant() : "DOWNLOADING";
@@ -193,8 +193,7 @@ public sealed partial class QueueRow : ObservableObject, IDropTargetRow
             var eta = left > 0 ? TimeSpan.FromSeconds(left / Task.BytesPerSecond) : TimeSpan.Zero;
             var etaText = eta.TotalHours >= 1 ? $"{(int)eta.TotalHours}h {eta.Minutes}m"
                         : eta.TotalMinutes >= 1 ? $"{(int)eta.TotalMinutes}m" : $"{eta.Seconds}s";
-            // Time left only: the live rate is the Overview's big readout, and on the card it crowded the percent
-            // ("60%6.09 MB/s", walk 10-01).
+            // Time left only: the live rate is the Overview's big readout, and on the card it crowded the percent.
             return $"{etaText} left";
         }
     }

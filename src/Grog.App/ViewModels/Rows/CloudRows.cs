@@ -64,7 +64,7 @@ public sealed partial class CloudGameRow : ObservableObject
     public bool HasBackup => LocalSaveCount > 0;
     /// <summary>Up to date only with a COMPLETE backup of the CURRENT cloud state: every file captured, no
     /// server-side change since (change timestamp, else size+file-count). Uncertainty = "update available".</summary>
-    // (S2.2) Core's rule (CloudSaveRun.IsUpToDate), over this row's immutable facts; computed once.
+    // Core's rule (CloudSaveRun.IsUpToDate), over this row's immutable facts; computed once.
     private bool? _upToDate;
     public bool IsUpToDate => _upToDate ??= Grog.Core.Runs.CloudSaveRun.IsUpToDate(new Grog.Core.Models.CloudAccountSave
     {

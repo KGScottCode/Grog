@@ -20,14 +20,14 @@ public static class PlacementPlanner
         public long FullBytes { get; init; }
 
         /// <summary>The root holding this file's partial, when Bytes is discounted by one (null = the routed root,
-        /// for records older than 09-19). The discount is room already spent on THAT volume only: anywhere else
-        /// the file costs <see cref="FullBytes"/> (QA 09-19: a 5 GB file with 4.5 GB received on a full drive
+        /// for records older than). The discount is room already spent on THAT volume only: anywhere else
+        /// the file costs <see cref="FullBytes"/> (a 5 GB file with 4.5 GB received on a full drive
         /// "fit" a second drive with 1 GB free, and the engine then needed all 5 GB there).</summary>
         public string? PartialRootId { get; init; }
 
-        /// <summary>(09-25) Where the queue has this file headed now. When that drive is WAITING (it went away
+        /// <summary>Where the queue has this file headed now. When that drive is WAITING (it went away
         /// mid-run) the file stays on it: a file that spilled there because the primary was full must not be
-        /// moved back, or marked "no room", just because its drive is unplugged (review 09-25).</summary>
+        /// moved back, or marked "no room", just because its drive is unplugged.</summary>
         public string? CurrentRootId { get; init; }
 
         /// <summary>FullBytes is GOG's ROUNDED label, not a length the CDN gave (no <see cref="GameFile.WireSizeBytes"/>).
@@ -35,7 +35,7 @@ public static class PlacementPlanner
         public bool SizeIsLabel { get; init; }
     }
 
-    /// <summary>How far a rounded label can sit from the real length: 1 part in 50 (09-19).</summary>
+    /// <summary>How far a rounded label can sit from the real length: 1 part in 50.</summary>
     public static long LabelSlack(long max) => max / 50;
 
     /// <summary>Is this file over a volume's per-file ceiling? A REAL size answers exactly. A label within
@@ -49,7 +49,7 @@ public static class PlacementPlanner
     public sealed record FilePlacement(string FileKey, string? RootId, bool Fits);
 
     /// <param name="FreeAfter">The online devices IN FILL ORDER with the free bytes left once every placed file
-    /// has its room (09-16): the one figure for "what could still be pulled above the line", and the input
+    /// has its room: the one figure for "what could still be pulled above the line", and the input
     /// <see cref="WouldFit"/> tests a single file against.</param>
     public sealed record PlacementPlan(IReadOnlyList<FilePlacement> Placements, long ShortfallBytes,
                                        IReadOnlyList<DeviceSpace> FreeAfter)
@@ -59,13 +59,13 @@ public static class PlacementPlanner
 
     /// <summary>Plans placement for files IN QUEUE ORDER against devices in fill order (primary first).
     ///
-    /// ONE RULE (owner, 09-11): the queue order is the user's, and this never reorders, groups or chooses on
+    /// ONE RULE: the queue order is the user's, and this never reorders, groups or chooses on
     /// their behalf. Each file, in turn, lands on its routed device if that device still has room after the
     /// files ahead of it; otherwise (unless Manual) on the first other device with room; otherwise it is
     /// marked won't-fit and KEEPS ITS POSITION. Free space is decremented as files are placed, so a large file
     /// that does not fit is skipped and the smaller files behind it still land. Inform, never choose.
     ///
-    /// This replaces the whole-game knapsack (09-05 to 09-11), which chose WHICH games got the device and, on a
+    /// This replaces the whole-game knapsack, which chose WHICH games got the device and, on a
     /// size-sorted queue, silently demoted the head rows the user had just put there. A partial game is now
     /// possible; the Storage page shows per-game completeness, so the consequence is visible where the user
     /// would look for it.</summary>
@@ -77,9 +77,9 @@ public static class PlacementPlanner
         RoutingMode mode,
         ExtrasPlacement layout)
     {
-        // (09-25) A drive files are waiting for is not a place to put anything, whatever a probe says: on macOS a
+        // A drive files are waiting for is not a place to put anything, whatever a probe says: on macOS a
         // force-detached /Volumes folder resolved to "/" (the boot volume) and its small free figure starved the
-        // primary's ledger ("276 files had no room" with 3 TB free, walk 09-25).
+        // primary's ledger ("276 files had no room" with 3 TB free,).
         var online = devices.Where(d => d.IsOnline && !DriveWaits.Contains(d.RootId)).ToList();
         // One ledger per VOLUME (DeviceSpace.Key), not per root: roots sharing a drive spend the same free space.
         // Each such root reports the volume's free figure less its own in-flight reservation, so the smallest is the truth.
@@ -97,7 +97,7 @@ public static class PlacementPlanner
             var intended = routing.ResolveRootId(f.GameGogId, f.Kind, primaryRootId, layout);
             string? target = null;
             long Cost(string rid) => Storage.DriveResolver.OnDisk(CostOn(f, rid, intended, keyOf), clusterOf[rid]);
-            // (09-25) Its storage went away mid-run: the file WAITS for it (owner's default). Not a spill to another
+            // Its storage went away mid-run: the file WAITS for it (owner's default). Not a spill to another
             // drive (the user chooses that on the card) and not "won't fit" (it is not a space problem).
             string? waitOn = f.CurrentRootId is { } cr && !keyOf.ContainsKey(cr) && DriveWaits.Contains(cr) ? cr
                 : (f.CurrentRootId is null || f.CurrentRootId == intended) && !keyOf.ContainsKey(intended) && DriveWaits.Contains(intended) ? intended
@@ -130,7 +130,7 @@ public static class PlacementPlanner
     /// <summary>The device ONE file would land on given the room left per device, or null: the same rule as
     /// <see cref="Plan"/> for one file (routed root first; spill to the next device in fill order only when the
     /// mode is not Manual). The App's "Pull up if it fits" / "Download this next" gates and "Pull up what fits"
-    /// all ask this, so a move is never offered that the next plan would undo (review 09-16).</summary>
+    /// all ask this, so a move is never offered that the next plan would undo.</summary>
     public static string? WouldFit(FileToPlace f, IReadOnlyList<DeviceSpace> roomInFillOrder,
                                    RoutingPolicy routing, string primaryRootId, RoutingMode mode, ExtrasPlacement layout)
     {
@@ -145,7 +145,7 @@ public static class PlacementPlanner
 
     /// <summary>What <see cref="WouldFit"/> charged <paramref name="f"/> on <paramref name="rootId"/>: the same cost
     /// <see cref="Plan"/> spends, so a caller walking several files through WouldFit decrements the room by the
-    /// planner's figure, not the file's bare remainder (QA 09-30 A6: the tail of a pull-up bounced back red).</summary>
+    /// planner's figure, not the file's bare remainder (the tail of a pull-up bounced back red).</summary>
     public static long CostOf(FileToPlace f, string rootId, IReadOnlyList<DeviceSpace> roomInFillOrder,
                               RoutingPolicy routing, string primaryRootId, ExtrasPlacement layout)
     {
@@ -165,7 +165,7 @@ public static class PlacementPlanner
         return keyOf.TryGetValue(partRoot, out var pk) && keyOf.TryGetValue(rootId, out var rk) && pk == rk ? f.Bytes : f.FullBytes;
     }
 
-    /// <summary>A file is priced at what it STILL NEEDS (09-13): the bytes of a resumable .part already sit on the
+    /// <summary>A file is priced at what it STILL NEEDS: the bytes of a resumable.part already sit on the
     /// drive and are already out of its free figure. Every room test uses this, never the raw size.</summary>
     public static long StillNeeds(GameFile f)
         => Math.Max(0L, (f.PlanSizeBytes ?? 0L) - (f.HasPartial ? f.PartialBytes ?? 0L : 0L));

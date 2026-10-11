@@ -47,7 +47,7 @@ public static class LibraryUntrack
             // for an account that no longer exists).
             // The legacy single-slot mirror goes with it. Left standing (HasCloudSaves true over an empty list),
             // the next reconcile's SeedLegacy read it as a pre-account manifest and re-seeded the removed
-            // account's saves under whoever is first NOW (sweep 2 #31).
+            // account's saves under whoever is first NOW.
             if (item.CloudByAccount.RemoveAll(c => c.AccountId == accountId) > 0)
                 Grog.Core.CloudSaves.CloudSaveReconciler.MirrorLegacy(item);
             // A FILE-LESS item owned by attribution alone (the OwnerIds fallback names its AccountId) is
@@ -97,7 +97,7 @@ public static class LibraryUntrack
         foreach (var a in manifest.Accounts) a.LastSync = null;
         // The bytes stay on every drive and the records that pointed at them are gone: each root owes an
         // import again, or the rebuild scan lists the whole library as not downloaded and the next run
-        // fetches it all a second time (sweep 2 #12). PendingImports runs it once the scan has items.
+        // fetches it all a second time. PendingImports runs it once the scan has items.
         foreach (var r in manifest.Roots) Grog.Core.Verify.PendingImports.Mark(r);
         return n;
     }

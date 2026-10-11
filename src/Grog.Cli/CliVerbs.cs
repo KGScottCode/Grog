@@ -18,7 +18,7 @@ using Grog.Core.Verify;
 namespace Grog.Cli;
 
 /// <summary>
-/// One method per verb, dispatched from Program.cs by name. Until 09-02 these were 1,880 lines of case
+/// One method per verb, dispatched from Program.cs by name. Until these were 1,880 lines of case
 /// bodies in a single switch; the bodies are unchanged, each reads what it needs off the
 /// <see cref="CliContext"/>. A verb returns an exit code, or <see cref="Continue"/> to take the switch's
 /// old fall-through ("usage error seen -> 2, else 0").
@@ -165,7 +165,7 @@ internal static partial class CliVerbs
         var scan = await Grog.Core.Runs.LibraryScan.RunAsync(manifest, ctx.Api, ctx.Sessions, host, CancellationToken.None, datePurchases: true);
         host.FinishScan();
         // Storage registered before the library had items owes an import; the scan just gave it something to
-        // match against (sweep 2 #28: only the App ran these).
+        // match against (only the App ran these).
         if (manifest.Read(m => Grog.Core.Verify.PendingImports.Runnable(m).Count) > 0)
             await Grog.Core.Runs.ImportRun.RunPendingAsync(manifest, host, CancellationToken.None);
         var r = scan.Aggregate;
@@ -220,7 +220,7 @@ internal static partial class CliVerbs
         if (typeArg is not null && Enum.TryParse<ProductType>(typeArg, ignoreCase: true, out var wantType))
             items = items.Where(i => i.Type == wantType);
 
-        // (New items 09-09) list --new: only items flagged New. Narrows the SAME output, human and JSON.
+        // list --new: only items flagged New. Narrows the SAME output, human and JSON.
         bool onlyNew = args.Contains("--new", StringComparer.OrdinalIgnoreCase);
         if (onlyNew) items = items.Where(i => i.IsNew);
 
@@ -233,7 +233,7 @@ internal static partial class CliVerbs
                 title = g.Title,
                 type = g.Type.ToString(),
                 status = g.Status.ToString(),
-                isNew = g.IsNew,   // (New items 09-09)
+                isNew = g.IsNew,   // 
                 files = g.Files.Count,
                 extras = g.Files.Count(f => f.Kind == FileKind.Extra),
                 os = g.Files.Where(f => f.Kind == FileKind.Installer).Select(f => f.Os).Distinct().OrderBy(s => s).ToArray(),
@@ -598,7 +598,7 @@ internal static partial class CliVerbs
         {
             return Fail("verify", Grog.Core.Cli.ExitCode.IntegrityFailed, "integrity",
                 // 'download' never re-fetches a Corrupt file (BackupScope.NeedsFetch: corrupt waits for a fix
-                // decision), so that advice repaired nothing (sweep 2 #32). 'fix' is the verb, per what was found.
+                // decision), so that advice repaired nothing. 'fix' is the verb, per what was found.
                 "Verification found corrupt or missing files. Run 'fix "
                 + string.Join(' ', new[] { r.Corrupt > 0 ? "--corrupt" : null, r.Missing > 0 ? "--missing" : null }.Where(s => s is not null))
                 + "' to re-download them.");
@@ -785,7 +785,7 @@ internal static partial class CliVerbs
                     Out.Dim($"Current: {manifest.Current.Routing.Mode}");
                     break;
                 }
-                manifest.Mutate(m =>   // (manifest gate 09-08)
+                manifest.Mutate(m =>   // 
                 {
                     m.Routing.Mode = newMode;
                     if (newMode == Grog.Core.Models.RoutingMode.Overflow) m.Routing.RoleRoots.Clear();
@@ -823,7 +823,7 @@ internal static partial class CliVerbs
                 // can be re-downloaded. Handy for re-running the multi-volume test sequence.
                 var primary = manifest.Current.PrimaryRootId!;
                 int removed = 0;
-                using (manifest.Gate.Enter())   // (manifest gate 09-08)
+                using (manifest.Gate.Enter())   // 
                 {
                     foreach (var f in manifest.Current.Items.SelectMany(i => i.Files).Where(f => f.RootId is not null && f.RootId != primary))
                     {
@@ -1062,7 +1062,7 @@ internal static partial class CliVerbs
                 if (string.IsNullOrWhiteSpace(pat)) { Out.Usage("Usage: blacklist add <pattern>"); break; }
                 var set = current.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
                 if (!set.Contains(pat, StringComparer.OrdinalIgnoreCase)) set.Add(pat);
-                manifest.Mutate(m => m.Settings["scope.blacklist"] = string.Join(", ", set));   // (manifest gate 09-08)
+                manifest.Mutate(m => m.Settings["scope.blacklist"] = string.Join(", ", set));   // 
                 await manifest.SaveAsync();
                 Out.Success($"Blacklisted: {pat}");
                 break;
@@ -1072,13 +1072,13 @@ internal static partial class CliVerbs
                 var pat = string.Join(' ', PositionalArgs(args.Skip(2)));
                 var set = current.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                     .Where(x => !string.Equals(x, pat, StringComparison.OrdinalIgnoreCase)).ToList();
-                manifest.Mutate(m => m.Settings["scope.blacklist"] = string.Join(", ", set));   // (manifest gate 09-08)
+                manifest.Mutate(m => m.Settings["scope.blacklist"] = string.Join(", ", set));   // 
                 await manifest.SaveAsync();
                 Out.Success($"Removed from blacklist: {pat}");
                 break;
             }
             case "clear":
-                manifest.Mutate(m => m.Settings.Remove("scope.blacklist"));   // (manifest gate 09-08)
+                manifest.Mutate(m => m.Settings.Remove("scope.blacklist"));   // 
                 await manifest.SaveAsync();
                 Out.Success("Blacklist cleared.");
                 break;
@@ -1513,7 +1513,7 @@ internal static partial class CliVerbs
             var disco = new Grog.Core.CloudSaves.CloudSaveDiscoveryService(
                 new Grog.Core.CloudSaves.CloudSaveService(http, auth));
             var rows = await disco.DiscoverAsync(manifest.Current,
-                async (pid, ct) => (await api.GetProductInfoAsync(pid, ct))?.Title, gate: manifest.Gate);   // (manifest gate 09-08)
+                async (pid, ct) => (await api.GetProductInfoAsync(pid, ct))?.Title, gate: manifest.Gate);   // 
             await manifest.SaveAsync();
             if (rows.Count == 0) { Out.Dim("No cloud saves found on your account."); return Continue; }
             Out.Heading($"Cloud saves: {rows.Count} game(s)");
@@ -1597,7 +1597,7 @@ internal static partial class CliVerbs
                 new Grog.Core.CloudSaves.CloudGame(g.GogId, g.Title, g.Slug, clientId), gameDir);
             // Record clientId + cloud-save presence for next time. The listing belongs to the bound
             // account, so it lands in that account's entry and the mirror follows (single write path).
-            using (manifest.Gate.Enter())   // (manifest gate 09-08)
+            using (manifest.Gate.Enter())   // 
             {
                 g.CloudClientId = clientId;
                 if (firstAccount is not null)
@@ -2009,7 +2009,7 @@ internal static partial class CliVerbs
         using var backupCts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; backupCts.Cancel(); Console.WriteLine("\nStopping…"); };
 
-        // (New items 09-09) backup --new: restrict the run to the items flagged New, the same way --updates
+        // backup --new: restrict the run to the items flagged New, the same way --updates
         // narrows to superseded files. The set is taken from the manifest AS IT STANDS -- this run's own scan
         // has not happened yet, so anything it adds is next run's --new, which is what "the new ones I can
         // see" means to someone typing it.

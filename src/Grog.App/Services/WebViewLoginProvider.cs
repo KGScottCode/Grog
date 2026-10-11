@@ -19,14 +19,14 @@ public sealed class WebViewLoginProvider : IInteractiveLoginProvider
     // to skip the WebView cold start on later logins, but its cookies pre-filled identities as
     // non-editable: GOG's (a marker-file workaround used to force freshness after logout) and, worse,
     // the SSO providers' -- a remembered Google session auto-selected the PREVIOUS account with no way
-    // to pick another (owner decision 2026-08-24). Sign-in is rare (the refresh token keeps sessions
+    // to pick another. Sign-in is rare (the refresh token keeps sessions
     // alive for months), so a cold start per login costs nothing worth this class of bug.
 
     // The live login dialog, so the connect scrim's Cancel can close it from outside. Closing makes the
     // broker return null, which flows into the existing "Login was closed" cancellation path -- one exit,
     // not a second cancellation mechanism. Static: at most one interactive login exists at a time (the
     // scrim covers the whole window). Exists because a minimized-then-restored app could lose the native
-    // dialog with no way out but killing the process (Linux walk 2026-08-23, N2).
+    // dialog with no way out but killing the process.
     private static NativeWebDialog? _activeDialog;
 
     /// <summary>Close the in-flight login dialog, if any. Safe from any thread; returns false when no
@@ -63,7 +63,7 @@ public sealed class WebViewLoginProvider : IInteractiveLoginProvider
 
             // BELT AND BRACES for the redirect: on macOS the broker does not recognize the WKWebView's
             // navigation to the redirect URI - GOG shows on_login_success WITH the code in the URL and the
-            // dialog just sits there (MacinCloud, 2026-08-28). Watch the dialog's own navigation events,
+            // dialog just sits there. Watch the dialog's own navigation events,
             // capture the redirect ourselves, and close the dialog; if the broker then reports "closed"
             // instead of a callback, the captured URI is the answer it missed. Harmless on platforms where
             // the broker works: it completes first and the capture is never consulted.
@@ -77,7 +77,7 @@ public sealed class WebViewLoginProvider : IInteractiveLoginProvider
                 // WITHOUT this, Apple platforms use ASWebAuthenticationSession instead of the dialog: a
                 // system window (with a URL bar) that only completes on CUSTOM-SCHEME callbacks - GOG's
                 // https redirect can never terminate it, so login succeeded and the window sat there
-                // forever (MacinCloud 2026-08-28). True = the same dialog path Windows/Linux already use,
+                // forever. True = the same dialog path Windows/Linux already use,
                 // where the factory below and its redirect capture actually run.
                 PreferNativeWebDialog = true,
                 // Build the native login dialog so it opens titled and at login-card size; the window is
@@ -126,8 +126,7 @@ public sealed class WebViewLoginProvider : IInteractiveLoginProvider
             {
                 var result = await Avalonia.Controls.WebAuthenticationBroker.AuthenticateAsync(owner, options);
                 // The capture is the answer the broker missed (see above). It was recorded and then never read:
-                // the dialog closed itself on the redirect and the login was still reported as cancelled
-                // (sweep 2 #24).
+                // the dialog closed itself on the redirect and the login was still reported as cancelled.
                 return result?.CallbackUri ?? captured
                     ?? throw new OperationCanceledException("Login was closed before it completed.");
             }

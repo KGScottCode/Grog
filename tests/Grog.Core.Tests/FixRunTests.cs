@@ -12,7 +12,7 @@ using Grog.Core.Models;
 using Grog.Core.Runs;
 using Grog.Core.Tests.Framework;
 
-/// <summary>The one fix sequence (S2.1, 09-08) behind the App's Fix / Try again / Re-download and `grogcli fix`.</summary>
+/// <summary>The one fix sequence behind the App's Fix / Try again / Re-download and `grogcli fix`.</summary>
 [NewBatch]
 [Trait("run")]
 public class FixRunTests
@@ -130,7 +130,7 @@ public class FixRunTests
         Assert.Equal(0, FixRun.Count(s, FixSelector.CorruptOrMissing), "count agrees");
     }
 
-    // 1283 (QA 09-30 C1): the Health card's Try Again names the run's failed files by key. A named Corrupt file is
+    // 1283: the Health card's Try Again names the run's failed files by key. A named Corrupt file is
     // retried (strikes reset, state lifted); a named present file and a named Unavailable one are left alone; the
     // strike-on-a-gap set still comes along.
     [Test]

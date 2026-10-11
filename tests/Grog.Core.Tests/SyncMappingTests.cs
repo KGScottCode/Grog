@@ -121,7 +121,7 @@ public class SyncMergeCarryForwardTests
         return it;
     }
 
-    // (09-13) No size from GOG = nothing to download: Unavailable with a reason, never queued, never counted.
+    // No size from GOG = nothing to download: Unavailable with a reason, never queued, never counted.
     // A held copy is left alone; a size that appears on a later sync clears it.
     [Test]
     void MergeInto_SizelessFile_IsUnavailable_UntilASizeAppears()

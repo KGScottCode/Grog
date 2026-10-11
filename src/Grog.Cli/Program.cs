@@ -75,7 +75,7 @@ api.OnThrottle = msg => Out.Warn(msg);   // 429/5xx backoff waits are said out l
 // Commands use it whenever named accounts exist; a legacy single-account setup keeps the plain `api`.
 var sessions = new Grog.Core.Auth.AccountSessions(manifest, paths, http) { OnThrottle = msg => Out.Warn(msg) };
 
-// ContentRoot() and the lazy Layout() moved onto CliContext with the verb split (09-02).
+// ContentRoot() and the lazy Layout() moved onto CliContext with the verb split.
 
 // Reject unknown/mistyped options up front: a typo like `--primry` fails loud with a suggestion, never
 // silently ignored. CliKnownFlagsTests asserts this set contains every double-dash literal in this file.
@@ -89,7 +89,7 @@ var sessions = new Grog.Core.Auth.AccountSessions(manifest, paths, http) { OnThr
         "--primary","--removable","--retry-failed","--role","--root","--secondary","--show-config","--silent","--skip-extras",
         "--skip-installers","--title","--title-regex","--to","--type","--updates","--verbose","--with","--yes",
         "--keep","--failed","--corrupt","--missing","--game",   // (S2.1) fix / cloudsaves --all / prune
-        "--new",   // (New items 09-09) list --new / backup --new
+        "--new",   // list --new / backup --new
         "--verify-checksums",   // import: fetch GOG's checksum for adopted files with none on record
         "--version",
         "--ignore-pause",   // backup: run even while the queue is paused
@@ -167,9 +167,9 @@ try
         ["reorg"] = ctx => ctx.Args.Skip(1).Any(a => a.Equals("layout", StringComparison.OrdinalIgnoreCase)) ? CliVerbs.ReorgLayout(ctx) : CliVerbs.Reorg(ctx),
         ["fix"] = CliVerbs.Fix,
         ["mark-missing"] = CliVerbs.MarkMissing,
-        ["clear-new"] = CliVerbs.ClearNew,   // (New items 09-09)
+        ["clear-new"] = CliVerbs.ClearNew,   // 
         ["backup"] = CliVerbs.Backup,
-        // (Purchase dates 09-09) `sync` already dates what it can; this is the catch-up verb for a library
+        // `sync` already dates what it can; this is the catch-up verb for a library
         // that predates the feature, plus --force to re-walk every order page.
         ["dates"] = CliVerbs.Dates,
         // The queue's Paused fact and the saved scope, from the command line (writer verbs: they take the lock).
@@ -177,7 +177,7 @@ try
         ["resume"] = CliVerbs.Resume,
         ["scope"] = CliVerbs.Scope,
     };
-    // Research verbs (09-08): API probes and render demos used while building Grog. Reachable with
+    // Research verbs: API probes and render demos used while building Grog. Reachable with
     // GROG_DEV_VERBS=1, never listed in help, never in a scheduled caller's way.
     if (Environment.GetEnvironmentVariable("GROG_DEV_VERBS") == "1")
     {
@@ -186,10 +186,10 @@ try
         verbs["extratypes"] = CliVerbs.Extratypes;
         verbs["cloudprobe"] = CliVerbs.Cloudprobe;
         verbs["renderdemo"] = CliVerbs.Renderdemo;
-        verbs["mark-new"] = CliVerbs.MarkNew;         // (New items 09-09) replay the New badge in testing
-        verbs["ordersprobe"] = CliVerbs.Ordersprobe;  // (New items 09-09) research: does order history carry purchase dates?
+        verbs["mark-new"] = CliVerbs.MarkNew;         // replay the New badge in testing
+        verbs["ordersprobe"] = CliVerbs.Ordersprobe;  // research: does order history carry purchase dates?
     }
-    // The App has priority over the profile (09-08): a verb that can write the manifest refuses while Grog is
+    // The App has priority over the profile: a verb that can write the manifest refuses while Grog is
     // open, says so on stderr / the JSON envelope, in BOTH logs (the CLI's and the App's grog.log, for anything
     // parsing them) and leaves a note the App turns into a toast. Read-only verbs run regardless.
     var readOnlyVerbs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -286,7 +286,7 @@ internal sealed class DownloadRenderer
     public IReadOnlyList<(string File, string State, string? Error)> Failures => _failures;
 
     /// <summary>Quiet runs (--silent, --json, piped) still need a pulse: a 20 GB file with no output looks
-    /// exactly like a hang (owner, 09-04). One STDERR line per finished file and one heartbeat every
+    /// exactly like a hang. One STDERR line per finished file and one heartbeat every
     /// <see cref="HeartbeatMs"/> while bytes move; stdout stays untouched for the JSON document.</summary>
     private const int HeartbeatMs = 10_000;
     private long _lastBeat = Environment.TickCount64;

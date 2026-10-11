@@ -8,7 +8,7 @@ namespace Grog.Core.Download;
 /// <summary>
 /// How long each device takes to accept a finished file (the flush after the last byte). A USB stick with
 /// write-through can take seconds per file and stalls anything else touching it; a USB3 hard drive does not.
-/// The DRIVE TYPE cannot tell them apart, the flush time can (owner, 09-04). Per root, with hysteresis: slow
+/// The DRIVE TYPE cannot tell them apart, the flush time can. Per root, with hysteresis: slow
 /// above <see cref="SlowSeconds"/>, fast again only once back under <see cref="FastSeconds"/>, so a single
 /// bad flush does not flap the worker pool. Pure bookkeeping; the engine reads <see cref="IsSlow"/>.
 /// </summary>

@@ -13,7 +13,7 @@ using Grog.Core.Volumes;
 namespace Grog.Core.Runs;
 
 /// <summary>Which question a layout plan answers. The App showed two different prompts for two different
-/// plans (final check 09-06) and they must stay distinct: <see cref="FlatLayout"/> is the one-time on-load
+/// plans and they must stay distinct: <see cref="FlatLayout"/> is the one-time on-load
 /// offer ("files are in the old flat layout"), planned from what is ACTUALLY on disk and withheld while an
 /// unfinished reorg journal owns the misplaced files; <see cref="LayoutChange"/> is the offer after the user
 /// switched the extras layout in Settings ("files are still in the previous layout"), planned from the
@@ -58,7 +58,7 @@ public sealed record LayoutMigrationOutcome(
 /// THE layout migration sequence, shared by the App's migrate prompt and <c>grogcli reorg layout</c>:
 /// plan (pure, then one File.Exists per move for the on-load offer), journal, run the
 /// <see cref="ReorgRunner"/> to completion with its rename / copy-verify-promote-delete semantics, save.
-/// Until 09-08 the App's CheckLayoutMigration / OfferLayoutReorg / MigrateNow and the CLI's Reorg verb
+/// Until the App's CheckLayoutMigration / OfferLayoutReorg / MigrateNow and the CLI's Reorg verb
 /// each carried a copy of this (and the CLI's never applied the on-disk filter or the journal rule).
 /// Disk probes run outside the manifest gate; the runner repaths under it.
 /// </summary>
@@ -66,7 +66,7 @@ public static class LayoutMigrationRun
 {
     /// <summary>The on-load offer (App CheckLayoutMigration): files still in the old flat layout, restricted
     /// to what is actually on disk. Null when nothing needs moving, or when an unfinished reorg journal exists
-    /// (that job owns the misplaced files; the resume prompt handles them -- owner-hit 08-30).</summary>
+    /// (that job owns the misplaced files; the resume prompt handles them --).</summary>
     public static Task<LayoutMigrationPlan?> PlanAsync(IManifestStore store, string backupRoot, CancellationToken ct,
                                                        string? configDir = null)
         => Task.Run<LayoutMigrationPlan?>(() =>
@@ -80,14 +80,14 @@ public static class LayoutMigrationRun
             var layout = new BackupLayout(m, backupRoot);
             List<LayoutMigrationService.Move> moves;
             ReorgJob job;
-            using (store.Gate.Enter())   // (manifest gate 09-08) both planners walk the item graph; pure otherwise
+            using (store.Gate.Enter())   // both planners walk the item graph; pure otherwise
             {
                 moves = new LayoutMigrationService(m, layout).Plan().ToList();
                 job = ReorgPlanner.ForLayoutChange(m, layout);
             }
             // Offer only what is ACTUALLY ON DISK: the plan is manifest-path string logic, so records whose
-            // bytes are gone still plan as "movable" and the prompt would promise work it cannot do (owner-hit
-            // 08-30). The runner skips+repaths them harmlessly, so the executable job keeps them.
+            // bytes are gone still plan as "movable" and the prompt would promise work it cannot do (
+            // ). The runner skips+repaths them harmlessly, so the executable job keeps them.
             var onDisk = moves.Where(x => File.Exists(x.FromAbs)).ToList();
             if (onDisk.Count == 0) return null;
             return Build(LayoutPlanKind.FlatLayout, job, onDisk);
@@ -104,7 +104,7 @@ public static class LayoutMigrationRun
             var m = store.Current;
             var layout = new BackupLayout(m, backupRoot);
             ReorgJob job;
-            using (store.Gate.Enter()) job = ReorgPlanner.ForLayoutChange(m, layout);   // (manifest gate 09-08)
+            using (store.Gate.Enter()) job = ReorgPlanner.ForLayoutChange(m, layout);   // 
             if (job.HasUnavailableDrives)
                 return new LayoutMigrationPlan(LayoutPlanKind.LayoutChange, job, Array.Empty<LayoutMigrationService.Move>(), 0, 0);
             if (job.Moves.Count == 0) return null;

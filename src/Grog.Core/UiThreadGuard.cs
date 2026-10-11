@@ -6,7 +6,7 @@ using System.Collections.Concurrent;
 namespace Grog.Core;
 
 /// <summary>
-/// THE UI THREAD RUNS ONLY UI (owner, 09-25). Core's heavy entry points (whole-queue planning, library walks, drive
+/// THE UI THREAD RUNS ONLY UI. Core's heavy entry points (whole-queue planning, library walks, drive
 /// probes, settling, journal and manifest writes) call <see cref="NotOnUi"/>; a host with a UI thread registers
 /// <see cref="IsUiThread"/>. A call from the UI thread is a defect: it is reported once per entry point through
 /// <see cref="Violation"/> (the App logs it as an ERROR naming the call), and throws when <see cref="Strict"/> is on

@@ -5,7 +5,7 @@ namespace Grog.Core.Tests;
 using Grog.App.ViewModels;
 using Grog.Core.Tests.Framework;
 
-/// <summary>(Storage math 09-09) The Storage Status bar's split of a drive into Grog / other / free.
+/// <summary>The Storage Status bar's split of a drive into Grog / other / free.
 /// The owner spotted the bug behind these: with TWO backup folders on ONE physical drive, every row was
 /// reporting the SIBLING folder's backups as "other data (not Grog's)", because "used" is a whole-volume
 /// figure and only the row's own Grog bytes were being taken out of it. Invisible at a gigabyte against a

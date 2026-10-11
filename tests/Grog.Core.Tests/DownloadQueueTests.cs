@@ -62,7 +62,7 @@ public class DownloadQueueTests
         Assert.Equal("jumper,running", string.Join(",", e.Snapshot.Select(t => t.GameTitle)), "order reflects the drag");
     }
 
-    // Walk 09-25: Size sort on the FAT32 stick left a 4 GB part downloading at the bottom of the queue for a minute
+    // Walk: Size sort on the FAT32 stick left a 4 GB part downloading at the bottom of the queue for a minute
     // while the 1 MB files sorted to the top waited. The stick was judged slow (one file at a time), so every
     // Pending row above it was "gated" behind that very Active task and counted as nothing ahead of it.
     static DownloadTask K(string name, string root) => new()
@@ -105,7 +105,7 @@ public class DownloadQueueTests
 
     [Test] void Reorder_never_preempts_a_file_that_is_writing_verifying_or_saving()
     {
-        // Owner 09-25: every byte is in; stopping it now only throws away the flush or the hash.
+        // Owner: every byte is in; stopping it now only throws away the flush or the hash.
         foreach (var phase in new[] { "Writing to disk", "Verifying", "Saving" })
         {
             var e = new DownloadEngine(null!, null!) { MaxConcurrent = 1 };
@@ -123,7 +123,7 @@ public class DownloadQueueTests
 
     [Test] void Waiting_rows_on_a_slow_drive_never_bump_a_fast_drive_download()
     {
-        // QA 09-25: two stick rows sorted on top take ONE slot between them (the stick runs one file), so the hard
+        // : two stick rows sorted on top take ONE slot between them (the stick runs one file), so the hard
         // drive's download keeps the other slot instead of being cut and picked straight back up.
         var mon = new DeviceWriteMonitor(); mon.Record("stick", 17);
         var e = new DownloadEngine(null!, null!) { MaxConcurrent = 2, DeviceMonitor = mon };
@@ -139,7 +139,7 @@ public class DownloadQueueTests
 
     [Test] void Two_stick_files_already_running_are_not_bumped_when_nothing_waits_above_them()
     {
-        // QA 09-25: both started before the stick was judged slow. Raising the limit (or a drag elsewhere) re-runs
+        // : both started before the stick was judged slow. Raising the limit (or a drag elsewhere) re-runs
         // the window; nothing on the stick ranks above the second, so nothing stops.
         var mon = new DeviceWriteMonitor(); mon.Record("stick", 17);
         var e = new DownloadEngine(null!, null!) { MaxConcurrent = 2, DeviceMonitor = mon };
@@ -155,7 +155,7 @@ public class DownloadQueueTests
 
     [Test] void Lowering_the_limit_counts_every_running_file_on_a_slow_drive()
     {
-        // QA 09-25: two stick files and one hard-drive file running, limit 3 -> 2: three files on two slots is one too many.
+        // : two stick files and one hard-drive file running, limit 3 -> 2: three files on two slots is one too many.
         var mon = new DeviceWriteMonitor(); mon.Record("stick", 17);
         var e = new DownloadEngine(null!, null!) { MaxConcurrent = 3, DeviceMonitor = mon };
         var a = K("a", "stick"); var b = K("b", "stick"); var h = K("h", "hd");

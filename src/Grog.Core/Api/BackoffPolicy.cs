@@ -8,7 +8,7 @@ namespace Grog.Core.Api;
 /// THE retry-delay arithmetic: a server hint (Retry-After) when there is one, else exponential from a base,
 /// always clamped to [base, max] so a zero hint cannot hot-loop and a huge one cannot park a worker for an
 /// hour. The API client's shared throttle gate and the download engine's per-task retry both use it; before
-/// 09-02 each had its own curve.
+///  each had its own curve.
 /// </summary>
 public static class BackoffPolicy
 {

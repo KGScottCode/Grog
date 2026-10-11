@@ -15,7 +15,7 @@ namespace Grog.App.ViewModels;
 /// <summary>
 /// The "Where extras are stored" card: three choices STAGED together and committed once.
 ///
-/// Why this is the page's only staged card (owner call 09-11). The three pills are not peers -- the shape
+/// Why this is the page's only staged card. The three pills are not peers -- the shape
 /// decides whether the other two mean anything -- and each used to commit on click through its own path,
 /// so "separate folder, on the second drive" was two commits, two prompts, and one of them silently did
 /// nothing (see <see cref="Grog.Core.Runs.ExtrasPlacementRun"/>). Staging makes the hierarchy real: nothing
@@ -61,14 +61,14 @@ public sealed partial class ExtrasPlacementEditor : ObservableObject
     /// <summary>The storage locations changed (a drive added, removed, detached, swapped). The card read them
     /// ONCE, when the store opened, so removing the secondary left it staged on a drive that no longer
     /// exists: dirty with nothing the user did, the leave guard asking about it, and Apply ready to route
-    /// extras to a missing root (sweep 2 #19). An untouched card follows the manifest; a staged choice that
+    /// extras to a missing root. An untouched card follows the manifest; a staged choice that
     /// names a drive that is gone is dropped; a staged choice that still makes sense is kept and re-counted.</summary>
     public void OnLocationsChanged()
     {
         if (!_loaded) return;
         // A scope change took extras out of scope: the card is hidden, and its staging went on living behind
         // it -- the leave guard asked about a card the user could no longer see, and "Apply" from that prompt
-        // committed it (sweep 2 #29). A hidden card holds nothing.
+        // committed it. A hidden card holds nothing.
         if (!_host.ExtrasInScope) { if (IsDirty) ResetFromManifest(); return; }
         bool userStaged = _stagedPlacement != _baselinePlacement || _stagedExtrasRootId != _baselineExtrasRootId;
         bool stagedRootGone = _stagedExtrasRootId is { Length: > 0 } r && !_host.Locations.Any(l => l.RootId == r);
@@ -119,7 +119,7 @@ public sealed partial class ExtrasPlacementEditor : ObservableObject
     /// <summary>"Which storage holds them" -- purely "is there a second drive". Whether the sub-rows apply
     /// AT ALL is the shape's business and the view handles it by reserving their space rather than
     /// collapsing it, so this must NOT also test the shape: doing both made the card change height when the
-    /// shape toggled (measured 09-11).</summary>
+    /// shape toggled.</summary>
     public bool ShowStorageRow => HasSecondary;
 
     public string SecondaryLabel => SecondaryName ?? "Secondary";
@@ -140,8 +140,8 @@ public sealed partial class ExtrasPlacementEditor : ObservableObject
     /// <summary>Footer line. The file count is what makes Apply a considered click rather than a shrug, so
     /// it is stated as soon as the background plan answers; until then the line is honest about not knowing.</summary>
     public string PendingText => !IsDirty ? ""
-        // A drive the move needs is not here: Apply will commit NOTHING (plan before commit, 09-13), so the
-        // footer must not promise a file count, or "nothing to move", that Apply cannot deliver (sweep 2 #30).
+        // A drive the move needs is not here: Apply will commit NOTHING, so the
+        // footer must not promise a file count, or "nothing to move", that Apply cannot deliver.
         : _pendingBlockedBy is { Length: > 0 } drive ? $"Not applied · {drive} is not connected"
         : _pendingMoves is null ? "Not applied"
         : _pendingMoves == 0 ? "Not applied · nothing to move"
@@ -199,9 +199,9 @@ public sealed partial class ExtrasPlacementEditor : ObservableObject
     private void QueueCount()
     {
         _countCts?.Cancel();
-        // (09-20) A re-count of the SAME staged choice keeps the last answer on screen until the new one lands. This
+        // A re-count of the SAME staged choice keeps the last answer on screen until the new one lands. This
         // runs on every storage refresh (1 Hz during a backup), and blanking first made the footer flash between
-        // "Not applied" and "Not applied - 279 files will move" once a second (owner-hit, walk pass 4).
+        // "Not applied" and "Not applied - 279 files will move" once a second.
         var countingFor = (_stagedPlacement, _stagedExtrasRootId);
         if (!IsDirty || !Equals(countingFor, _countedFor))
         {
@@ -228,7 +228,7 @@ public sealed partial class ExtrasPlacementEditor : ObservableObject
                 var m = store.Current;
                 var layout = new Grog.Core.Volumes.BackupLayout(m, root);
                 Grog.Core.Volumes.ReorgJob job;
-                using (store.Gate.Enter())   // (manifest gate 09-08)
+                using (store.Gate.Enter())   // 
                     job = Grog.Core.Runs.ExtrasPlacementRun.PlanMoves(m, layout, placement, extrasRoot!, primary!);
                 var n = job.Moves.Count;
                 var blockedBy = job.HasUnavailableDrives ? string.Join(", ", job.UnavailableDrives) : null;
@@ -264,7 +264,7 @@ public sealed partial class ExtrasPlacementEditor : ObservableObject
             var plan = await Grog.Core.Runs.ExtrasPlacementRun.ApplyAndPlanAsync(
                 store, root, placement, extrasRoot!, _host.SessionToken);
 
-            // A drive the move needs is not here: NOTHING was committed (09-13), so the card stays staged and
+            // A drive the move needs is not here: NOTHING was committed, so the card stays staged and
             // Apply is still there when the drive is back. The host names the drive.
             if (plan is { HasUnavailableDrives: true }) { _host.OfferPlan(plan); return; }
 
@@ -326,7 +326,7 @@ public sealed partial class ExtrasPlacementEditor : ObservableObject
         {
             _host.Log("Saved. Grog has files to move for the new extras layout; the Storage page is asking.");
             // The destination was the window's X: closing now would drop the question unanswered, with the new
-            // layout committed and the files still in the old one (sweep 2 #22). Go to the question instead;
+            // layout committed and the files still in the old one. Go to the question instead;
             // the close is the user's to press again once it is answered.
             if (target == MainWindowViewModel.CloseTarget) { _host.LeaveTo(StoragePage); return; }
         }

@@ -98,14 +98,14 @@ public static class OwnerBadges
 /// reads and writes (the FIRST registered account, RebindInteractiveSession). Log-out/remove of THIS row
 /// must also drop the live session; every other row only touches its own file.</param>
 /// <param name="BackedUpGames">Games of this owner with any local copy; -1 = not computed (segment omitted).
-/// (UX 09-08 #1)</param>
+/// </param>
 /// <param name="LastChecked">Manifest LastSyncCompleted as relative text; null = never / unknown (segment omitted).
-/// (UX 09-08 #1)</param>
+/// </param>
 public sealed record AccountRow(string Id, string Name, int ItemCount, bool Visible, bool Connected = true,
     bool BacksInteractiveSession = false, int BackedUpGames = -1, string? LastChecked = null)
 {
     public string CountText => Connected ? $"{ItemCount} items" : $"{ItemCount} items - signed out";
-    /// <summary>The row's subline (UX 09-08 #1): "{N} items · {M} games backed up · last checked {ago}", with a
+    /// <summary>The row's subline: "{N} items · {M} games backed up · last checked {ago}", with a
     /// trailing "signed out" when the session is gone. Segments whose figure is unavailable are omitted.</summary>
     public string StatsText
     {

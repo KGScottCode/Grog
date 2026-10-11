@@ -82,7 +82,7 @@ public sealed class GuideSession
 
     /// <summary>THE one rule for whether the cursor may rest on a stop: it must be relevant, and a pass-over
     /// stop (a rail click) is never shown going backwards nor once it is already satisfied going forwards.
-    /// Back, Next-behind and Sync-behind all ask this; three inlined copies of it had drifted apart (09-02).</summary>
+    /// Back, Next-behind and Sync-behind all ask this; three inlined copies of it had drifted apart.</summary>
     private bool Showable(int i, GuideState s, bool backwards)
     {
         var n = FirstRunTour.Nodes[i];

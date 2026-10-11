@@ -7,7 +7,7 @@ using Grog.Core.Models;
 using Grog.Core.Sync;
 using Grog.Core.Tests.Framework;
 
-// The Content picker's prices (09-11). The old three pills could not say what any choice cost, so a
+// The Content picker's prices. The old three pills could not say what any choice cost, so a
 // first-run user picked blind; the flyout now shows size and file count per option. These pin the one rule
 // that makes those numbers useful -- the axis being priced is LIFTED, everything else still narrows -- and
 // the one that makes them agree with the rest of the app.

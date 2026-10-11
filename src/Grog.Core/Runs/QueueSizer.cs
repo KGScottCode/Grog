@@ -14,7 +14,7 @@ namespace Grog.Core.Runs;
 /// Learns the REAL size of queued files before they download. GOG lists a display size only (a 325 MB label for a
 /// 341,311,456-byte file; errors up to 45 MB were measured on one library), and the planner prices every unstarted
 /// file at that label, so on a nearly full drive each landing moved the fit line and "files left" would not step
-/// down with "done" (walk 10-01). The CDN's Content-Length is the only real figure GOG exposes, two requests per
+/// down with "done". The CDN's Content-Length is the only real figure GOG exposes, two requests per
 /// file (resolve the link, HEAD it), so the walk is bounded to what matters: files that are QUEUED and not yet
 /// sized, in queue order, one at a time under the API client's own rate gate, started when something is queued
 /// (never at launch, never after a plain scan). The answer is persisted on the record (<see cref="GameFile.WireSizeBytes"/>,

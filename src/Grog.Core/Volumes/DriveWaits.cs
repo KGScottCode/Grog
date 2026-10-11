@@ -5,7 +5,7 @@ using System.Collections.Concurrent;
 
 namespace Grog.Core.Volumes;
 
-/// <summary>(09-25, owner) Storage that went away while files were headed to it. Process-wide, like the
+/// <summary>Storage that went away while files were headed to it. Process-wide, like the
 /// <see cref="DriveResolver"/> busy registry: the engine adds a root the moment a file finds its folder gone, and
 /// the host removes it when the drive is back (or the user sends the files elsewhere / removes them).
 /// While a root is here its files WAIT: the planner keeps them on it (no silent spill, no "won't fit"), and no

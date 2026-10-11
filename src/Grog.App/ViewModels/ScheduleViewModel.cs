@@ -14,7 +14,7 @@ namespace Grog.App.ViewModels;
 /// Automatic backups: the in-app timer, next-fire math, the five-second countdown, overdue-on-launch, the
 /// morning-after notice, and the Settings card's bound surface. Reads the window through
 /// <see cref="IScheduleHost"/>; every bound name is unchanged from the four MainWindowViewModel partials
-/// it was gathered from on 2026-09-02, so the Settings card, the Overview SCHEDULE card and the three
+/// it was gathered from on, so the Settings card, the Overview SCHEDULE card and the three
 /// foot cards rebind by DataContext alone. Both timers are DispatcherTimers created on the UI thread by
 /// host calls, never in the constructor, so a test constructs this freely.
 /// </summary>
@@ -114,7 +114,7 @@ public sealed partial class ScheduleViewModel : ObservableObject
         RaiseNextFire();
     }
 
-    // ---- Fire-time countdown (owner 09-02): a scheduled run announces itself for five seconds with
+    // ---- Fire-time countdown: a scheduled run announces itself for five seconds with
     // Start now / Skip this run, so someone at the keyboard is never surprised by a download starting.
     // Unattended (tray, asleep) it simply elapses; five seconds is noise against a backup.
     public const int ScheduleCountdownSeconds = 5;
@@ -349,7 +349,7 @@ public sealed partial class ScheduleViewModel : ObservableObject
             // The journal is the durable record: its counts survive a restart, where the in-memory run
             // tally does not. A journal from a run still going belongs to the live card, not to this one.
             // Only a BACKUP run's journal: a one-file click ("download") writes the same current.json and read as the
-            // scheduled run's "1 of 1 files" (QA 09-30 C11).
+            // scheduled run's "1 of 1 files".
             if (_host.LastRunSummary is { } j && j.State != "running" && j.Total > 0 && j.Command == "backup")
             {
                 var line = $"{ago} · {j.Completed} of {j.Total} file{(j.Total == 1 ? "" : "s")}";
@@ -402,7 +402,7 @@ public sealed partial class ScheduleViewModel : ObservableObject
             s.Enabled = value;
             // EVERY enable re-stamps the anchor. It was stamped only when null, so a schedule switched off for a
             // month and back on kept the old one: the launch check then reported a "missed" backup from a day
-            // the schedule was off, and the every-N-weeks cadence counted from a week long gone (sweep 2 #21).
+            // the schedule was off, and the every-N-weeks cadence counted from a week long gone.
             if (value) s.AnchorDate = DateTimeOffset.Now;
             OnPropertyChanged();
             RaiseScheduleShape();
@@ -452,7 +452,7 @@ public sealed partial class ScheduleViewModel : ObservableObject
         RaiseNextFire();
     }
 
-    // TimePicker (owner 09-02: the typed box + quarter-hour suggestions read as "only these times" and gave
+    // TimePicker (the typed box + quarter-hour suggestions read as "only these times" and gave
     // no acceptance signal). Hour / minute / AM-PM spinners at one-minute granularity; the value IS the
     // saved value, and the Next-backup line beside it restates it.
     public TimeSpan? ScheduleTime
@@ -499,7 +499,7 @@ public sealed partial class ScheduleViewModel : ObservableObject
         var s = Sched; if (s is null) return;
         bool has = s.CustomDays.Contains(d);
         if (!on && !has || on && has) return;
-        // A list write on the manifest graph: under the gate when a store is bound. (manifest gate 09-08)
+        // A list write on the manifest graph: under the gate when a store is bound.
         var gate = _host.ManifestGate;
         if (gate is not null)
         {
@@ -548,7 +548,7 @@ public sealed partial class ScheduleViewModel : ObservableObject
 
 
 
-    // ---- Morning-after notice: the first scheduled backup explains itself once (PO, 09-01) ----
+    // ---- Morning-after notice: the first scheduled backup explains itself once ----
     // A stranger who skipped the tour, connected and set a slot never saw a scan summary or the scope.
     // The Overview's numbers are all there the next morning; this is the one sentence that ties them.
     public bool ShowFirstUnattendedNotice => !string.IsNullOrEmpty(_host.Settings.FirstUnattendedRunSummary) && !ScheduleOverdue && !ShowScheduleCountdown;

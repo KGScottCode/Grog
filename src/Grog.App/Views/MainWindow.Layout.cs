@@ -81,7 +81,7 @@ public partial class MainWindow
 
     protected override void OnClosing(WindowClosingEventArgs e)
     {
-        // (UI-thread sweep 09-06 r2) the Closing handlers (raised by base.OnClosing) cancel most X presses --
+        // the Closing handlers (raised by base.OnClosing) cancel most X presses --
         // confirm dialog, drop-to-tray, quit re-raise -- and each one used to pay a settings Flush+Load+Save
         // on the dispatcher. Persist the layout only for a close that actually goes through; the quit path
         // re-raises Closing un-cancelled, so the final write still happens exactly as before.
@@ -93,7 +93,7 @@ public partial class MainWindow
     {
         // Read-modify-write against the current file: the ViewModel owns a separate AppSettings instance
         // and saves prefs mid-session, so touch only the layout fields here.
-        AppSettings.FlushPendingSave();   // (UI-thread sweep 09-06) a debounced save is newer than the file we are about to read
+        AppSettings.FlushPendingSave();   // a debounced save is newer than the file we are about to read
         var s = AppSettings.Load();
 
         // While the fixed-size harness is on, never persist the window layout or the forced size would

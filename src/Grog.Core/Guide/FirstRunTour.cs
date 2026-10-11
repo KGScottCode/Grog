@@ -182,7 +182,7 @@ public static class FirstRunTour
                   + "tour any time from Settings.")
         // The card is centered with nothing highlighted, but the PAGE behind it is chosen for what comes
         // next: a full backup still running lands on Overview to watch it; otherwise Library, where the
-        // next action most likely is (owner, 2026-08-26).
+        // next action most likely is.
         { DestinationFor = s => s.RunStarted ? "Overview" : "Library" },
     };
 

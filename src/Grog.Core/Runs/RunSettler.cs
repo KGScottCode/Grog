@@ -17,8 +17,8 @@ namespace Grog.Core.Runs;
 ///
 /// <para>Scans the WHOLE snapshot on every event, keyed by task id, rather than trusting the event's own
 /// task: hosts coalesce events (the App drops intermediates by design), and a per-event check left files
-/// that finished inside one window unsettled. The App learned that the hard way (09-01); the CLI used a
-/// per-event check until 09-02. One implementation now.</para>
+/// that finished inside one window unsettled. The App learned that the hard way; the CLI used a
+/// per-event check until. One implementation now.</para>
 /// </summary>
 public sealed class RunSettler : IDisposable
 {
@@ -32,7 +32,7 @@ public sealed class RunSettler : IDisposable
     private readonly SemaphoreSlim _saveGate = new(1, 1);
     /// <summary>Serialises host notifications. Two workers finishing at the same instant used to call
     /// TaskSettled concurrently, and a host doing the obvious thing (appending to a list) silently lost one
-    /// (owner-hit 09-09). Never held while taking <see cref="_gate"/> or the manifest gate, so it cannot
+    /// . Never held while taking <see cref="_gate"/> or the manifest gate, so it cannot
     /// deadlock with a settle; a host that marshals to a UI thread posts and returns, it does not block.</summary>
     private readonly object _notifyGate = new();
     private DateTime _lastSaveUtc = DateTime.MinValue;
@@ -49,13 +49,13 @@ public sealed class RunSettler : IDisposable
     public int Skipped { get; private set; }
     /// <summary>Files the drive had no room for once their real size was known: held as won't-fit, not failed.</summary>
     public int NoRoom { get; private set; }
-    /// <summary>(09-25) Files stopped because their storage went away: waiting for the drive, not failed.</summary>
+    /// <summary>Files stopped because their storage went away: waiting for the drive, not failed.</summary>
     public int DriveOffline { get; private set; }
     private readonly HashSet<(long, string)> _driveOfflineKeys = new();
     /// <summary>The files counted in <see cref="DriveOffline"/>.</summary>
     public bool CountedDriveOffline(long gogId, string fileKey) => _driveOfflineKeys.Contains((gogId, fileKey));
 
-    /// <summary>(New items 09-09) The scope this run measures completeness against. THE one place that
+    /// <summary>The scope this run measures completeness against. THE one place that
     /// knows an item just became complete is the settle below, so the auto-clear of the New flag lives
     /// there; null falls back to the manifest's saved scope (a caller that never sets it still behaves).</summary>
     public Sync.Scope? ClearNewScope { get; set; }
@@ -74,10 +74,10 @@ public sealed class RunSettler : IDisposable
         _engine.TaskChanged += OnTaskChanged;
     }
 
-    // (09-25) ONE ordered settle worker. The engine raises TaskChanged on whatever thread called it, the UI
+    // ONE ordered settle worker. The engine raises TaskChanged on whatever thread called it, the UI
     // thread included (a cancel, a re-plan's CancelRange), and a settle pass takes the settler lock, the manifest
     // gate, writes the journal and waits its turn to notify behind a worker's drive probe: 5 to 24 s on the UI
-    // thread (walk 09-25). The event now only marks the settler dirty and wakes this loop; a pass scans the whole
+    // thread. The event now only marks the settler dirty and wakes this loop; a pass scans the whole
     // snapshot, so a burst of events collapses into one pass with nothing lost. Settle and notify run on one
     // thread, so their order is total.
     private int _dirty;
@@ -146,9 +146,9 @@ public sealed class RunSettler : IDisposable
     }
 
     /// <summary>One settle pass over the engine's snapshot: idempotent, because a task whose state has not
-    /// moved since last time is skipped. Runs ONLY on the settler's worker (09-25); <see cref="FlushAsync"/> waits
+    /// moved since last time is skipped. Runs ONLY on the settler's worker; <see cref="FlushAsync"/> waits
     /// for a pass that started after it, so a run never returns with a landed file unsettled or a host un-notified
-    /// (owner-hit 09-09).</summary>
+    /// .</summary>
     private void SettlePass()
     {
         UiThreadGuard.NotOnUi("a settle pass");
@@ -156,12 +156,12 @@ public sealed class RunSettler : IDisposable
         // Settle under the lock, notify outside it: a host callback that marshals to a UI thread must never
         // run while this lock is held, or a second event arriving on that thread deadlocks against it.
         var notify = new List<(DownloadTask Task, DownloadTaskState Prev, DownloadSettlement.Outcome? Outcome)>();
-        // Journal lines are collected under the locks and written after them, in one batch (09-25).
+        // Journal lines are collected under the locks and written after them, in one batch.
         var journal = new List<Action<RunJournal>>();
         lock (_gate)
-        using (_manifest.Gate.Enter())   // settling writes file state + the queue: under the manifest gate (09-08)
+        using (_manifest.Gate.Enter())   // settling writes file state + the queue: under the manifest gate
         {
-            _manifest.Gate.AssertHeld();   // canary (manifest gate 09-08)
+            _manifest.Gate.AssertHeld();   // canary
             foreach (var x in _engine.Snapshot)
 
             {
@@ -187,7 +187,7 @@ public sealed class RunSettler : IDisposable
                 var file = m.ItemById(x.File.GameGogId)?.Files.Find(f => f.FileKey == x.File.FileKey);
                 var (outcome, manifestChanged) = DownloadSettlement.Settle(m, x, file);
                 changed |= manifestChanged;
-                // (New items 09-09) A file just landed: if that completed the whole item in scope, it is no
+                // A file just landed: if that completed the whole item in scope, it is no
                 // longer new to you. Completeness comes from BackupScope, never re-derived here.
                 if (outcome == DownloadSettlement.Outcome.Completed)
                     changed |= Sync.NewItems.ClearIfComplete(m, x.File.GameGogId,
@@ -221,7 +221,7 @@ public sealed class RunSettler : IDisposable
                         { var r = x.SkipReason; journal.Add(j => j.FileNotCounted(jname, "skipped", jbytes, jstate, r)); break; }
                     case DownloadSettlement.Outcome.NotFinished:
                         // The file is already present (an earlier attempt landed it): no strike, and not a failure in
-                        // the journal either, or the card named a Verified file as failed (QA 09-30 C6).
+                        // the journal either, or the card named a Verified file as failed.
                         { var r = x.Error; journal.Add(j => j.FileNotCounted(jname, "already present", jbytes, jstate, r)); break; }
                     default:
                         { bool ok = outcome == DownloadSettlement.Outcome.Completed; var err = x.Error;
@@ -245,7 +245,7 @@ public sealed class RunSettler : IDisposable
                 foreach (var (task, prev, outcome) in notify)
                 {
                     // One subscriber that throws must not cost the rest of the pass its notifications: those tasks are
-                    // already marked seen and would never be told again (review 09-25).
+                    // already marked seen and would never be told again.
                     try { Transition?.Invoke(task, prev); } catch (Exception ex) { try { _host.Log($"Settle notify failed: {ex.Message}"); } catch { } }
                     if (outcome is { } o)
                         try { _host.TaskSettled(task, o); } catch (Exception ex) { try { _host.Log($"Settle notify failed: {ex.Message}"); } catch { } }
@@ -298,7 +298,7 @@ public sealed class RunSettler : IDisposable
     /// <summary>The end of the run: drain any pending checkpoint into one authoritative save.</summary>
     public async Task FlushAsync()
     {
-        // (09-09) the tail: settle and notify anything not yet settled. (09-25) Through the settle worker: wait for
+        // the tail: settle and notify anything not yet settled. Through the settle worker: wait for
         // a pass that started after this call to finish, notifications included. Bounded: a wedged host callback
         // must not hang the end of a run; the bound expiring is remembered in HasUnsettledWork.
         var barrier = SettledBarrier();

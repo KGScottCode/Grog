@@ -33,7 +33,7 @@ public partial class MainWindow
             if (vm.RememberCloseChoice) vm.Settings.CloseAction = CloseWindowAction.Quit;
             vm.PauseAllForShutdown();
             // Quit the APPLICATION, not the window: on macOS Window.Close() from this dialog did
-            // nothing (MacinCloud 2026-08-28) while the app-level shutdown - the identical path Dock
+            // nothing while the app-level shutdown - the identical path Dock
             // Quit takes - works everywhere. RequestQuit sets Quitting first, so the Closing
             // interceptor stands aside on every platform.
             vm.RequestQuit();

@@ -27,7 +27,7 @@ public static class StorageReport
         {
             // Free space and the .grog-tmp size are read in ONE background pass so the pair is from the same
             // instant: sampled separately, a fast write made "used minus Grog" flicker by a few hundred MB
-            // (owner-caught 09-04). The volume probe stays the cached DriveResolver one for everyone else.
+            // . The volume probe stays the cached DriveResolver one for everyone else.
             var sample = DriveSample(path);
             bool online = sample.Online; long total = sample.Total, free = sample.Free;
 
@@ -40,7 +40,7 @@ public static class StorageReport
             // Plus what the engine holds in <root>/.grog-tmp, MEASURED: every .part there is Grog's data on this
             // volume whatever its current target (a Pause/Resume re-plan can move a file's target to another
             // device and leave its old .part behind), so a modelled partial figure can drift from the drive
-            // while the directory cannot (owner-caught 09-04: "Other data" on a drive holding only Grog).
+            // while the directory cannot ("Other data" on a drive holding only Grog).
             grog += sample.PartialBytes;
 
             list.Add(new DriveUsage(rootId, path, total, free, grog, online));
@@ -76,7 +76,7 @@ public static class StorageReport
         return cur.Value;
     }
 
-    /// <summary>(09-15) Measure NOW, on the caller's thread, and replace the cached sample. For the drive-presence
+    /// <summary>Measure NOW, on the caller's thread, and replace the cached sample. For the drive-presence
     /// watch, which runs on a worker: when a drive comes back, the card rebuild that follows must not read the
     /// sample taken while it was unplugged (measured: a re-plugged USB stick read "Offline" until something
     /// else happened to refresh the cards; the presence probe and this sample are two caches).</summary>

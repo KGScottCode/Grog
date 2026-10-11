@@ -53,7 +53,7 @@ public class BackupLocationTests
     [Test]
     void Format_HumanReadable()
     {
-        // Two decimals ALWAYS above the byte tier (2026-08-29): "1.00 GB" not "1 GB", so readouts
+        // Two decimals ALWAYS above the byte tier: "1.00 GB" not "1 GB", so readouts
         // match ByteFormat.Size's texture and a creeping figure changes visibly every tick.
         Assert.Equal("1.00 GB", Grog.Core.Format.ByteFormat.Size(1L << 30), "1 GB");
         Assert.Equal("2.000 TB", Grog.Core.Format.ByteFormat.Size(2L << 40), "2 TB (three decimals: ~1 GB steps)");

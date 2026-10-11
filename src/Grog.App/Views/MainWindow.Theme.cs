@@ -22,7 +22,7 @@ public partial class MainWindow
     private void OnThemeChanged(GrogTheme theme) =>
         Dispatcher.UIThread.Post(() => { ApplyThemeIcon(theme); ApplyAboutScene(theme); });
 
-    // (UI-thread sweep 09-06 r2) both PNGs used to be read + decoded on the dispatcher (constructor and every
+    // both PNGs used to be read + decoded on the dispatcher (constructor and every
     // theme change). The asset bytes / bitmap are now produced on a worker, cached per theme, and only the
     // cheap assignment happens on the UI thread. A generation counter makes the LAST requested theme win.
     private readonly System.Collections.Generic.Dictionary<GrogTheme, WindowIcon> _themeIcons = new();

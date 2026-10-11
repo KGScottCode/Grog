@@ -17,7 +17,7 @@ public enum ReorgReason { Layout = 0, ChangeFolder = 1, Relocate = 2 }
 /// crash-safe source of truth; the manifest is kept in step with it as moves settle.</summary>
 public sealed class ReorgJob
 {
-    /// <summary>Journal shape version (09-08); a newer build refuses to resume a job it cannot read.</summary>
+    /// <summary>Journal shape version; a newer build refuses to resume a job it cannot read.</summary>
     public const int CurrentSchema = 1;
     public int Schema { get; set; } = CurrentSchema;
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..12];
@@ -29,7 +29,7 @@ public sealed class ReorgJob
     /// restart. The runner honors it; the UI derives from it. Distinct from the transient ReorgControl signal.</summary>
     public bool Paused { get; set; }
 
-    /// <summary>(QA 09-30 B2) A Change Folder job's follow-up, persisted with the plan: once every move settles, this
+    /// <summary>A Change Folder job's follow-up, persisted with the plan: once every move settles, this
     /// root's PathHint flips to <see cref="RepointPath"/>. Before, the flip lived only in an in-memory hook, so a
     /// job finished after a restart left every file reading Missing at the old folder.</summary>
     public string? RepointRootId { get; set; }
@@ -77,7 +77,7 @@ public sealed class ReorgJob
     public long BytesTotal => Moves.Sum(m => m.SizeBytes);
     public long BytesSettled => Moves.Where(m => m.IsSettled).Sum(m => m.SizeBytes);
 
-    /// <summary>(09-22) Add a freshly planned job's moves to this RUNNING job. Only another Relocate plan joins a
+    /// <summary>Add a freshly planned job's moves to this RUNNING job. Only another Relocate plan joins a
     /// Relocate job; a file already waiting here is not added twice. Returns the moves actually added (empty =
     /// nothing new). The runner picks new Pending moves up on its next pick.</summary>
     public List<ReorgMove> TryAppend(ReorgJob planned)
@@ -93,7 +93,7 @@ public sealed class ReorgJob
         return added;
     }
 
-    /// <summary>(09-22) What this job still has to WRITE, per target file: cross-volume copies not yet settled,
+    /// <summary>What this job still has to WRITE, per target file: cross-volume copies not yet settled,
     /// less what is already copied. Same-volume renames write nothing. Feeds <see cref="Volumes.PendingWrites"/>.</summary>
     public List<(string TargetPath, long Bytes)> RemainingWrites()
     {

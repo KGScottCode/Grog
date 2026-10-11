@@ -9,8 +9,8 @@ using Grog.Core.Volumes;
 using Grog.Core.Tests.Framework;
 
 /// <summary>
-/// Placement is IN QUEUE ORDER, per file, greedy (owner, 09-11). Rewritten from the whole-game knapsack suite
-/// (09-05 to 09-11): that rule chose WHICH games got a device and, on a size-sorted queue, silently demoted the
+/// Placement is IN QUEUE ORDER, per file, greedy. Rewritten from the whole-game knapsack suite
+/// : that rule chose WHICH games got a device and, on a size-sorted queue, silently demoted the
 /// rows the user had just put at the head. The rule now is the one a person expects from a list they ordered
 /// themselves: top to bottom, each file lands if there is room, a file with no room is flagged and STAYS PUT,
 /// and the files behind it still land. Inform, never choose.
@@ -46,7 +46,7 @@ public class PlacementPlannerTests
         Assert.True(plan.AllFit, "everything fits across the two devices");
     }
 
-    /// <summary>(review 09-25) The primary filled, later files spilled to the secondary, then the secondary was
+    /// <summary>The primary filled, later files spilled to the secondary, then the secondary was
     /// unplugged mid-run. Those files wait on it: not moved back, not "no room".</summary>
     [Test] void SpilledFiles_WaitOnTheirUnpluggedDrive()
     {
@@ -66,7 +66,7 @@ public class PlacementPlannerTests
     }
 
     // THE CASE THE KNAPSACK GOT WRONG FOR THE USER. Order is the user's; the planner does not improve on it.
-    /// <summary>(QA 09-18) Two roots on ONE drive spend the same free space: each reports the volume's 10 GB, and
+    /// <summary>Two roots on ONE drive spend the same free space: each reports the volume's 10 GB, and
     /// a ledger per root let 8 GB land on each -- the second transfer died out of space mid-stream.</summary>
     [Test] void TwoRootsOnOneVolume_ShareOneLedger()
     {
@@ -269,7 +269,7 @@ public class PlacementPlannerTests
         }
     }
 
-    /// <summary>(09-13) A resumable partial already occupies its bytes on the drive, so the file needs only the
+    /// <summary>A resumable partial already occupies its bytes on the drive, so the file needs only the
     /// remainder. Charging the full size flagged a 100%-received file as won't-fit next to its own .part.</summary>
     [Test]
     public void A_partial_is_priced_at_what_it_still_needs()
@@ -284,7 +284,7 @@ public class PlacementPlannerTests
         var again = PlacementPlanner.PlanQueueDetailed(new[] { f }, devices, new RoutingPolicy(), "p", RoutingMode.Overflow, ExtrasPlacement.WithGame);
         Assert.False(again.Placements[0].Fits, "no partial: the whole 190 is needed");
     }
-    /// <summary>(walk 09-19) FAT32 holds no file over 4 GiB - 1, and Windows reports the overrun as disk full. A
+    /// <summary>FAT32 holds no file over 4 GiB - 1, and Windows reports the overrun as disk full. A
     /// 6.1 GB installer was planned onto a FAT32 stick with room and died at byte 4,294,981,975. The WHOLE size is
     /// tested, so a partial does not sneak it under; it spills to a device that can hold it, else won't fit.</summary>
     [Test]
@@ -311,7 +311,7 @@ public class PlacementPlannerTests
         Assert.Equal("s", spill.Placements[0].RootId);
     }
 
-    /// <summary>(1288) A file costs its size rounded up to the volume's allocation unit, the disk's own arithmetic, and a
+    /// <summary>A file costs its size rounded up to the volume's allocation unit, the disk's own arithmetic, and a
     /// fixed floor per volume is nobody's to spend. Nothing is given back on landing, so the planned set is final.</summary>
     [Test]
     public void Files_cost_their_cluster_rounded_size_and_the_floor_is_held_back()
@@ -328,7 +328,7 @@ public class PlacementPlannerTests
         Assert.Equal(0, Grog.Core.Storage.DriveResolver.OnDisk(0, 4096));
     }
 
-    /// <summary>(QA 09-19) The bytes a partial already holds are room spent on ITS drive. Planned onto another, the
+    /// <summary>The bytes a partial already holds are room spent on ITS drive. Planned onto another, the
     /// file needs its whole size there: a 5000-byte file with 4500 received on a full primary "fit" a secondary
     /// with 1000 free, and the engine then needed all 5000 on it.</summary>
     [Test]

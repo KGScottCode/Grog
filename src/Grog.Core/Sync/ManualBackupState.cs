@@ -29,7 +29,7 @@ public static class ManualBackupState
     /// <summary>May this file take the asserted state? "Missing" means bytes we HELD are gone, so it applies only
     /// to a file that held some (current, superseded or corrupt): stamped on a never-downloaded file it painted a
     /// red "missing" on something that was never there and sent it through Fix It instead of the normal queue
-    /// (sweep 2 #26). Unavailable is GOG's fact about the file, not ours about a copy: no manual flag replaces it.</summary>
+    /// . Unavailable is GOG's fact about the file, not ours about a copy: no manual flag replaces it.</summary>
     public static bool Applies(GameFile f, FileState target)
     {
         if (f.State == FileState.Unavailable) return false;

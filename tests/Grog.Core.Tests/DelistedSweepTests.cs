@@ -48,7 +48,7 @@ public sealed class DelistedSweepTests
     [Test]
     public void Sweep_never_flags_games_owned_only_by_a_removed_account_and_heals_stale_flags()
     {
-        // Owner-hit 2026-08-30: removing an account painted its 15 games "delisted by GOG" - false.
+        // Owner-hit: removing an account painted its 15 games "delisted by GOG" - false.
         // A game no registered account can ask about is UNANSWERABLE: never flagged, stale flag withdrawn.
         var m = new LibraryManifest();
         m.Accounts.Add(new GrogAccount { Id = "goguser", Username = "GogUser" });

@@ -13,7 +13,7 @@ using Grog.Core.Sync;
 using Grog.Core.Tests.Framework;
 
 /// <summary>
-/// The guide behind IGuideHost (split 2026-09-02). Every test drives GuideViewModel against a fake window:
+/// The guide behind IGuideHost. Every test drives GuideViewModel against a fake window:
 /// the facts the steps wait on are plain settable properties, the four actions are counters. Nothing here
 /// reads GuideDetail (it probes the OS keyring). AppSettings.Save is safe: Program.cs points GROG_CONFIG_DIR
 /// at a throwaway temp dir before any test runs, and Save swallows IO failures.

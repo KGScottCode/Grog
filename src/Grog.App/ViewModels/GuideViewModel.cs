@@ -12,7 +12,7 @@ namespace Grog.App.ViewModels;
 /// The first-run guide: spotlight geometry (measured by the view, never computed here), caption placement,
 /// step text, and the cursor over the tour (Grog.Core.Guide.GuideSession). Reads the window through
 /// <see cref="IGuideHost"/> and tells it about changes through <see cref="Changed"/>; nothing here names a
-/// host property. Extracted from MainWindowViewModel.Guide.cs 2026-09-02 with the bound names unchanged, so
+/// host property. Extracted from MainWindowViewModel.Guide.cs with the bound names unchanged, so
 /// the overlay in MainWindow.axaml rebinds by DataContext alone.
 /// </summary>
 public sealed partial class GuideViewModel : ObservableObject
@@ -216,7 +216,7 @@ public sealed partial class GuideViewModel : ObservableObject
     /// <summary>FileTokenStore.Protection is a keyring probe on Linux/macOS and this getter is evaluated on
     /// every binding refresh: read the main window's snapshot (taken on the thread pool and re-raised through
     /// RaiseDetail when it changes); the live probe is only the fallback for a host that is not the main
-    /// window (UI-thread sweep 09-06 r2).</summary>
+    /// window.</summary>
     private Grog.Core.Platform.TokenProtection TokenProtection
         => _host is MainWindowViewModel vm ? vm.Accounts.TokenProtectionSnapshot : Grog.Core.Auth.FileTokenStore.Protection;
     public bool HasGuideDetail => GuideDetail.Length > 0;
@@ -233,7 +233,7 @@ public sealed partial class GuideViewModel : ObservableObject
 
     /// <summary>Exit says DONE only on the LAST card. It used to say Done from setup-done onwards, which made
     /// the finish-line card read as the ending and the two stops after it look like an appendix; the tour is
-    /// one continuous walk now (owner decision 2026-08-24).</summary>
+    /// one continuous walk now.</summary>
     public string GuideExitLabel => GuideStep?.Key == "farewell" ? "Done" : "Exit Wizard";
 
     /// <summary>On the sign-off card Done is THE action, so it takes the filled amber primary tier; on
@@ -426,7 +426,7 @@ public sealed partial class GuideViewModel : ObservableObject
 
     /// <summary>THE activation path. Start and Resume differ only in where the cursor comes from; everything
     /// after that (state sync, file pick, page reconciliation, raises) is one pass, so neither can forget a
-    /// step the other does. Resume did exactly that before 09-02: it switched the guide on wherever the app
+    /// step the other does. Resume did exactly that before: it switched the guide on wherever the app
     /// had opened and drew a Library stop over the Overview.</summary>
     private void Begin(bool fresh)
     {

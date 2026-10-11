@@ -65,7 +65,7 @@ public static class OsKeyring
         {
             // macOS: the binary's presence is the fact. `security -h` prints usage and its exit code is not
             // documented as 0, so a probe keyed on it could read a healthy Mac as "no keyring" until the first
-            // real lookup flipped it (09-13). Every macOS install ships /usr/bin/security and a login Keychain.
+            // real lookup flipped it. Every macOS install ships /usr/bin/security and a login Keychain.
             if (OperatingSystem.IsMacOS()) return System.IO.File.Exists("/usr/bin/security");
             if (OperatingSystem.IsLinux())
                 // secret-tool has no --version flag (usage + exit 2), so probe with a harmless lookup:
@@ -137,7 +137,7 @@ public static class OsKeyring
     // and nothing was declined -- it is a mint-on-next-save condition. It holds READS (renders must not
     // re-spawn secret-tool per binding) but must NEVER hold GetOrCreateKey: conflating the two made a
     // startup readout block the login's key mint, and a healthy keyring wrote plaintext (Linux walk
-    // 2026-08-23 R1/R3).
+    // /R3).
     private static bool _noKey;
     // Serializes every attempt: startup runs token reads concurrently (async restore plus UI bindings
     // evaluating Protection), and two in-flight secret-tool calls would queue two unlock prompts before
@@ -241,7 +241,7 @@ public static class OsKeyring
                 // looks its key up by service/account only, never by keychain, so calling a locked item
                 // "absent" mints a SECOND key into the default keychain while the locked one goes on
                 // winning the search list; every later read finds it, fails, and mints again. That is a
-                // permanent signed-out loop with nothing in the UI to explain it (macOS walk 2026-09-11,
+                // permanent signed-out loop with nothing in the UI to explain it (macOS,
                 // reproduced by accident). Treat unreadable-but-present as INFRASTRUCTURE, so nothing is
                 // stored and the next user action retries once the keychain is unlocked.
                 // One extra spawn, only on a path that has already failed.
@@ -272,7 +272,7 @@ public static class OsKeyring
         if (OperatingSystem.IsMacOS())
             // -U updates in place if an entry already exists, so a re-run cannot orphan a second key.
             // The key rides on argv: `security` has no stdin form (without -w it prompts on /dev/tty, not
-            // stdin), so it is visible in `ps` for the milliseconds the process lives. Accepted (09-13): the
+            // stdin), so it is visible in `ps` for the milliseconds the process lives. Accepted: the
             // key only protects the token file against another local user reading it, and a local user who can
             // race `ps` against this call already runs code as us.
             return Run("/usr/bin/security",

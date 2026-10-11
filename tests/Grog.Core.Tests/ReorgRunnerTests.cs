@@ -84,7 +84,7 @@ public class ReorgRunnerTests
             int done = 0;
             var runner = new ReorgRunner(e.Store, new ReorgJournalStore(e.ConfigDir));
             runner.Progress += p => done = p.FilesDone;
-            runner.VolumeReachable = _ => done < 1;   // the probe gets the STORAGE folder (1283), so it is the drive, not a file path
+            runner.VolumeReachable = _ => done < 1;   // the probe gets the STORAGE folder, so it is the drive, not a file path
 
             var res = await runner.RunAsync(job, new ReorgControl());
             Assert.Equal(ReorgOutcome.Paused, res.Outcome, "the runner paused itself");
@@ -212,7 +212,7 @@ public class ReorgRunnerTests
     async Task CrossDrive_PrunesPerGameExtrasFolder_ButNeverTopLevelCategories()
     {
         // Extras-with-each-game: Games/<slug>/Extras/<file>. Moving the last extra off must remove Extras/ AND
-        // the emptied <slug>/ (owner 09-04: the walk stopped on the name "Extras" and left every game shell).
+        // the emptied <slug>/ (the walk stopped on the name "Extras" and left every game shell).
         var e = NewSetup();
         var root2 = Directory.CreateTempSubdirectory("grog-reorg2-").FullName;
         try
@@ -238,7 +238,7 @@ public class ReorgRunnerTests
     [Test]
     async Task LayoutChange_PrunesEmptiedSourceFolders()
     {
-        // Owner-hit 2026-08-30 (mac, but platform-agnostic): switching layouts moved every file and left
+        // Owner-hit (mac, but platform-agnostic): switching layouts moved every file and left
         // the old game/bucket folder chain behind as empty husks. The runner now prunes what it emptied -
         // and ONLY that: the category root stays, and a folder still holding anything is untouched.
         var e = NewSetup();
@@ -265,7 +265,7 @@ public class ReorgRunnerTests
     [Test]
     void Journal_Save_OverwritesAReadOnlyJournal()
     {
-        // Owner-hit 2026-08-30: a reorg.json carrying the read-only attribute made the atomic replace
+        // Owner-hit: a reorg.json carrying the read-only attribute made the atomic replace
         // throw UnauthorizedAccessException and crashed the run. Save must clear the attribute and win.
         var dir = Directory.CreateTempSubdirectory("grog-journal-").FullName;
         try
@@ -712,7 +712,7 @@ public class ReorgRunnerTests
         finally { RemoveTree(e.Root); }
     }
 
-    // 1283 (QA 09-30 B1): the reachability probe gets the storage folder, never Path.GetPathRoot (always "/" on
+    // 1283: the reachability probe gets the storage folder, never Path.GetPathRoot (always "/" on
     // macOS/Linux, so a pulled source read reachable and its moves were Skipped and repathed).
     [Test]
     public void StorageFolderOf_strips_the_relative_part()
@@ -726,7 +726,7 @@ public class ReorgRunnerTests
         Assert.False(new ReorgRunner(null!, null!).VolumeReachable(Path.Combine(Path.GetPathRoot(root)!, "no-such-mount", "stick")) && !OperatingSystem.IsWindows(), "nothing under the POSIX root alone counts as reachable");
     }
 
-    // 1283 (review 09-30): when the move names its storage folder (rel lines up with abs), that folder itself must
+    // 1283: when the move names its storage folder (rel lines up with abs), that folder itself must
     // exist, whatever ancestor does: an unplugged stick's folder is gone even when its parent is not.
     [Test]
     void A_missing_storage_folder_is_unreachable_even_under_an_existing_parent()

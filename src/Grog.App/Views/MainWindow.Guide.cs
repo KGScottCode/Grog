@@ -24,7 +24,7 @@ public partial class MainWindow
     private Panel? _guideOverlay;
     private TextBlock? _guideCaptionText, _guideDetailText;
 
-    // (UI-thread sweep 09-06 r2) LayoutUpdated fires constantly; each pass used to read five step-derived VM
+    // LayoutUpdated fires constantly; each pass used to read five step-derived VM
     // properties (each one a GuideStep evaluation: a snapshot that walks Items x Files for HasBackedUpAnything)
     // and run 4-7 GetVisualDescendants scans. The step-derived values are now read ONCE per guide change (a
     // dirty flag set from the guide's PropertyChanged) and the resolved controls are cached until they leave
@@ -159,7 +159,7 @@ public partial class MainWindow
     {
         var box = GuideCtlAlive(_guideCaptionBox) ? _guideCaptionBox
                 : _guideCaptionBox = this.GetVisualDescendants().OfType<Control>()
-                      .FirstOrDefault(c => c.Name == "GuideCaptionBox" && c.IsEffectivelyVisible);   // (UI-thread sweep 09-06 r2) cached
+                      .FirstOrDefault(c => c.Name == "GuideCaptionBox" && c.IsEffectivelyVisible);   // cached
         if (box is null || box.Bounds.Width <= 0 || box.Bounds.Height <= 0) return;
         if (Math.Abs(vm.Guide.GuideCaptionW - box.Bounds.Width) < 0.5
             && Math.Abs(vm.Guide.GuideCaptionH - box.Bounds.Height) < 0.5) return;
@@ -172,7 +172,7 @@ public partial class MainWindow
     /// hole uses; window coordinates would be a title-bar's height out).</summary>
     private void MeasureGuideAnchor(MainWindowViewModel vm, Visual overlay)
     {
-        var name = _guideCachedAnchorName;   // (UI-thread sweep 09-06 r2) cached step value
+        var name = _guideCachedAnchorName;   // cached step value
         if (string.IsNullOrEmpty(name))
         {
             if (vm.Guide.GuideAnchorW != 0) { vm.Guide.GuideAnchorW = 0; vm.Guide.GuideAnchorH = 0; }
@@ -197,7 +197,7 @@ public partial class MainWindow
     {
         var bar = GuideCtlAlive(_guideScanBar) ? _guideScanBar
                 : _guideScanBar = this.GetVisualDescendants().OfType<Control>()
-                      .FirstOrDefault(c => c.Name == "GuideScanBar" && c.IsEffectivelyVisible);   // (UI-thread sweep 09-06 r2) cached
+                      .FirstOrDefault(c => c.Name == "GuideScanBar" && c.IsEffectivelyVisible);   // cached
         if (bar is null || bar.Bounds.Height <= 0) return;
         if (Math.Abs(vm.Guide.GuideScanBarH - bar.Bounds.Height) < 0.5) return;
         vm.Guide.GuideScanBarH = bar.Bounds.Height;
@@ -209,7 +209,7 @@ public partial class MainWindow
     /// amber marks a real distinction here, and the author's brackets decide, not a word search.</summary>
     private void PaintGuideText(MainWindowViewModel vm)
     {
-        Paint(_guideCaptionText ??= Find<TextBlock>("GuideCaptionText"), _guideCachedCaption, ref _guideCaptionPainted);   // (UI-thread sweep 09-06 r2) cached step values
+        Paint(_guideCaptionText ??= Find<TextBlock>("GuideCaptionText"), _guideCachedCaption, ref _guideCaptionPainted);   // cached step values
         Paint(_guideDetailText ??= Find<TextBlock>("GuideDetailText"), _guideCachedDetail, ref _guideDetailPainted);
 
         static void Paint(TextBlock? tb, string? text, ref string last)
@@ -254,7 +254,7 @@ public partial class MainWindow
     /// scrolled into view, using the grid's OWN sort so the user is left with a normal re-sortable grid.</summary>
     private void PrepareGuideBackupView(MainWindowViewModel vm)
     {
-        if (_guideCachedFilePick is null) { _guideBackupViewReady = false; return; }   // (UI-thread sweep 09-06 r2) cached
+        if (_guideCachedFilePick is null) { _guideBackupViewReady = false; return; }   // cached
         if (_guideBackupViewReady) return;
 
         var grid = Find<DataGrid>("LibraryGrid");
@@ -268,7 +268,7 @@ public partial class MainWindow
 
     /// <summary>Find the control to spotlight, optionally within a named ancestor. IsEffectivelyVisible, not
     /// IsVisible: a control inside a collapsed ancestor still reports IsVisible true.</summary>
-    /// <summary>(UI-thread sweep 09-06 r2) a cached target is reused only while it still IS the right control:
+    /// <summary>a cached target is reused only while it still IS the right control:
     /// the data-matched file-row controls are recycled by the DataGrid, so their DataContext is re-checked.</summary>
     private bool GuideTargetStillMatches(Control c, string name)
     {

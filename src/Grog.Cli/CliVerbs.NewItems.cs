@@ -1,7 +1,7 @@
 // Grog - GOG.com library backup tool
 // Licensed under GPL-3.0-or-later
 //
-// (New items 09-09) The CLI half of the New flag: seeing what is flagged, backing exactly those up, and
+// The CLI half of the New flag: seeing what is flagged, backing exactly those up, and
 // clearing them. Plus two DEV-ONLY verbs (GROG_DEV_VERBS=1, never in help): `mark-new`, the inverse of
 // clear-new so a test can replay the flagged state, and `ordersprobe`, a research probe at GOG's order
 // history -- the only place a real ACQUISITION DATE might come from.
@@ -38,13 +38,13 @@ internal static partial class CliVerbs
         int n = 0;
         if (all)
         {
-            manifest.Mutate(m => n = NewItems.ClearAll(m));   // (manifest gate 09-08)
+            manifest.Mutate(m => n = NewItems.ClearAll(m));   // 
         }
         else
         {
             var item = manifest.Current.FindItem(q);
             if (item is null) { Out.Usage($"No item matched '{q}'."); return Continue; }
-            manifest.Mutate(m => n = NewItems.Clear(m, new[] { item.GogId }));   // (manifest gate 09-08)
+            manifest.Mutate(m => n = NewItems.Clear(m, new[] { item.GogId }));   // 
         }
         if (n > 0) await manifest.SaveAsync();
         Out.Success(n == 0 ? "Nothing was flagged New." : $"Cleared the New flag on {n} item(s).");
@@ -71,7 +71,7 @@ internal static partial class CliVerbs
                 if (item.IsNew) continue;
                 item.IsNew = true; n++;
             }
-        });   // (manifest gate 09-08)
+        });   // 
         if (n > 0) await manifest.SaveAsync();
         Out.Success($"Flagged {n} item(s) New.");
         return Continue;

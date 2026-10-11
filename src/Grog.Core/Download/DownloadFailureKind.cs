@@ -7,11 +7,11 @@ using System.Net.Sockets;
 
 namespace Grog.Core.Download;
 
-/// <summary>(09-22) What KIND of failure a file hit, decided where the exception is caught (typed, never by
+/// <summary>What KIND of failure a file hit, decided where the exception is caught (typed, never by
 /// reading its message). Journalled per file so every surface says the same thing about a run.</summary>
 public enum DownloadFailureKind { Other = 0, Network = 1, DiskFull = 2, DriveGone = 3 }
 
-/// <summary>(09-25) The file's storage is not there (unplugged, ejected, unmounted): nothing about the file failed.</summary>
+/// <summary>The file's storage is not there (unplugged, ejected, unmounted): nothing about the file failed.</summary>
 public sealed class DriveGoneException : IOException
 {
     public DriveGoneException(string root) : base($"Storage is not connected: {root}") { }
@@ -33,7 +33,7 @@ public static class DownloadFailure
         if (DownloadEngine.IsDiskFull(ex)) return DownloadFailureKind.DiskFull;
         for (Exception? e = ex; e is not null; e = e.InnerException)
             // An OperationCanceledException that reaches a failure is a timeout (the resolve / probe round trips cancel
-            // on their own clock; the engine's own cancels never settle as failures): the link, not the file (QA 09-30 C9).
+            // on their own clock; the engine's own cancels never settle as failures): the link, not the file.
             if (e is StallException or HttpRequestException or SocketException or TimeoutException or OperationCanceledException
                 || e is HttpIOException)
                 return DownloadFailureKind.Network;

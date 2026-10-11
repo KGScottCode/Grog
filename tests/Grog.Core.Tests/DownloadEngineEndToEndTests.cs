@@ -20,7 +20,7 @@ namespace Grog.Core.Tests;
 
 /// <summary>
 /// The whole download path against a fake GOG: downlink JSON, the CDN GET (Content-Disposition names the
-/// file, Range resumes it), and the checksum XML. Written 09-02 before DownloadOneAsync was split into
+/// file, Range resumes it), and the checksum XML. Written before DownloadOneAsync was split into
 /// its stages, so the split had a net under it; keep it green through any engine change.
 /// </summary>
 [Trait("download")]
@@ -117,7 +117,7 @@ public sealed class DownloadEngineEndToEndTests
         var api = new GogApiClient(http, new NoAuth());
         var root = Path.Combine(Path.GetTempPath(), "grog-e2e-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
-        var engine = new DownloadEngine(api, http) { BackupRoot = root, MaxConcurrent = 1, MaxBackoffRetries = 0, ClusterBytesProbe = _ => 1 };   // byte-exact room in these tests (1288)
+        var engine = new DownloadEngine(api, http) { BackupRoot = root, MaxConcurrent = 1, MaxBackoffRetries = 0, ClusterBytesProbe = _ => 1 };   // byte-exact room in these tests
         var file = new GameFile { GameGogId = 42, FileKey = "/downlink/game/1", Kind = FileKind.Installer, Name = "Setup (Part 1 of 1)", Os = "windows", ExpectedSizeBytes = advertised };
         var task = new DownloadTask { File = file, GameTitle = "My Game", GameSlug = "my_game" };
         return (engine, cdn, root, task);
@@ -137,7 +137,7 @@ public sealed class DownloadEngineEndToEndTests
     {
         // Two workers, six files, one .grog-tmp: every finisher removes the folder only when it is empty, and
         // a sibling caught between creating the folder and opening its .part retries the open once (review
-        // 09-06). A removal under a sibling's fresh .part failed that sibling with DirectoryNotFound (09-05).
+        // ). A removal under a sibling's fresh.part failed that sibling with DirectoryNotFound.
         var rootDir = "";
         try
         {
@@ -268,7 +268,7 @@ public sealed class DownloadEngineEndToEndTests
     [Test]
     public async Task A_partial_larger_than_the_rounded_label_is_resumed_not_discarded()
     {
-        // Walk 09-19: "partial of 1.99 MB is not smaller than the file (1.00 MB); restarted from zero" on every
+        // Walk: "partial of 1.99 MB is not smaller than the file (1.00 MB); restarted from zero" on every
         // resume. The label is GOG's rounding, not a length: only a real size may condemn a partial.
         var (e, cdn, root, t) = Rig(advertised: 8);   // real file is 32, the label says 8
         try
@@ -292,7 +292,7 @@ public sealed class DownloadEngineEndToEndTests
     [Test]
     public async Task A_complete_partial_under_a_stale_larger_advertised_size_finishes_instead_of_416()
     {
-        // Owner-hit 09-04 (Dungeon Keeper 2, pause then resume): the .part held every byte, but the manifest's
+        // Owner-hit (Dungeon Keeper 2, pause then resume): the.part held every byte, but the manifest's
         // advertised size was LARGER than the real file (GOG rounds), so the >= guard did not fire, the resume
         // asked for a Range past the end and the CDN answered 416. The 416 carries the true length: a .part
         // that IS that length is complete and goes to verify; one that is longer is bad and restarts.
@@ -380,7 +380,7 @@ public sealed class DownloadEngineEndToEndTests
         finally { Cleanup(rootDir); }
     }
 
-    /// <summary>(owner 09-19) The last gate: once the CDN has said how long the file REALLY is, and before a byte is
+    /// <summary>The last gate: once the CDN has said how long the file REALLY is, and before a byte is
     /// written, the remainder is compared with the drive's live free space. No room: the task is turned away as a
     /// drive problem (no strike, held as won't-fit), nothing is written, and the real size is kept for the planner.</summary>
     [Test]

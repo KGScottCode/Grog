@@ -39,13 +39,13 @@ public sealed class RunJournal : IDisposable
     private readonly DateTimeOffset _startedAt;
     private readonly string _command;
     private int _completed, _failed, _total;
-    // (QA 09-30 C5) "failed" is a count of FILES, not of strikes: a file that fails twice in one run (re-added by Try
+    // "failed" is a count of FILES, not of strikes: a file that fails twice in one run (re-added by Try
     // Again, or retried after a drive wait) is one failed file, and one that fails and then lands is none.
     private readonly HashSet<(long, string)> _failedKeys = new();
     private string _state = "running";
     private string? _currentFile;
     private bool _closed;
-    // (09-25) A settle pass writes many lines at once: batched, one append + one fsync + one current.json per pass
+    // A settle pass writes many lines at once: batched, one append + one fsync + one current.json per pass
     // instead of two file writes and an fsync per file (a queue-sized cancel paid that on the calling thread).
     private int _batchDepth;
     private System.Text.StringBuilder? _pending;
@@ -232,7 +232,7 @@ public sealed class RunJournal : IDisposable
         finally { _eventsWriter = null; _events = null; }
     }
 
-    /// <summary>Version of current.json and the events file (09-08). Documented in docs/CLI.md; a
+    /// <summary>Version of current.json and the events file. Documented in docs/CLI.md; a
     /// parser can refuse or adapt on a value it does not know. 1 = the shapes shipped in v0.1.0.</summary>
     public const int JournalSchema = 1;
 
@@ -248,7 +248,7 @@ public sealed class RunJournal : IDisposable
         {
             var doc = JsonSerializer.Serialize(new
             {
-                schema = JournalSchema,   // (09-08) the automation contract's version: bump on any shape change
+                schema = JournalSchema,   // the automation contract's version: bump on any shape change
                 runId = RunId,
                 command = _command,
                 state = _state,
@@ -277,7 +277,7 @@ public sealed class RunJournal : IDisposable
     }
 
     /// <summary>Keeps the newest <see cref="KeepRuns"/> journals per command. Legacy stamp-only names count
-    /// under this journal's command, so a pre-09-04 folder still thins out.</summary>
+    /// under this journal's command, so a pre- folder still thins out.</summary>
     private void Prune(string dir)
     {
         try

@@ -114,7 +114,7 @@ public class GuideFilePickerTests
     [Test] void AFileWithNoArrowOnScreenIsNotTheDemo()
     {
         // The stop says "click the arrow": a paused partial or a queued file shows a pause glyph or a queued
-        // state instead, so the ring would have nothing to hold (seen 09-02 resuming the tour mid-run).
+        // state instead, so the ring would have nothing to hold.
         var partial = File("setup-a.exe", 1_000); partial.HasPartial = true; partial.PartialBytes = 10;
         var queued = File("setup-b.exe", 2_000);
         var plain = File("setup-c.exe", 3_000);

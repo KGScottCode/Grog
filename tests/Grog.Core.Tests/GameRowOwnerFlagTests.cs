@@ -7,7 +7,7 @@ using Grog.Core.Models;
 using Grog.Core.Tests.Framework;
 
 /// <summary>
-/// The Library's ORANGE owner-disconnected flag (owner rules 08-31): flag a game only when it is owned
+/// The Library's ORANGE owner-disconnected flag: flag a game only when it is owned
 /// solely by accounts no longer registered AND it still has a gap (some in-scope file with no local copy).
 /// A fully-backed-up game stays plain -- nothing needs re-fetching, so there is no risk to point out.
 /// Removing the LAST account still flags (an empty registered list is knowledge, not ignorance);

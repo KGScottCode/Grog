@@ -9,7 +9,7 @@ namespace Grog.App.Controls;
 
 /// <summary>
 /// THE modal: scrim, centered card, title, body, an optional extra slot (a checkbox, a typed gate) and a
-/// Cancel / Confirm pair. Before 09-02 MainWindow.axaml carried 30 hand-built copies of this shape with
+/// Cancel / Confirm pair. Before MainWindow.axaml carried 30 hand-built copies of this shape with
 /// drifting padding (30,26 / 34,28 / 36,30), spacing, widths and default buttons. The view-model contract
 /// is untouched: each dialog still binds its own Show flag, texts and commands; only the chrome is shared.
 /// <para><see cref="Danger"/> flips the confirm button to the destructive red tier and

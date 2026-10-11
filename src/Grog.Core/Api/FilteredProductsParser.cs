@@ -29,7 +29,7 @@ public sealed record OwnedProduct(
     int DlcCount,
     string Url,            // "/en/game/<parent-or-self-slug>"; empty when GOG omits it
     string Image = "",    // protocol-relative logo base ("//images.../<hash>"), "" when absent
-    /// <summary>GOG's own "new to this account" marker. (New items 09-09) Consulted ONLY when a run
+    /// <summary>GOG's own "new to this account" marker. Consulted ONLY when a run
     /// starts with an EMPTY library, to seed the first scan; every later scan ignores it and decides
     /// from the manifest instead.</summary>
     bool IsNew = false)
@@ -80,7 +80,7 @@ public static class FilteredProductsParser
                     DlcCount: GetInt(p, "dlcCount"),
                     Url: GetStr(p, "url"),
                     Image: GetStr(p, "image"),
-                    IsNew: GetBool(p, "isNew")));   // (New items 09-09)
+                    IsNew: GetBool(p, "isNew")));   // 
             }
         }
 
@@ -98,5 +98,5 @@ public static class FilteredProductsParser
     private static int GetInt(JsonElement e, string p)
         => e.TryGetProperty(p, out var v) && v.TryGetInt32(out var i) ? i : 0;
     private static bool GetBool(JsonElement e, string p)
-        => e.TryGetProperty(p, out var v) && v.ValueKind == JsonValueKind.True;   // (New items 09-09) simplified; behaviour identical
+        => e.TryGetProperty(p, out var v) && v.ValueKind == JsonValueKind.True;   // simplified; behaviour identical
 }

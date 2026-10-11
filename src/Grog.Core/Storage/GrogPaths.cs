@@ -37,7 +37,7 @@ public sealed class GrogPaths
     /// the per-user profile folder. Ensures it exists and migrates any legacy drive-side state once.</summary>
     /// <summary>The same answer as <see cref="Resolve"/> WITHOUT the one-time legacy-state probe of the backup
     /// root. For hot paths (a 1 Hz dashboard tick) on a machine whose root is a removable drive: the probe is a
-    /// Directory.Exists on that drive, which a saturated USB stick answers in hundreds of ms (measured 09-05).
+    /// Directory.Exists on that drive, which a saturated USB stick answers in hundreds of ms.
     /// Callers that already resolved once this session lose nothing: migration ran then.</summary>
     public static GrogPaths ResolveNoProbe(string? explicitRoot = null)
     {
@@ -147,7 +147,7 @@ public sealed class GrogPaths
             // Writability is the gate, not existence: probing with a real file is the only honest test,
             // and a read-only Data folder must mean "fall back", never "crash on first save".
             // The probe is a write + delete on the install medium (a USB stick, portable), and ResolveConfigDir
-            // is called from the App's 1 Hz dashboard pass: remembered per folder for a while (review 09-06).
+            // is called from the App's 1 Hz dashboard pass: remembered per folder for a while.
             lock (ProbeGate)
             {
                 if (LastProbe is { } lp && lp.Data == data && DateTime.UtcNow - lp.When < ProbeTtl) return lp.Writable ? data : null;

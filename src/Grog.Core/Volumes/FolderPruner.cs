@@ -18,7 +18,7 @@ public interface IFolderIo
 /// move vacated) and a delete (the game folder a removed file leaves behind). Climbs at most a few levels
 /// and stops at anything non-empty or at a TOP-LEVEL category folder (Games / Extras / Cloud Saves / Old Versions
 /// directly under the storage root) -- only OUR emptied folders go, never user content and never the library's
-/// own scaffolding. Before 09-13 the delete sweep had its own copy without the category guard, so a file
+/// own scaffolding. Before the delete sweep had its own copy without the category guard, so a file
 /// imported at <c>Games/x.exe</c> took the
 /// <c>Games/</c> folder with it.
 /// </summary>
@@ -73,7 +73,7 @@ public static class FolderPruner
             {
                 // The category folders (Games / Extras / Cloud Saves) are kept, but only the TOP-LEVEL ones, the
                 // ones directly under the storage root. A game's own Games/<slug>/Extras/ shares the name and
-                // must be pruned like any other emptied game folder (owner 09-04: every extras move left its
+                // must be pruned like any other emptied game folder (every extras move left its
                 // game folder standing, because the walk stopped on the first step).
                 var name = Path.GetFileName(d);
                 var grandparent = Path.GetFileName(Path.GetDirectoryName(Path.GetDirectoryName(d) ?? "") ?? "");

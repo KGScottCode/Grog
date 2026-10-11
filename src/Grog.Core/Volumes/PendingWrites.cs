@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace Grog.Core.Volumes;
 
-/// <summary>(09-22, owner) Moves and downloads run side by side. What keeps them honest is one ledger of bytes a
+/// <summary>Moves and downloads run side by side. What keeps them honest is one ledger of bytes a
 /// running MOVE still has to write per volume: the download planner and the engine's last-moment room check both
 /// subtract it from a drive's free space, so "fits" means fits once the move has landed too. The host owns ONE
 /// instance per session and hands it to the planner (<see cref="VolumeService"/>) and the engine; it registers the

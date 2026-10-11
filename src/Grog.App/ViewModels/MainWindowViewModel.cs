@@ -27,7 +27,7 @@ using Grog.Core.Format;
 namespace Grog.App.ViewModels;
 
 /// <summary>
-/// The window's composition root and shell (S3.4, 09-08): builds the session and the page view models
+/// The window's composition root and shell: builds the session and the page view models
 /// (Storage, Library, Overview, Accounts, Settings, plus Guide, Schedule and the cloud-saves VM), owns
 /// navigation and the rail, Busy / RunBusy and the log, the primary-action bar state machine, the connect /
 /// sign-in orchestration and the download run (the partials). Holds no backup logic of its own -- it drives
@@ -35,7 +35,7 @@ namespace Grog.App.ViewModels;
 /// </summary>
 public partial class MainWindowViewModel : ObservableObject
 {
-    /// <summary>The application state that is not a view (S1, 09-08): manifest store, GOG client and session,
+    /// <summary>The application state that is not a view: manifest store, GOG client and session,
     /// settings, root, live engine, cancellation. Page view models receive this; the partials below reach it
     /// through the forwarding members that keep their existing names while the split proceeds.</summary>
     public Runtime.GrogSession Session { get; }
@@ -98,7 +98,7 @@ public partial class MainWindowViewModel : ObservableObject
         await Task.CompletedTask;
         return;
 #else
-        var paths = Grog.Core.Storage.GrogPaths.ResolveNoProbe(_backupRoot);   // config dir only; no root probe on the dispatcher (UI-thread sweep 09-06 r2)
+        var paths = Grog.Core.Storage.GrogPaths.ResolveNoProbe(_backupRoot);   // config dir only; no root probe on the dispatcher
         _settings.ChosenRoot = null;
         // Clear BOTH first-run flags, or the welcome and the guide stay suppressed by earlier runs.
         _settings.WelcomeShown = false;
@@ -112,7 +112,7 @@ public partial class MainWindowViewModel : ObservableObject
         catch { /* best-effort; a fresh scan rebuilds the library anyway */ }
 
         // Empty the in-memory library FIRST: BindToRootAsync's SaveAsync would re-persist it right back to disk.
-        _manifest.Mutate(m =>   // (manifest gate 09-08)
+        _manifest.Mutate(m =>   // 
         {
             m.Items.Clear();
             m.Roots.Clear();
@@ -256,9 +256,9 @@ public partial class MainWindowViewModel : ObservableObject
         => IsConnected ? "Connected to GOG"
          : (_manifest?.Current.Accounts.Count ?? 0) == 0 ? "No GOG account connected yet"
          : "Not connected to GOG";
-    /// <summary>(UX 09-08 #6) Rail footer second line. THREE states, not two: "signed out" on a machine
+    /// <summary>Rail footer second line. THREE states, not two: "signed out" on a machine
     /// that has never had an account reads as though something was lost, which is the first thing a new
-    /// user sees (macOS first-run walk, 09-11). No account is a starting point; signed out is a session
+    /// user sees. No account is a starting point; signed out is a session
     /// that ended. The count is the same one AccountFootText reads, so the two lines cannot disagree.</summary>
     public string AccountRailSub
         => IsConnected ? "connected"
@@ -272,13 +272,13 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(AccountFootText));
         OnPropertyChanged(nameof(AccountStatusBrush));
         OnPropertyChanged(nameof(AccountStatusText));
-        OnPropertyChanged(nameof(AccountRailSub));   // (UX 09-08 #6)
+        OnPropertyChanged(nameof(AccountRailSub));   // 
     }
 
     internal void RaiseDashboard() => Services.UiWatch.Time("RaiseDashboard", RaiseDashboardCore);
     private void RaiseDashboardCore()
     {
-        Library.InvalidatePendingFileCount();   // one queue-builder walk per pass at most (UI-thread sweep 09-06 r2)
+        Library.InvalidatePendingFileCount();   // one queue-builder walk per pass at most
         Accounts.RebuildRailAccountDots();
         // RaiseHealth runs ONCE, via RaiseState at the end of this method (it used to run here as well:
         // two full library walks, two run-journal reads and six bound-collection clears per refresh,
@@ -289,11 +289,11 @@ public partial class MainWindowViewModel : ObservableObject
         Library.RaiseDashboardReadouts();
         Overview.RaiseDashboardReadouts();
         // Language + platform options depend on the manifest and the scope, never on download progress: they are
-        // rebuilt at the end of RebuildRows (every manifest/scope refresh), not on every 1 Hz pass (UI-thread sweep 09-06).
+        // rebuilt at the end of RebuildRows (every manifest/scope refresh), not on every 1 Hz pass.
         // Storage rows are rendered on Overview and Drives (and the rail dots everywhere), so they refresh on
         // EVERY dashboard pass; the old IsLibraryNav gate excluded exactly the pages that show them, which is
-        // how Clear left a phantom "queued here" segment until the next navigation (owner, 09-04).
-        // RaiseState -> RaiseHealth below re-tallies the library anyway, so the storage pass skips its own (UI-thread sweep 09-06).
+        // how Clear left a phantom "queued here" segment until the next navigation.
+        // RaiseState -> RaiseHealth below re-tallies the library anyway, so the storage pass skips its own.
         Storage.RefreshBackupLocations(dashboardPass: true);
         // NOT RebuildInventory here: it replaces every grid row (selection, expand state, type filter go with
         // them) and this runs at 1 Hz during a run. The grids rebuild per landed/moved file and per command.
@@ -312,9 +312,9 @@ public partial class MainWindowViewModel : ObservableObject
     internal void RaiseRailActivity()
     {
         OnPropertyChanged(nameof(ShowRailActivity)); OnPropertyChanged(nameof(RailActivityText));
-        OnPropertyChanged(nameof(RailOverviewExceptions));   // (Rail exceptions 09-09)
+        OnPropertyChanged(nameof(RailOverviewExceptions));   // 
         OnPropertyChanged(nameof(RailActivityBrush)); OnPropertyChanged(nameof(RailActivityTip));
-        Overview.RaiseRailOverviewSub();   // (UX 09-08 #6)
+        Overview.RaiseRailOverviewSub();   // 
     }
 
     partial void OnIsConnectedChanged(bool value)
@@ -324,12 +324,12 @@ public partial class MainWindowViewModel : ObservableObject
         RaiseDashboard();
         OnPropertyChanged(nameof(AccountStatusBrush));
         OnPropertyChanged(nameof(AccountStatusText));
-        OnPropertyChanged(nameof(AccountRailSub));   // (UX 09-08 #6)
+        OnPropertyChanged(nameof(AccountRailSub));   // 
         // The queue chip and Resume/Connect swap key off IsConnected too.
         OnPropertyChanged(nameof(QueueNeedsAccount));
-        Overview?.RefreshQueueRowFacts();   // (09-19) each row's NEEDS SIGN-IN follows the same fact
+        Overview?.RefreshQueueRowFacts();   // each row's NEEDS SIGN-IN follows the same fact
         OnPropertyChanged(nameof(ShowRailActivity)); OnPropertyChanged(nameof(RailActivityBrush)); OnPropertyChanged(nameof(RailActivityTip));
-        OnPropertyChanged(nameof(RailOverviewExceptions));   // (Rail exceptions 09-09)
+        OnPropertyChanged(nameof(RailOverviewExceptions));   // 
         RaiseDownloadControls();
         RaiseState();
         // Just connected while sitting on a secondary tab: populate it now.
@@ -355,7 +355,7 @@ public partial class MainWindowViewModel : ObservableObject
             () => _manifest?.Current.Transfer.KeepCloudSaves ?? 0,   // (S2.3) manifest fact; the store may not exist yet when this lambda is built
             () => _servicesReady ? EngineSessions() : null);   // assigned in the ctor before this runs; the lambda hides that from the compiler
         CloudVm.HostLog = (m, e, c) => Log(m, isError: e, category: c);   // [Cloud] lines land in the shared log
-        CloudVm.IsHiddenGame = IsHiddenGameId;   // (09-19)
+        CloudVm.IsHiddenGame = IsHiddenGameId;   // 
         QueueRow.IsHiddenGame = IsHiddenGameId;  // one rule for every list that names a game
         QueueRow.RootLabel = id => _manifest is not null ? (Storage?.SlotNameOf(id) ?? "") : "";   // the active card names the SLOT (Primary / Secondary), never a path
         QueueRow.NeedsSignInFor = f => !IsConnected
@@ -380,7 +380,7 @@ public partial class MainWindowViewModel : ObservableObject
                 case nameof(CloudSavesViewModel.CloudSortGlyphSize): OnPropertyChanged(nameof(CloudSortGlyphSize)); break;
                 case nameof(CloudSavesViewModel.CloudSortGlyphLast): OnPropertyChanged(nameof(CloudSortGlyphLast)); break;
                 case nameof(CloudSavesViewModel.CloudSortGlyphChanged): OnPropertyChanged(nameof(CloudSortGlyphChanged)); break;
-                case nameof(CloudSavesViewModel.CloudSortLabel): OnPropertyChanged(nameof(CloudSortLabel)); break;   // (UX 09-08 #4)
+                case nameof(CloudSavesViewModel.CloudSortLabel): OnPropertyChanged(nameof(CloudSortLabel)); break;   // 
                 case nameof(CloudSavesViewModel.CanDownloadAll): OnPropertyChanged(nameof(CanDownloadAll)); break;
                 case nameof(CloudSavesViewModel.CloudAllRunning): OnPropertyChanged(nameof(CloudAllRunning)); OnPropertyChanged(nameof(CanDownloadAll)); break;
                 case nameof(CloudSavesViewModel.DownloadAllText): OnPropertyChanged(nameof(DownloadAllText)); break;
@@ -401,7 +401,7 @@ public partial class MainWindowViewModel : ObservableObject
         // are re-raised under the same names here: the window's code-behind listens on the root, and the
         // shell's own readouts that read a child (rail badge, bar state) follow the child's raises.
         Storage = new StorageViewModel(this, Session);
-        // Re-raise a child's change on the root ONLY for names the root still declares (S4, 09-08): with the
+        // Re-raise a child's change on the root ONLY for names the root still declares: with the
         // forwarders gone, an unfiltered re-raise woke every root binding on every child change for nothing
         // (RaiseDashboard 18 -> 29 ms at 1,500 games in the stress run).
         var rootNames = new HashSet<string>(GetType().GetProperties().Select(p => p.Name));
@@ -425,7 +425,7 @@ public partial class MainWindowViewModel : ObservableObject
         Guide = new GuideViewModel(this);
         Schedule = new ScheduleViewModel(this);
         Guide.Changed += OnGuideChanged;
-        // The tray follows the close-action pill (one control, owner call 08-30): the icon exists exactly
+        // The tray follows the close-action pill: the icon exists exactly
         // when "close keeps Grog running in the tray" is chosen, so sync the stored flag on every load --
         // it also migrates profiles from the era of the separate tray toggle.
         var trayWanted = _settings.CloseAction == CloseWindowAction.MinimizeToTray && TraySupport.IsLikelySupported();
@@ -469,7 +469,7 @@ public partial class MainWindowViewModel : ObservableObject
         finally { _bypassLeaveGuard = false; }
     }
 
-    /// <summary>The won't-fit banner's amber action (09-13): go to Storage and open the second-storage folder
+    /// <summary>The won't-fit banner's amber action: go to Storage and open the second-storage folder
     /// picker in one click, so "more room" is one step, not a page hunt.</summary>
     [RelayCommand]
     private async Task AddSecondaryStorageFromBanner()
@@ -478,7 +478,7 @@ public partial class MainWindowViewModel : ObservableObject
         if (Storage.CanAddSecondary) await Storage.AddLocationCommand.ExecuteAsync(null);
     }
 
-    /// <summary>(09-14) The rail's "Other storage · N" sub-entry: the Storage page, scrolled to that section, expanded.</summary>
+    /// <summary>The rail's "Other storage · N" sub-entry: the Storage page, scrolled to that section, expanded.</summary>
     [RelayCommand]
     private void NavigateToOtherStorage()
     {
@@ -498,7 +498,7 @@ public partial class MainWindowViewModel : ObservableObject
             Settings.ExtrasCard.AskBeforeLeaving(view);
             return;
         }
-        Storage.HideOtherStorage();   // (09-15) the section folds again on every page change (after the guard, review 09-15)
+        Storage.HideOtherStorage();   // the section folds again on every page change
         _hasDetour = false;
         CurrentView = view switch
         {
@@ -576,7 +576,7 @@ public partial class MainWindowViewModel : ObservableObject
     public string CloudSortGlyphSize => CloudVm.CloudSortGlyphSize;
     public string CloudSortGlyphLast => CloudVm.CloudSortGlyphLast;
     public string CloudSortGlyphChanged => CloudVm.CloudSortGlyphChanged;
-    public string CloudSortLabel => CloudVm.CloudSortLabel;   // (UX 09-08 #4)
+    public string CloudSortLabel => CloudVm.CloudSortLabel;   // 
     public System.Windows.Input.ICommand SortCloudCommand => CloudVm.SortCloudCommand;
     public bool CanDownloadAll => CloudVm.CanDownloadAll;
     public bool CloudAllRunning => CloudVm.CloudAllRunning;
@@ -600,7 +600,7 @@ public partial class MainWindowViewModel : ObservableObject
         try
         {
             Avalonia.Platform.Storage.IStorageFolder? start = null;
-            // The seed is usually a backup root: a sleeping drive answers Directory.Exists in seconds, so ask off the UI thread (09-25).
+            // The seed is usually a backup root: a sleeping drive answers Directory.Exists in seconds, so ask off the UI thread.
             try { if (!string.IsNullOrEmpty(seed) && await Task.Run(() => System.IO.Directory.Exists(seed))) start = await top.StorageProvider.TryGetFolderFromPathAsync(seed); }
             catch { start = null; }
             var picked = await top.StorageProvider.OpenFolderPickerAsync(

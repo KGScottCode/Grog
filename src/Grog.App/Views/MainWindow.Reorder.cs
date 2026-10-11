@@ -39,7 +39,7 @@ public partial class MainWindow
         Control? dimmed = null;
         IDropTargetRow? lit = null;   // the row painting the insertion line
 
-        // (09-16) Auto-scroll while a drag sits near the top or bottom of the visible list, so a row can be carried
+        // Auto-scroll while a drag sits near the top or bottom of the visible list, so a row can be carried
         // past the viewport instead of stopping at its edge. The timer runs only during a drag.
         var scroller = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(30) };
         double lastY = 0;
@@ -71,14 +71,14 @@ public partial class MainWindow
         }
 
         // Draws WHERE IT WILL LAND while the pointer moves, so a live drag never looks dead. The line is a flag on
-        // the TARGET ROW, painted by its own template (09-16): the adorner it replaced was placed by list-space
+        // the TARGET ROW, painted by its own template: the adorner it replaced was placed by list-space
         // coordinates and never showed once the list was scrolled (owner-measured, repeatable across restarts).
         void ClearLine() { if (lit is not null) { lit.DropLineAbove = false; lit.DropLineBelow = false; lit = null; } }
         void DrawLine(int targetIdx, int fromIdx)
         {
             var rows = DataContext is MainWindowViewModel vm0 ? tail(vm0) : null;
             if (rows is null || targetIdx < 0 || targetIdx >= rows.Count || rows[targetIdx] is not IDropTargetRow target) { ClearLine(); return; }
-            // A target the list refuses (a fitting row over the won't-fit group, 09-16) draws no line: the
+            // A target the list refuses draws no line: the
             // gesture has no meaning there, and no line is the honest signal before a pointless drop.
             if (canDrop is not null && dragging is not null && DataContext is MainWindowViewModel vm1 && !canDrop(vm1, dragging, rows[targetIdx]!)) { ClearLine(); return; }
             // The line marks the BOUNDARY the row lands on: above the target moving up, below it moving
@@ -93,9 +93,9 @@ public partial class MainWindow
         {
             // NEVER start a drag from a press on a button (the row's cancel X): capturing the pointer to
             // the list robs the button of its press-release cycle, so Click silently never fires -- the X
-            // looked pressed and removed nothing (caught on macOS 2026-08-29, but broken everywhere).
+            // looked pressed and removed nothing (caught on macOS, but broken everywhere).
             if (e.Source is Visual v && v.FindAncestorOfType<Button>(includeSelf: true) is not null) return;
-            // Left button only: a right-click opens the row's menu and must not capture the pointer (09-16).
+            // Left button only: a right-click opens the row's menu and must not capture the pointer.
             if (!e.GetCurrentPoint(list).Properties.IsLeftButtonPressed) return;
             dragging = RowUnder<T>(e.Source);
             start = e.GetPosition(list);
@@ -108,7 +108,7 @@ public partial class MainWindow
         {
             if (dragging is null) return;
             double y = e.GetPosition(list).Y;
-            // Slop so a click never becomes an accidental reorder. 8px, not 4 (owner 09-02: a touchpad
+            // Slop so a click never becomes an accidental reorder. 8px, not 4 (a touchpad
             // click drifted into a drag, which also reset the sticky sort to Queue order).
             if (!moved && System.Math.Abs(y - start.Y) > 8)
             {

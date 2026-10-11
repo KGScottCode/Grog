@@ -256,7 +256,7 @@ public sealed class DownloadEngineHardeningTests
         finally { Cleanup(root); }
     }
 
-    // 1274: GOG's listed size can be off by several percent (941 MB listed, 897 MB sent, measured 09-29); that is the
+    // 1274: GOG's listed size can be off by several percent; that is the
     // checksum's call, not a refusal. Only a body of another order (an error page) is refused.
     [Test]
     public void A_body_a_few_percent_off_the_label_is_plausible_and_an_error_page_is_not()
@@ -268,7 +268,7 @@ public sealed class DownloadEngineHardeningTests
         Assert.False(DownloadEngine.PlausibleBodyLength(300_000_000, 941_000_000), "under half the label");
     }
 
-    // 1279: an extra's label is a placeholder (a 111.90 KB manual listed at 10.00 MB, measured 09-30): never refused on length.
+    // 1279: an extra's label is a placeholder (a 111.90 KB manual listed at 10.00 MB, measured): never refused on length.
     [Test]
     public void An_extras_body_is_never_refused_on_length_but_an_installers_still_is()
     {

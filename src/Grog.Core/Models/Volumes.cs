@@ -46,7 +46,7 @@ public sealed class BackupRoot
 }
 
 /// <summary>Runtime availability of a root: Online = marker found; Offline = marker absent (unplugged, not an
-/// error); Lost = user-declared dead; Replaced = lost root superseded by a new drive; Detached (09-13) =
+/// error); Lost = user-declared dead; Replaced = lost root superseded by a new drive; Detached =
 /// user put the drive on the shelf: its files stay recorded and count as backed up, it is never bound or
 /// written to (even if its path is present), and it does not hold one of the two storage slots. A Reattach
 /// makes it Offline again so the next scan binds it.</summary>
@@ -107,7 +107,7 @@ public sealed class RoutingPolicy
     }
 
     /// <summary>THE reader of a role's root: the pinned root when one is set, else the primary. Four call sites
-    /// spelled out the TryGetValue + IsNullOrEmpty + fallback by hand (sweep 2 refactor).</summary>
+    /// spelled out the TryGetValue + IsNullOrEmpty + fallback by hand.</summary>
     public string? RoleRootOrPrimary(ContentRole role, string? primaryRootId)
         => RoleRoots.TryGetValue(role, out var roleRoot) && !string.IsNullOrEmpty(roleRoot) ? roleRoot : primaryRootId;
 

@@ -86,7 +86,7 @@ public partial class MainWindowViewModel
 
     /// <summary>Same answer off the dispatcher: the token probe is a stat + open per account and, under a
     /// keyring-sealed token, a keyring call. Captures the manifest and root on the calling thread
-    /// (UI-thread sweep 09-06 r2).</summary>
+    /// .</summary>
     internal Task<bool> AnyAccountConnectedAsync()
     {
         var m = _manifest; var root = _backupRoot;
@@ -101,7 +101,7 @@ public partial class MainWindowViewModel
             if (manifest is null) return false;
             // LooksReadable, not File.Exists: a GRGK1 file under a locked keyring is a token the app
             // cannot use. Cached per path (5 s) and no backup-root probe: this is asked more than once per
-            // user action (UI-thread sweep 09-06 r2).
+            // user action.
             var paths = Grog.Core.Storage.GrogPaths.ResolveNoProbe(root);
             var svc = new Grog.Core.Auth.AccountService(manifest, paths);
             return manifest.Current.Accounts.Any(
@@ -112,14 +112,14 @@ public partial class MainWindowViewModel
 
     /// <summary>Run a FULL library scan through Core's <see cref="Grog.Core.Runs.LibraryScan"/> (every
     /// connected account, or the legacy single session with none registered). The App only dresses each
-    /// pass (host.ConfigureScan) and logs the per-account outcome. (S2.2)</summary>
+    /// pass (host.ConfigureScan) and logs the per-account outcome. </summary>
     /// <param name="dress">Progress dressing; second arg is the account name, "" when naming is noise.</param>
     private async Task<Grog.Core.Sync.SyncResult> RunFullScanAsync(
         System.Action<LibrarySyncService, string> dress, CancellationToken ct)
     {
         // Scans re-read every account token: give the keyring a fresh chance (see ConnectCore note).
         Grog.Core.Platform.OsKeyring.ResetAvailabilityCache();
-        _ = Accounts.RefreshTokenProtectionSnapshotAsync();   // the SIGN-IN SECURITY card follows the fresh keyring answer (UI-thread sweep 09-06 r2)
+        _ = Accounts.RefreshTokenProtectionSnapshotAsync();   // the SIGN-IN SECURITY card follows the fresh keyring answer
         var host = new AppRunHost(this, LogCategory.Scan) { ScanDress = dress };
         var outcome = await Grog.Core.Runs.LibraryScan.RunAsync(_manifest, _api, EngineSessions(), host, ct, datePurchases: true);
         Library._lastScanPasses = outcome.Passes;
@@ -144,7 +144,7 @@ public partial class MainWindowViewModel
         return outcome.Aggregate;
     }
 
-    // ---- (New items 09-09) The manual-rescan question about still-flagged New items ----
+    // ---- The manual-rescan question about still-flagged New items ----
     // A MANUAL rescan is the moment "New" means something: whatever this scan adds becomes the new New, so
     // the standing flags are either retired now or deliberately kept. Scheduled/unattended runs never ask
     // and never clear -- nobody is there to answer, and a silent clear would erase the evidence.

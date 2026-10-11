@@ -146,7 +146,7 @@ public sealed class PreservationService
             if (ok) result.Ok++;
             else
             {
-                _store.Mutate(_ => f.State = FileState.Corrupt);   // (manifest gate 09-08) per file: the zip read above awaits
+                _store.Mutate(_ => f.State = FileState.Corrupt);   // per file: the zip read above awaits
                 result.Bad++;
 
                 result.BadFiles.Add(f.LocalRelativePath!);
@@ -165,7 +165,7 @@ public sealed class PreservationService
         var result = new OrphanResult();
         var known = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         // OldVersionFiles too: the archive is recorded there, not in Files. Left out, every retained build read
-        // as an orphan and --move carried the irreplaceable Old Versions/ archive away (sweep 2 #27).
+        // as an orphan and --move carried the irreplaceable Old Versions/ archive away.
         foreach (var f in M.Items.SelectMany(i => i.Files.Concat(i.OldVersionFiles)))
         {
             var p = _layout.ResolvePath(f);

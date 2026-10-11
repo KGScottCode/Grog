@@ -9,7 +9,7 @@ using System.Text;
 namespace Grog.Core.Storage;
 
 /// <summary>
-/// Cross-process presence for the two Grog hosts sharing one profile (09-08). The App and the CLI each
+/// Cross-process presence for the two Grog hosts sharing one profile. The App and the CLI each
 /// hold a lock file in the config dir while they could write the manifest; the other side checks before
 /// it writes. The App has priority: a CLI writer verb refuses to run while the App holds its lock, and
 /// says so in grog.log (for anything parsing that log) and in a hand-off file the App turns into a toast.

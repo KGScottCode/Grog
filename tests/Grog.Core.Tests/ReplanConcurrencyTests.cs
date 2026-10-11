@@ -14,7 +14,7 @@ using Grog.Core.Volumes;
 
 namespace Grog.Core.Tests;
 
-/// <summary>(Re-plan on sort 09-10) The re-plan added on the sort path runs on the UI thread while download
+/// <summary>The re-plan added on the sort path runs on the UI thread while download
 /// workers are settling on their own threads. Both failures it shipped with were of exactly that shape and
 /// neither was reachable by a single-threaded test: a lock-order deadlock against RunSettler, then a
 /// duplicate enqueue in the window where a task is Completed but its queue entry is not yet removed.
@@ -27,7 +27,7 @@ namespace Grog.Core.Tests;
 /// the contention it claimed to test. A test that passes with the bug present is worse than no test, because
 /// it certifies the untested path as covered. The deadlock is guarded instead by the deterministic property
 /// test in ReplanOnSortTests: the manifest gate is never held while the engine raises an event. That one DOES
-/// fail when the bug is reintroduced (verified 09-10).</summary>
+/// fail when the bug is reintroduced.</summary>
 [NewBatch]
 [Trait("placement")]
 public sealed class ReplanConcurrencyTests
@@ -104,7 +104,7 @@ public sealed class ReplanConcurrencyTests
         }
     }
 
-    /// <summary>(Walk 09-25) An engine call from the UI thread ran the settle pass INLINE and waited behind a worker's
+    /// <summary>An engine call from the UI thread ran the settle pass INLINE and waited behind a worker's
     /// notify (a drive probe on a busy stick): 5 to 24 s frozen. The settler now owns one worker; the caller only
     /// signals it. Held here with a host that blocks in TaskSettled: a queue-sized cancel must still return at once,
     /// and nothing the blocked settler owed is lost once it is released.</summary>

@@ -134,7 +134,7 @@ public sealed partial class StorageViewModel
         var brush = f is { Kind: FileKind.Extra }
             ? ExtraTypeSegment.ColorFor(Grog.Core.Sync.ExtraClassifier.Classify(f.Name, f.ExtraType))
             : ExtraTypeSegment.ColorFor("Game");
-        // (09-19) A hidden game's move is a row like any other (order, count and bytes are facts), unnamed.
+        // A hidden game's move is a row like any other (order, count and bytes are facts), unnamed.
         bool nameHidden = QueueRow.IsHiddenGame(m.GogId);
         return new ReorgMoveRow
         {
@@ -193,13 +193,13 @@ public sealed partial class StorageViewModel
     /// <summary>Always-present footer summary for the Moving section (mirrors the Downloading footer):
     /// live progress while a move runs, else the queued count, else an idle line.</summary>
     public string MoveStatsText => IsReorgRunning ? ReorgFooterText
-        : MoveWaitingForSlot ? "Waiting - this move starts when the current move, scan or verify finishes"   // (09-22) never behind downloads
+        : MoveWaitingForSlot ? "Waiting - this move starts when the current move, scan or verify finishes"   // never behind downloads
         : _root.Overview.MoveQueueCount > 0 ? $"{Grog.Core.Format.Plural.Of(_root.Overview.MoveQueueCount, "file")} queued to move"
         : "No moves queued";
 
     partial void OnIsReorgRunningChanged(bool value)
     {
-        _root.Overview.RaiseRailOverviewSub();   // (09-22) the rail line says "moving N files"
+        _root.Overview.RaiseRailOverviewSub();   // the rail line says "moving N files"
         _root.Overview.RaiseActivityTabHeader();
         OnPropertyChanged(nameof(ShowPauseReorg));
         OnPropertyChanged(nameof(ShowMoveTransport));
@@ -209,7 +209,7 @@ public sealed partial class StorageViewModel
     // Pause is offered only while a move is actively running (not finished, not already paused).
     public bool ShowPauseReorg => IsReorgRunning && !ReorgFinished && !ReorgPaused;
     /// <summary>While the in-flight chunk drains, the Pause button STAYS VISIBLE as a disabled "Pausing…"
-    /// (owner 08-30: hiding it left only Stop for a second, which read as unresponsive).</summary>
+    /// (hiding it left only Stop for a second, which read as unresponsive).</summary>
     public string ReorgPauseLabel => ReorgPausing ? "Pausing…" : "Pause";
     // The Moving transport cluster is present whenever there's a running or paused move to control.
     public bool ShowMoveTransport => IsReorgRunning || ReorgPaused || MoveWaitingForSlot;
@@ -226,7 +226,7 @@ public sealed partial class StorageViewModel
 
     /// <summary>How a pane-driven move executes its job: given the pane's progress callback and the pane's
     /// control, run to completion. Null = the plain ReorgRunner (folder change, Storage moves, resume); the
-    /// migrate prompt passes Core's LayoutMigrationRun. (S2.2)</summary>
+    /// migrate prompt passes Core's LayoutMigrationRun. </summary>
     private delegate Task<Grog.Core.Runs.LayoutMigrationOutcome> ReorgExecutor(
         Action<Grog.Core.Volumes.ReorgProgress> progress, Grog.Core.Volumes.ReorgControl control);
 
@@ -236,7 +236,7 @@ public sealed partial class StorageViewModel
     private Func<Task>? _onReorgReachedEnd;
     /// <summary>The job the hook belongs to. A hook outlives a pause (Resume re-enters with no hook of its own)
     /// but never crosses to a DIFFERENT job: a paused "Move & Forget" followed by a plain grid move ran the
-    /// forget on the grid move's completion, with half the drive's files still on it (QA 09-18).</summary>
+    /// forget on the grid move's completion, with half the drive's files still on it.</summary>
     private Grog.Core.Volumes.ReorgJob? _onReorgReachedEndJob;
 
     /// <summary>The in-progress downloads (.part files) of every drive this job clears, carried to the drive the
@@ -255,7 +255,7 @@ public sealed partial class StorageViewModel
         return carried;
     }
 
-    /// <summary>(QA 09-30 B11) Roots with a carry in flight: a second slot change fired a second carry on the same root,
+    /// <summary>Roots with a carry in flight: a second slot change fired a second carry on the same root,
     /// which found the .parts gone (the first was moving them) and cleared their records.</summary>
     private readonly HashSet<string> _carrying = new();
 
@@ -308,7 +308,7 @@ public sealed partial class StorageViewModel
     private bool _activeReorgIsPlain;
     /// <summary>Files the running move has not settled yet (the rail's "moving N files").</summary>
     internal int MovesLeft => _activeReorgJob?.Unsettled ?? 0;
-    /// <summary>(09-22) One move at a time; independent of the download slot.</summary>
+    /// <summary>One move at a time; independent of the download slot.</summary>
     private readonly SemaphoreSlim _moveGate = new(1, 1);
     private bool control_IsStopped(Grog.Core.Volumes.ReorgJob job) => _reorgControl is { IsCanceled: true } || ReferenceEquals(job, _supersededJob);
 
@@ -330,18 +330,18 @@ public sealed partial class StorageViewModel
 
     /// <param name="allFrom">This is "Move all" off a root: if it has to wait, it is re-planned over what the drive
     /// holds when it starts. A parameter, never a field: a field outlived its move and leaked into the next one
-    /// that waited (QA 09-22).</param>
+    /// that waited.</param>
     private async Task RunReorgWithPaneAsync(Grog.Core.Volumes.ReorgJob job, string configDir, Func<Task>? onReachedEnd = null,
                                              ReorgExecutor? execute = null, (string From, string To)? allFrom = null)
     {
         // A paused job owns the pane, the journal and its hook. A new job on top of it overwrote all three and
-        // made the paused plan unrecoverable (QA 09-18): the user resumes or stops it first. Inform, never choose.
+        // made the paused plan unrecoverable: the user resumes or stops it first. Inform, never choose.
         if (ReorgPaused && _activeReorgJob is not null && !ReferenceEquals(_activeReorgJob, job))
         {
             _root.ShowToast("A paused move is waiting. Resume or Stop it before starting another.", 1);
             return;
         }
-        // (owner 09-22) Moves and downloads run SIDE BY SIDE: a move takes its own gate, not the download slot, and
+        // Moves and downloads run SIDE BY SIDE: a move takes its own gate, not the download slot, and
         // PendingWrites keeps the two honest on space. What still defers a move: another move in flight (a new plan
         // joins it through TryJoinRunningMove before reaching here, or waits), and a scan or verify (Busy with no
         // download), because verify reads files a move would be relocating under it.
@@ -374,11 +374,11 @@ public sealed partial class StorageViewModel
             ReorgPaused = false;
             ReorgPausing = false;
             ReorgHeaderText = "Reorganizing your backups";
-            // (09-22) The download planner and the engine subtract what this move still has to copy onto each volume.
-            // Registered BEFORE the carry (QA 09-30 B8): the carry priced its room from drives that did not yet know
+            // The download planner and the engine subtract what this move still has to copy onto each volume.
+            // Registered BEFORE the carry: the carry priced its room from drives that did not yet know
             // about the job's own writes.
             _session.PendingWrites.Register(job.RemainingWrites);
-            // (09-19) A move that CLEARS a drive takes that drive's in-progress downloads first, so they are safe
+            // A move that CLEARS a drive takes that drive's in-progress downloads first, so they are safe
             // early and Resume continues from them whatever happens to the drive afterwards.
             if (await CarryPartialsForJobAsync(job) > 0)
             {
@@ -390,7 +390,7 @@ public sealed partial class StorageViewModel
             ActivityTabSelected = true;   // bring the Activity tab forward so the move is visible
             // A move of real size runs for minutes in the background with no modal of its own: say once, up
             // front, where it can be watched. EVERY entry point (folder change, Storage page moves, migrate,
-            // resume) comes through here, so this is the one place the notice belongs (owner 09-04: a Storage
+            // resume) comes through here, so this is the one place the notice belongs (a Storage
             // page move started with no word about where to look). Not when Overview is already on screen.
             if (job.Moves.Count > 0 && _root.CurrentView != MainWindowViewModel.View.Overview) ShowMoveStartedNotice = true;
             SyncReorgRows(job);
@@ -414,7 +414,7 @@ public sealed partial class StorageViewModel
                 if (p.FilesDone != lastFilesDone)
                 {
                     lastFilesDone = p.FilesDone;
-                    _root.Overview.RaiseRailOverviewSub();   // (09-22) "moving N files" counts down
+                    _root.Overview.RaiseRailOverviewSub();   // "moving N files" counts down
                     if (_root.CurrentView == MainWindowViewModel.View.Drives) RebuildInventory();
                     _root.RecomputeActivity();   // a landed file's Library/detail dot goes from Moving to settled
                 }
@@ -429,14 +429,14 @@ public sealed partial class StorageViewModel
                 }
             });
             Action<Grog.Core.Volumes.ReorgProgress> onProgress = p => { latest = p; Dispatcher.UIThread.Post(progressUi.Request); };
-            // (S2.2) Off the dispatcher either way: Core's LayoutMigrationRun for the migrate prompt, the plain
+            // Off the dispatcher either way: Core's LayoutMigrationRun for the migrate prompt, the plain
             // runner for every other job. Both hand back the same outcome shape.
             var control = _reorgControl!;
             _activeReorgIsPlain = execute is null;
             var run = Task.Run(() => execute is not null
                 ? execute(onProgress, control)
                 : RunPlainReorgAsync(job, configDir, onProgress, control));
-            if (execute is not null) _liveMoveTask = run;   // the migrate path too: a quit or a reset waits on it (review 09-30)
+            if (execute is not null) _liveMoveTask = run;   // the migrate path too: a quit or a reset waits on it
             var result = await run;
             if (result.Error is { } fail)
             {
@@ -456,7 +456,7 @@ public sealed partial class StorageViewModel
 
             // STATE FLIP FIRST, before any reconcile work: the transport buttons (Pause -> Resume) must
             // reflect the runner the instant it stops. This used to sit after ReconcileAndRefresh, so a
-            // slow or throwing reconcile left a paused move still showing Pause (owner-hit 08-30).
+            // slow or throwing reconcile left a paused move still showing Pause.
             var paused = result.Outcome == Grog.Core.Volumes.ReorgOutcome.Paused;
             SyncReorgRows(job);
             ReorgPausing = false;
@@ -476,7 +476,7 @@ public sealed partial class StorageViewModel
             ReorgProgressText = $"{result.Moved} moved"
                 + (result.Skipped > 0 ? $", {result.Skipped} skipped" : "")
                 + (result.Failed > 0 ? $", {result.Failed} failed" : "");
-            // (09-14) The counts go to the log, not only the pane header: the header is gone next launch and the
+            // The counts go to the log, not only the pane header: the header is gone next launch and the
             // log is the record of what actually landed (an AddOffer line once claimed 337 moved with 0 on disk).
             _root.Log($"{ReorgHeaderText}: {ReorgProgressText}.", isError: result.Failed > 0, category: LogCategory.Move);
             _moveWaitsForRootId = paused ? result.PausedForRootId : null;
@@ -484,7 +484,7 @@ public sealed partial class StorageViewModel
             {
                 // The runner stopped itself (a drive went away, failures in a row). Nothing was lost: the
                 // source files are untouched and the move that tripped it is back in the queue. A drive pause
-                // resumes on its own when the drive is back (walk 5.6); anything else waits for Resume.
+                // resumes on its own when the drive is back; anything else waits for Resume.
                 bool forDrive = _moveWaitsForRootId is not null;
                 _root.Log($"Move paused: {why}. Nothing was lost; " + (forDrive ? "it continues when the drive is back." : "Resume retries it."), isError: true, category: LogCategory.Move);
                 _root.ShowToast($"Move paused: {why}. " + (forDrive ? "It continues when the drive is back." : "Resume retries it."), 1);   // warning tier: an action is waiting, not a loss
@@ -506,7 +506,7 @@ public sealed partial class StorageViewModel
             else if (reachedEnd && job.RepointRootId is { } repointId && job.RepointPath is { } repointPath)
             {
                 // A Change Folder job finished with no hook: it was resumed after a restart. The follow-up lives on the
-                // job (QA 09-30 B2): flip the root to its new folder, or every file reads Missing at the old one.
+                // job: flip the root to its new folder, or every file reads Missing at the old one.
                 var row = BackupLocations.FirstOrDefault(r => r.RootId == repointId);
                 try
                 {
@@ -535,7 +535,7 @@ public sealed partial class StorageViewModel
             _session.PendingWrites.Clear();
             // Release the move gate whatever the outcome (a pause too: Resume re-takes it).
             try { _moveGate.Release(); } catch (SemaphoreFullException) { }
-            // (09-20) Files that joined the job in the instant the runner was finishing were never picked up: run
+            // Files that joined the job in the instant the runner was finishing were never picked up: run
             // the same job again for them. Not for a paused or stopped job, whose Resume does this.
             bool lateJoiners; lock (job.SyncRoot) lateJoiners = job.Moves.Any(x => x.State == Grog.Core.Volumes.ReorgMoveState.Pending);
             if (lateJoiners && !ReorgPaused && !control_IsStopped(job))
@@ -545,7 +545,7 @@ public sealed partial class StorageViewModel
     }
 
     /// <summary>The non-migrate jobs (folder change, Storage moves, resume) run the ReorgRunner directly; a
-    /// runner-level throw becomes the outcome's Error so the pane renders it once. (S2.2)</summary>
+    /// runner-level throw becomes the outcome's Error so the pane renders it once. </summary>
     private async Task<Grog.Core.Runs.LayoutMigrationOutcome> RunPlainReorgAsync(Grog.Core.Volumes.ReorgJob job, string configDir,
         Action<Grog.Core.Volumes.ReorgProgress> progress, Grog.Core.Volumes.ReorgControl control)
     {
@@ -689,7 +689,7 @@ public sealed partial class StorageViewModel
     private string? _moveWaitsForRootId;
 
     /// <summary>The presence watch saw a storage come back: a move that paused for that drive continues on its own,
-    /// the way downloads do (walk 5.6: the drive returned, Resume restarted downloads, the move sat at 0%).</summary>
+    /// the way downloads do (the drive returned, Resume restarted downloads, the move sat at 0%).</summary>
     internal void OnStorageBackForMove(string rootId)
     {
         if (_moveWaitsForRootId != rootId || !ReorgPaused || _activeReorgJob is null) return;
@@ -706,7 +706,7 @@ public sealed partial class StorageViewModel
         _moveWaitsForRootId = null;
         var job = _activeReorgJob;
         // Downloads may have filled the target while the move was paused: the same room re-check startup's Resume
-        // runs, off the dispatcher (the layout probes every root; QA 09-30 B12).
+        // runs, off the dispatcher.
         int dropped = await Task.Run(() => DropWhatNoLongerFitsFor(job));
         NoteDroppedOnResume(job, dropped);
         if (dropped > 0) SyncReorgRows(job);
@@ -729,11 +729,11 @@ public sealed partial class StorageViewModel
 
     /// <summary>The move job is gone (dismissed, reverted, orphans accepted): every surface derived from it
     /// goes with it - the pane rows, the active card + waiting tail, the "N files queued to move" count and
-    /// the Library/detail move dots (owner, 09-04: dots and the count outlived the job until the next
+    /// the Library/detail move dots (dots and the count outlived the job until the next
     /// download event, because navigation never re-derives the activity map).</summary>
     private void ClearReorgSurfaces()
     {
-        _onReorgReachedEnd = null;   // (09-15 review) a hook from a cancelled/dismissed move must not fire at the end of the next one
+        _onReorgReachedEnd = null;   // a hook from a cancelled/dismissed move must not fire at the end of the next one
         IsReorgRunning = false; ReorgFinished = false; ReorgPaused = false;
         ReorgRows.Clear();
         _activeReorgJob = null;
@@ -750,7 +750,7 @@ public sealed partial class StorageViewModel
         ClearReorgSurfaces();
         // Dismissing the pane also abandons a move that was only WAITING -- otherwise it would spring to life
         // later with no pane on screen to explain why files started moving. A waiting move that carried a
-        // follow-up (make the new storage primary, 09-13) loses that too: say so, or the primary never changes
+        // follow-up loses that too: say so, or the primary never changes
         // and nothing explains why.
         if (_deferredMove is { OnReachedEnd: not null })
             _root.Log("The waiting move was dismissed; its follow-up (changing the primary storage) will not run. Use Make Primary if you still want it.", category: LogCategory.Move);
@@ -784,7 +784,7 @@ public sealed partial class StorageViewModel
         {
             MoveWaitingForSlot = false;
             var job = next.Job;
-            // (09-19) "Move all" waited for files in progress: they have landed on the drive being emptied since the
+            // "Move all" waited for files in progress: they have landed on the drive being emptied since the
             // plan was made. Plan again over what the drive holds NOW, so "all" is all.
             if (all is { } intent && _session.Manifest is { } store)
                 try

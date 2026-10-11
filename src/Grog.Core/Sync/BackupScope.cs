@@ -38,7 +38,7 @@ public static class BackupScope
     /// failed its hash (Corrupt), or last seen gone (Missing, still worth clearing). The one rule for "is there
     /// something of ours to delete", used by Delete's preview and plan. NOT a present-rule: <see cref="IsPresent"/>
     /// and <see cref="HasLocalCopy"/> answer "backed up"; this answers "do we point at bytes". Moved here from
-    /// LocalDeletion 09-13 so no call site re-derives it.</summary>
+    /// LocalDeletion so no call site re-derives it.</summary>
     public static bool HoldsBytes(GameFile f)
         => !string.IsNullOrEmpty(f.LocalRelativePath)
            && f.State is FileState.Present or FileState.Verified or FileState.Outdated or FileState.Corrupt or FileState.Missing;
@@ -50,7 +50,7 @@ public static class BackupScope
 
     /// <summary>A gap the queue can close: never fetched, superseded, or gone from disk. Corrupt is NOT a
     /// gap here (it waits for a retry decision) and Unavailable never is. Six call sites re-derived this
-    /// before 09-02.</summary>
+    /// before.</summary>
     public static bool NeedsFetch(GameFile f) => NeedsFetch(f.State);
     public static bool NeedsFetch(FileState s) => s is FileState.NotBackedUp or FileState.Outdated or FileState.Missing;
 

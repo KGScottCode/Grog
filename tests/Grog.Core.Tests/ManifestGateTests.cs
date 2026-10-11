@@ -11,7 +11,7 @@ using Grog.Core.Models;
 using Grog.Core.Storage;
 using Grog.Core.Tests.Framework;
 
-/// <summary>The manifest gate (09-08): mutators and the store's serialize share one door, so a save never
+/// <summary>The manifest gate: mutators and the store's serialize share one door, so a save never
 /// sees a torn graph and never has to retry or give up.</summary>
 [Trait("manifest")]
 public class ManifestGateTests
@@ -43,7 +43,7 @@ public class ManifestGateTests
 
     [Test] async Task A_manifest_from_a_newer_Grog_is_refused_not_recovered()
     {
-        // Version ceiling (09-08): a higher SchemaVersion is a newer build's file, not corruption. It must not
+        // Version ceiling: a higher SchemaVersion is a newer build's file, not corruption. It must not
         // be "recovered" from .bak, migrated downward, or saved over; both files stay exactly as found.
         var dir = Directory.CreateTempSubdirectory("grog-ceiling-").FullName;
         Environment.SetEnvironmentVariable("GROG_CONFIG_DIR", Path.Combine(dir, "_cfg"));

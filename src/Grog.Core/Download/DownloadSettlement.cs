@@ -9,7 +9,7 @@ namespace Grog.Core.Download;
 /// <summary>
 /// What a finished task means for the manifest RECORD: the one place the retry strikes, the Unavailable
 /// mark, the partial flags and the persisted queue entry are settled. The App's settle path was the only
-/// copy until 09-02; the CLI's download verb settled nothing, so a file GOG refused was never marked
+/// copy until; the CLI's download verb settled nothing, so a file GOG refused was never marked
 /// Unavailable and a repeatedly failing one was never condemned when run from a script.
 /// </summary>
 public static class DownloadSettlement
@@ -51,20 +51,20 @@ public static class DownloadSettlement
                 return (Outcome.Skipped, manifest.Downloads.Remove(gogId, key));
 
             case DownloadTaskState.Failed when t.DriveGone:
-                // (09-25) Its storage went away: the file did nothing wrong. No strike, the entry and its partial stay
+                // Its storage went away: the file did nothing wrong. No strike, the entry and its partial stay
                 // exactly as they are; it resumes when the drive is back (or goes where the user sends it).
                 return (Outcome.DriveOffline, false);
 
             case DownloadTaskState.Failed when t.DiskFull:
                 // The DRIVE refused the bytes; the file did nothing wrong. No strike (three full-disk runs condemned
-                // intact files as Corrupt and dropped them from the queue, QA 09-19). It stays queued with its
+                // intact files as Corrupt and dropped them from the queue,). It stays queued with its
                 // partial, flagged won't-fit until a re-plan finds it room.
                 manifest.Downloads.SetPlacement(gogId, key, null, false);
                 return (Outcome.NoRoom, true);
 
             case DownloadTaskState.Failed when file is not null && Sync.BackupScope.IsPresent(file):
-                // (09-26) The file already landed (a duplicate attempt, or a late failure after the success settled):
-                // no strike on a good file, and the partial flag the failed attempt raised is dropped. grog.log 09-25
+                // The file already landed (a duplicate attempt, or a late failure after the success settled):
+                // no strike on a good file, and the partial flag the failed attempt raised is dropped. grog.log
                 // left Verified files carrying strikes and HasPartial.
                 if (file.HasPartial) { file.HasPartial = false; file.PartialBytes = null; return (Outcome.NotFinished, true); }
                 return (Outcome.NotFinished, false);
@@ -82,12 +82,12 @@ public static class DownloadSettlement
 
     /// <summary>The user asked for a fresh copy: strikes cleared, Corrupt lifted, partial forgotten, state
     /// back to NotBackedUp so the normal path fetches from scratch (never resume condemned bytes).
-    /// Three App sites spelled this out before 09-02.</summary>
+    /// Three App sites spelled this out before.</summary>
     public static void RequeueFresh(LibraryManifest manifest, long gogId, GameFile f)
     {
         // Only CONDEMNED bytes are forgotten. A file that merely failed (network, disk full) keeps its resumable
         // partial: clearing the record left the .part on the drive with no owner, so Try Again after a disk-full
-        // run orphaned a 4 GiB partial that then held the drive at 0 B free (walk 09-19).
+        // run orphaned a 4 GiB partial that then held the drive at 0 B free.
         bool condemned = f.State == FileState.Corrupt;
         RetryPolicy.ManualRetry(f);
         f.State = FileState.NotBackedUp;

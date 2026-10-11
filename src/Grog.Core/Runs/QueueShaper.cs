@@ -9,7 +9,7 @@ using Grog.Core.Volumes;
 
 namespace Grog.Core.Runs;
 
-/// <summary>The queue-order moves the Downloading pane offers around the won't-fit line (09-16), as PURE
+/// <summary>The queue-order moves the Downloading pane offers around the won't-fit line, as PURE
 /// functions over a queue snapshot: where "the bottom of the fitting block" is, whether one flagged file could
 /// be lifted, and the greedy lift of every flagged file that fits. The App only renders and commits. Every rule
 /// here is the planner's own (<see cref="PlacementPlanner.WouldFit"/>), so a move is never offered that the
@@ -19,7 +19,7 @@ public static class QueueShaper
     /// <summary>The slot right after the LAST fitting row (ignoring <paramref name="moving"/>): where a drop on
     /// the divider, "Pull up" and "Pull up what fits" land. Not "the first red slot": fitting and red rows
     /// interleave once anything is dragged, and the drawn white group lists every fitting row in queue order,
-    /// so a row put above the first red file drew with white rows still under it (owner-measured 09-16).
+    /// so a row put above the first red file drew with white rows still under it.
     /// The index is for <see cref="DownloadQueue.MoveTo"/>, which removes the row first. -1 when nothing fits.</summary>
     public static int EndOfFittingBlock(IReadOnlyList<QueuedDownload> snapshot, (long GogId, string FileKey)? moving = null)
     {
@@ -40,7 +40,7 @@ public static class QueueShaper
            && PlacementPlanner.WouldFit(PlacementPlanner.ToPlace(f), roomInFillOrder, m.Routing, primary, m.Routing.Mode, m.ExtrasLayout) is not null;
 
     /// <summary>Why a won't-fit file has nowhere to land: null = room, or a drive name such as "FAT32" when a per-file
-    /// ceiling is what stops it (09-19). True of a file that is over the ceiling of every online drive, or of one
+    /// ceiling is what stops it. True of a file that is over the ceiling of every online drive, or of one
     /// that an online drive has the room for and still cannot hold. A label on the row, never a placement input.</summary>
     public static string? FileLimitBlocking(GameFile f, IReadOnlyList<DeviceSpace> roomInFillOrder)
     {

@@ -22,7 +22,7 @@ public sealed record PurchaseDatesResult(int Dated, int Requests, bool Backfille
 
 /// <summary>
 /// Fills <see cref="LibraryItem.DateAcquired"/> from GOG's order history. The endpoint and its traps are
-/// documented in `docs/dev/GOG_Orders_API_2026-09-09.md`; the SHAPE of the work follows from three measured
+/// documented in `docs/dev/GOG_Orders_API_2026-.md`; the SHAPE of the work follows from three measured
 /// facts: orders are coarse (one order dates every product in it, so cost tracks order count, not library
 /// size), a purchase date never changes (so a dated item is never asked about again), and a large minority
 /// of owned products appear in NO order at all (53 of one reference library -- Connect imports, DLC bundled
@@ -44,7 +44,7 @@ public sealed record PurchaseDatesResult(int Dated, int Requests, bool Backfille
 ///     holds -- so an unanswered item can never be settled on evidence that did not cover it.
 ///   - NOTHING: every item is dated or settled. No request at all. This is the steady state, and it is why
 ///     the pass is safe to hang off every interactive scan.
-/// It is never called on the scheduled path: a cron backup does not pay for a cosmetic field (owner call).
+/// It is never called on the scheduled path: a cron backup does not pay for a cosmetic field.
 /// </summary>
 public static class PurchaseDatesRun
 {
@@ -124,7 +124,7 @@ public static class PurchaseDatesRun
 
     private static bool OwnedBy(LibraryItem i, string accountId) => i.OwnerIds.Contains(accountId);
 
-    /// <summary>The pass over EVERY account (sweep 2 #9). An order lives in the history of the account that
+    /// <summary>The pass over EVERY account. An order lives in the history of the account that
     /// placed it; asking only the primary's client dated nothing a secondary account bought and then SETTLED
     /// those items as "GOG has no record", permanently. Per account: the same backfill / top-up / escalate
     /// rules as the single pass, scoped to the items that account owns. An item is settled only when EVERY

@@ -105,7 +105,7 @@ public sealed class JsonManifestStore : IManifestStore
             // silently present an empty library (which a later save would make permanent).
             var loaded = await TryLoadAsync(_path, ct).ConfigureAwait(false);
             // A newer build's file is not corrupt and must not be "recovered" from .bak, migrated, or saved over:
-            // refuse with a message the host can show (09-08). Both files are left exactly as they are.
+            // refuse with a message the host can show. Both files are left exactly as they are.
             if (loaded is { } newer && newer.SchemaVersion > LibraryManifest.CurrentSchemaVersion)
                 throw new ManifestTooNewException(newer.SchemaVersion, LibraryManifest.CurrentSchemaVersion);
             if (loaded is not null)
@@ -136,7 +136,7 @@ public sealed class JsonManifestStore : IManifestStore
                     RecoveryNote = $"Your library file could not be read; a copy was kept as {_path}.corrupt and Grog started from an empty library.";
                 }
             }
-            using (Gate.Enter()) MigrateSchema();   // (manifest gate 09-08) the load-time backfills are graph writes
+            using (Gate.Enter()) MigrateSchema();   // the load-time backfills are graph writes
         }
         finally { _gate.Release(); }
 
@@ -227,9 +227,9 @@ public sealed class JsonManifestStore : IManifestStore
     public Task SaveAsync(CancellationToken ct = default)
         // Everything off the caller's thread: the App fires this from UI handlers, and with the save
         // semaphore free WaitAsync completes synchronously, so the directory create and the whole serialization
-        // (a 1,500-game manifest is megabytes) ran on the dispatcher (review 09-06). Task.Run, not Task.Yield:
+        // (a 1,500-game manifest is megabytes) ran on the dispatcher. Task.Run, not Task.Yield:
         // a yield resumes on the same dispatcher. The trim, the legacy mirror and the serialize all run under
-        // the manifest gate on the worker (09-08).
+        // the manifest gate on the worker.
         => Task.Run(() => SaveCoreAsync(ct), ct);
 
     private async Task SaveCoreAsync(CancellationToken ct)
@@ -241,7 +241,7 @@ public sealed class JsonManifestStore : IManifestStore
             var tmp = _path + ".tmp";
 
             // Serialize under the manifest gate: every mutator holds it, so the graph is quiescent and the
-            // snapshot is consistent (no torn "file settled, queue entry still there"). The 09-06 retry loop
+            // snapshot is consistent (no torn "file settled, queue entry still there"). The retry loop
             // (serialize a live graph up to eight times, then drop the save) is gone; a "collection was
             // modified" here now means an UNGUARDED writer, which is a bug to find, and is reported, not retried.
             byte[]? bytes = null;

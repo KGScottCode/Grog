@@ -42,7 +42,7 @@ public sealed record VerifyRequest(
     /// than Corrupt. Null (offline, CLI) treats every mismatch as corruption -- the safe default.</summary>
     public Func<GameFile, CancellationToken, Task<string?>>? FetchCurrentServerMd5 { get; init; }
 
-    /// <summary>(09-25) Also fetch and check GOG's checksum for files with none on record
+    /// <summary>Also fetch and check GOG's checksum for files with none on record
     /// (<see cref="VerifyService.FetchMissingChecksums"/>). Needs a hashing mode and a fetcher.</summary>
     public bool FetchMissingChecksums { get; init; }
 
@@ -76,7 +76,7 @@ public sealed record VerifyRunResult(VerifyResult Verify, VerifyScope Scope, Ver
 /// THE verify sequence: bind the layout to the backup root, resolve the scope to files and their parent
 /// products, run <see cref="VerifyService"/> in the requested mode, roll product statuses up and save.
 /// The App had six copies of this (Activity, Folders, Health, Library x2, Scope) and the CLI a seventh
-/// before 09-08; each built its own layout and picked its own VerifyService overload.
+/// before; each built its own layout and picked its own VerifyService overload.
 ///
 /// <para>Disk work: the <see cref="BackupLayout"/> constructor probes every root and the pass stats or
 /// hashes files. Call from a worker (the App's RunBusy already is one).</para>
@@ -117,7 +117,7 @@ public static class VerifyRun
                 });
                 items = parents.Count; files = fileList.Count;
                 // A file pass is a size-only CONFIRM (MD5 was checked at download time) unless the caller asked
-                // for a full re-hash: the Storage file row's "Rescan & verify" reads the bytes (09-19). The
+                // for a full re-hash: the Storage file row's "Rescan & verify" reads the bytes. The
                 // read-frugal Unverified mode stays a confirm here, as every other single-file site expects.
                 if (mode != VerifyMode.FullRehash) mode = VerifyMode.SizeOnly;
                 r = await vs.RunForFilesAsync(fileList, parents, mode, ct);

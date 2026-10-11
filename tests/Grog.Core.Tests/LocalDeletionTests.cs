@@ -10,7 +10,7 @@ using Grog.Core.Tests.Framework;
 
 namespace Grog.Core.Tests;
 
-/// <summary>(09-11) The user's Delete. Real directories under temp, so the empty-folder rule and the
+/// <summary>The user's Delete. Real directories under temp, so the empty-folder rule and the
 /// Old Versions rule are exercised against the file system, not a fake.</summary>
 [Trait("deletion")]
 public sealed class LocalDeletionTests
@@ -195,7 +195,7 @@ public sealed class LocalDeletionTests
         Assert.True(f.LocalRelativePath is not null, "path kept");
     }
 
-    /// <summary>(09-13) One pruning rule with the reorganize: the top-level Games/ folder is never removed, even
+    /// <summary>One pruning rule with the reorganize: the top-level Games/ folder is never removed, even
     /// when a file imported directly under it was the last thing in it.</summary>
     [Test]
     public void The_top_level_category_folder_survives_the_last_delete()
@@ -207,7 +207,7 @@ public sealed class LocalDeletionTests
         Assert.True(Directory.Exists(Path.Combine(root, "Games")), "Games/ is the library's, not the file's");
     }
 
-    /// <summary>(09-13) The resumable .part goes with the file it belonged to; before, HasPartial was cleared and
+    /// <summary>The resumable.part goes with the file it belonged to; before, HasPartial was cleared and
     /// the .part sat in .grog-tmp as an orphan.</summary>
     [Test]
     public void The_files_partial_goes_with_it()

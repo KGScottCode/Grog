@@ -34,7 +34,7 @@ public sealed class LogFile
     public LogFile(string configDir)
         => Path = System.IO.Path.Combine(configDir, "grog.log");
 
-    // ---- Background writer (review 09-06) ----
+    // ---- Background writer ----
     // The App logged from the UI thread with a synchronous append under a lock shared with download workers:
     // every worker line was posted to the dispatcher and written to disk THERE, on a USB stick in portable
     // mode. Post() hands the line to one writer thread; Append() stays synchronous for the crash guard and

@@ -63,7 +63,7 @@ public sealed class DownloadTask
     /// <summary>The transfer died because the DRIVE could not take the bytes (disk full, or a file over the
     /// filesystem's per-file ceiling). Not the file's fault: settled with no strike and flagged won't-fit.</summary>
     public bool DiskFull { get; set; }
-    /// <summary>(09-25) Stopped because its storage went away (unplugged mid-transfer, or gone before it started).
+    /// <summary>Stopped because its storage went away (unplugged mid-transfer, or gone before it started).
     /// Not a failure: no strike, it stays queued and waits for the drive. Set before State, like DiskFull.</summary>
     public bool DriveGone { get; set; }
     /// <summary>What kind of failure this was (typed, at the catch). Set before State, like Error.</summary>

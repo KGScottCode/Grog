@@ -44,12 +44,12 @@ public static class CrashGuard
         {
             // Terminating: nothing to rescue, but the WHY must reach disk before the process goes.
             Record(e.IsTerminating ? "FATAL" : "process", e.ExceptionObject as Exception);
-            // (UI-thread sweep 09-06 r2) a debounced settings save (SaveSoon) that has not landed yet would
+            // a debounced settings save (SaveSoon) that has not landed yet would
             // otherwise die with the process: write it now, after the crash line.
             if (e.IsTerminating) FlushSettings();
         };
 
-        // (UI-thread sweep 09-06 r2) orderly exits too: the last SaveSoon may still be inside its ~500 ms window.
+        // orderly exits too: the last SaveSoon may still be inside its ~500 ms window.
         AppDomain.CurrentDomain.ProcessExit += (_, _) => FlushSettings();
     }
 

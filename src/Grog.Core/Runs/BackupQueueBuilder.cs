@@ -14,7 +14,7 @@ namespace Grog.Core.Runs;
 
 /// <summary>
 /// THE selection: which (game, file) pairs a run fetches, from the manifest and the run's options. Pure.
-/// Before 09-02 the App (DownloadFiltered) and the CLI (download, backup) each spelled this out; they had
+/// Before the App (DownloadFiltered) and the CLI (download, backup) each spelled this out; they had
 /// already drifted (the CLI skipped files on an offline root, the App did not; the CLI re-fetched a present
 /// file whose bytes were gone, re-deriving Missing at a call site that Verify owns).
 /// </summary>
@@ -26,7 +26,7 @@ public static class BackupQueueBuilder
     /// counts a label needs on every selection change (a real layout scans volumes to construct).</param>
     public static List<(LibraryItem Item, GameFile File)> Build(LibraryManifest manifest, IBackupLayout? layout, BackupRunOptions o)
     {
-        // A label count passes no layout: CPU only, under the UI budget at 5000 files (stress 09-25). With a layout it
+        // A label count passes no layout: CPU only, under the UI budget at 5000 files. With a layout it
         // probes the roots, which the UI thread never does.
         if (layout is not null) UiThreadGuard.NotOnUi("building the backup selection");
         var picked = new List<(LibraryItem, GameFile)>();
@@ -34,21 +34,21 @@ public static class BackupQueueBuilder
         if (o.FromPersistedQueue)
         {
             // Resume / launch drain: the persisted queue is the source of truth and its ORDER is the order
-            // that runs (owner 09-02: pause and resume must be exactly that). A queued file already present
+            // that runs (pause and resume must be exactly that). A queued file already present
             // on disk leaves the queue instead of being fetched again.
             foreach (var q in manifest.Downloads.Snapshot())
             {
                 var item = manifest.ItemById(q.GogId);
                 var f = item?.Files.FirstOrDefault(x => x.FileKey == q.FileKey);
                 // A phantom (its game or file left the library) leaves too: skipped, it kept a stale Fits flag for
-                // good, inflating "N had no room" at 0 bytes or blocking the orphan sweep (QA 09-19).
+                // good, inflating "N had no room" at 0 bytes or blocking the orphan sweep.
                 if (item is null || f is null) { manifest.Downloads.Remove(q.GogId, q.FileKey); continue; }
                 if (BackupScope.IsPresent(f)) { manifest.Downloads.Remove(q.GogId, q.FileKey); continue; }
                 // Unavailable leaves the queue the same way a refusal does at settlement: GOG has nothing to
-                // serve (a sync marked it sizeless, 09-13), so there is no transfer to hold a row for.
+                // serve, so there is no transfer to hold a row for.
                 if (f.State == FileState.Unavailable) { manifest.Downloads.Remove(q.GogId, q.FileKey); continue; }
                 // Same rule as the fresh path below: a file whose home drive is unplugged waits for it. The drain
-                // fetched an Outdated file onto another root and stranded the old build (QA 09-18). It stays queued.
+                // fetched an Outdated file onto another root and stranded the old build. It stays queued.
                 if (layout is not null && f.RootId is not null && !layout.IsOnline(f.RootId)) continue;
                 picked.Add((item, f));
             }
@@ -86,11 +86,11 @@ public static class BackupQueueBuilder
     /// <summary>Re-plan the files that have not started against the devices' CURRENT free space. The plan is
     /// made once at Back up with GOG's advertised sizes, which are rounded up; every file that lands smaller
     /// leaves room the plan never knew about, and by the end of a run a whole game that would now fit the
-    /// primary is on the secondary instead (owner, 09-05: three games under the 1.09 GB left). Per file, in
-    /// queue order (09-11): nothing is regrouped or reordered. Persists the new targets and Fits flags.</summary>
+    /// primary is on the secondary instead (three games under the 1.09 GB left). Per file, in
+    /// queue order: nothing is regrouped or reordered. Persists the new targets and Fits flags.</summary>
     /// <param name="dropped">Pending tasks that STOPPED fitting. Their record says won't-fit, but they are still
     /// in the engine; the caller must <c>CancelRange</c> them AFTER releasing the manifest gate (a cancel raises
-    /// TaskChanged into the settler, which takes the gate -- see <see cref="ReplanWholeQueue"/>). Before 09-13
+    /// TaskChanged into the settler, which takes the gate -- see <see cref="ReplanWholeQueue"/>). Before
     /// they stayed Pending and downloaded anyway, even after the user removed the red rows.</param>
     /// <returns>How many targets changed.</returns>
     public static int Replan(LibraryManifest manifest, IReadOnlyList<DeviceSpace> devices, DownloadEngine engine,
@@ -134,9 +134,9 @@ public static class BackupQueueBuilder
             if (!keyOf.TryGetValue(rid, out var key)) continue;
             // The engine's own figure (DownloadEngine.OthersStillToWrite): the real size once known, one write buffer
             // of received bytes not yet on the disk, and the file's allocation cost. A plan that reserved less than
-            // the engine's live check admitted files the engine then turned away (fill simulation 09-19).
+            // the engine's live check admitted files the engine then turned away.
             // Unchecked: its partial may not be on this drive yet, unless the record says it sits on this very volume
-            // (then the free figure already excludes those bytes; QA 09-30 A9).
+            // (then the free figure already excludes those bytes;).
             long onDisk = a.RoomChecked ? Math.Max(0, a.BytesReceived - DownloadEngine.WriteBufferBytes)
                         : a.File.HasPartial && a.File.PartialRootId is { } pr && keyOf.TryGetValue(pr, out var pkey) && pkey == key
                           ? a.File.PartialBytes ?? 0 : 0;
@@ -165,7 +165,7 @@ public static class BackupQueueBuilder
     /// <c>pending</c> list is what the engine HOLDS. A file that did not fit at <see cref="Place"/> time was
     /// never handed to the engine, so no amount of re-planning could ever see it again: it was pinned to
     /// "won't fit" for the life of the run no matter how the queue was reordered or how much space came free
-    /// (owner 09-10). This reads the persisted queue instead, so a file can cross back.
+    /// . This reads the persisted queue instead, so a file can cross back.
     ///
     /// Files already in flight are left alone and their remaining bytes are reserved on their device, exactly
     /// as Replan does: a re-sort pre-empts, it does not strand a partial transfer.
@@ -174,7 +174,7 @@ public static class BackupQueueBuilder
     /// record writes only, and touches the engine with NO gate held. Cancel/Enqueue/Reorder raise TaskChanged
     /// SYNCHRONOUSLY, which lands in RunSettler.SettlePass; that takes the settler lock and THEN the manifest
     /// gate. Holding the gate across an engine call therefore deadlocks against any worker already inside
-    /// SettlePass, and with a queue-sized batch of cancels it does so reliably (owner-hit 09-10, hard lock on
+    /// SettlePass, and with a queue-sized batch of cancels it does so reliably (hard lock on
     /// "Installers first"). Replan gets away with running under the gate only because engine.Retarget raises
     /// no events.
     /// A file that stops fitting is CANCELED out of the engine, which by
@@ -182,7 +182,7 @@ public static class BackupQueueBuilder
     /// still shown, it simply has nowhere to land.
     /// </remarks>
     /// <param name="engine">Null when no run is live: the records (target + Fits) are still rewritten, so the
-    /// red rows, the banner and "Remove them" read one fact whether or not a run is up. Before 09-13 an idle
+    /// red rows, the banner and "Remove them" read one fact whether or not a run is up. Before an idle
     /// sort or an idle Storage tick left the flags from the previous order, and the banner (a fresh projection)
     /// disagreed with the rows (persisted Fits).</param>
     /// <summary>How often one run lets the engine's live room check turn the same file away before it stops
@@ -198,7 +198,7 @@ public static class BackupQueueBuilder
     /// held no candidate.</summary>
     public sealed record ReplanResult(int Changed, IReadOnlyList<DeviceSpace> FreeAfter)
     {
-        /// <summary>Where the pass spent its time, "step ms" pairs in order (walk 09-25: a re-sort re-plan took 5 to
+        /// <summary>Where the pass spent its time, "step ms" pairs in order (a re-sort re-plan took 5 to
         /// 24 s on the UI thread and nothing said where). Diagnostic only.</summary>
         public string Timing { get; init; } = "";
         public long TotalMs { get; init; }
@@ -208,7 +208,7 @@ public static class BackupQueueBuilder
     public static ReplanResult ReplanWholeQueueDetailed(
         IManifestStore store, IReadOnlyList<DeviceSpace> devices, DownloadEngine? engine)
     {
-        // (QA 09-30 A12) One whole-queue pass at a time per manifest: an App pass (sort, drag, Add to queue) and the
+        // One whole-queue pass at a time per manifest: an App pass (sort, drag, Add to queue) and the
         // run's own pass raced, and the slower one's SetPlacement(false) + CancelRange landed over the fresher
         // pass's Fits=true, leaving a fitting row white, out of the engine and never fetched.
         var gate = PassGates.GetValue(store, _ => new SemaphoreSlim(1, 1));
@@ -243,13 +243,13 @@ public static class BackupQueueBuilder
         {
             // A task cancelled while ACTIVE stays in the engine's list as Canceled (only Pending ones are removed),
             // and counting it as "known" pinned its file out of the engine for the rest of the run: the flag said
-            // Fits, nothing fetched it (QA 09-18). Canceled is not a membership; Completed still is (see above).
+            // Fits, nothing fetched it. Canceled is not a membership; Completed still is (see above).
             // A task the engine turned away for lack of room (Failed + DiskFull) is not a membership either: the
             // file is held as won't-fit and comes back when a plan finds it room. Turned away MaxTurnAways times in one run it
             // stays out (and reads won't-fit), so a plan and the engine's live check can never trade the same file back and forth.
             bool turnedAway = t.State == DownloadTaskState.Failed && t.DiskFull;
             if (turnedAway) turnedAwayCount[(t.File.GameGogId, t.File.FileKey)] = turnedAwayCount.GetValueOrDefault((t.File.GameGogId, t.File.FileKey)) + 1;
-            // (09-25) A file stopped because its drive went away is not a membership either: when the drive is back (or
+            // A file stopped because its drive went away is not a membership either: when the drive is back (or
             // the file is sent elsewhere) a re-plan must hand it to the engine again.
             bool driveGone = t.State == DownloadTaskState.Failed && t.DriveGone;
             if (t.State != DownloadTaskState.Canceled && !turnedAway && !driveGone) known.Add((t.File.GameGogId, t.File.FileKey));
@@ -269,7 +269,7 @@ public static class BackupQueueBuilder
         // "Collection was modified" and the caller logged "Fit re-check skipped", leaving stale flags.
         var snap = new List<QueuedDownload>();
         var cands = new List<(LibraryItem Item, GameFile File, bool WasFit)>();
-        var candRoots = new List<string?>();   // (09-25) each candidate's current target, parallel to cands
+        var candRoots = new List<string?>();   // each candidate's current target, parallel to cands
         using (store.Gate.Enter())
         {
             snap = manifest.Downloads.Snapshot();
@@ -280,7 +280,7 @@ public static class BackupQueueBuilder
                 var f = item?.Files.FirstOrDefault(x => x.FileKey == q.FileKey);
                 if (item is null || f is null) continue;
                 // Same rule as Build: a file whose home drive (its old build) is unplugged waits for it. Walked here
-                // without the rule, the re-plan spilled the new build onto the primary beside the old one (QA 09-30).
+                // without the rule, the re-plan spilled the new build onto the primary beside the old one.
                 if (f.RootId is not null && devices.FirstOrDefault(d => d.RootId == f.RootId) is { IsOnline: false }) continue;
                 cands.Add((item, f, q.Fits));
                 candRoots.Add(q.TargetRootId);
@@ -314,7 +314,7 @@ public static class BackupQueueBuilder
                 if (!manifest.Downloads.SetPlacement(item.GogId, f.FileKey, p.RootId, p.Fits)) continue;
                 // "Changed" = the flag flipped, or the engine's membership did. With NO engine only the flag
                 // counts: counting the would-be adds reported every fitting file as changed on every idle
-                // re-plan ("14 file(s) changed" on each drag; measured 09-16).
+                // re-plan ("14 file(s) changed" on each drag; measured).
                 bool changedHere = wasFit != p.Fits;
                 if (p.Fits && !string.IsNullOrEmpty(p.RootId))
                 {
@@ -335,7 +335,7 @@ public static class BackupQueueBuilder
         }
         Mark("decide");
         // A partial sitting on a volume that can NEVER hold its file (over the per-file ceiling: FAT32, 4 GiB - 1)
-        // only eats the room other files need: a 4 GiB dead .part left "0 B still free" (walk 09-19). Released
+        // only eats the room other files need: a 4 GiB dead.part left "0 B still free". Released
         // only with every root connected (an unplugged drive may be where the file can finish, and the stray
         // adoption would carry the bytes there), and the record follows the DISK: cleared when no .part is left.
         if (!afterRelease && deadPartials.Count > 0 && devices.All(d => d.IsOnline))
@@ -351,7 +351,7 @@ public static class BackupQueueBuilder
                     try
                     {
                         // The ceiling test first: it needs no disk. Probing every red partial on a busy USB stick on every
-                        // pass took 1.8 to 11.8 s of each re-plan (measured, walk 09-25), for files that were never dead.
+                        // pass took 1.8 to 11.8 s of each re-plan, for files that were never dead.
                         if (!PlacementPlanner.OverCeiling(PlacementPlanner.ToPlace(f), d.MaxFileBytes)) { left = true; continue; }   // resumable here
                         var part = DownloadEngine.PartialPathFor(d.Path, f);
                         if (!System.IO.File.Exists(part)) continue;
@@ -389,7 +389,7 @@ public static class BackupQueueBuilder
         // Engine work with the gate RELEASED: each of these raises TaskChanged synchronously into the settler.
         // CancelRange, never a Cancel loop: one event for the batch. A loop is O(N * queue) because every
         // cancel runs a full settle pass and a full queue rebuild -- a hundred files against a thousand-file
-        // queue froze the app hard enough to need End Task (owner-hit 09-10, twice).
+        // queue froze the app hard enough to need End Task.
         if (toDrop.Count > 0) engine.CancelRange(toDrop);
         Mark($"cancel {toDrop.Count}");
         if (toAdd.Count > 0)
@@ -397,7 +397,7 @@ public static class BackupQueueBuilder
             engine.EnqueueRange(toAdd);
             Mark($"enqueue {toAdd.Count}");
             // A file admitted here is appended, so put the engine back in queue order or it runs last. The order
-            // is read NOW, not from this pass's snapshot: a re-sort made while the pass ran must not be undone (QA 09-25).
+            // is read NOW, not from this pass's snapshot: a re-sort made while the pass ran must not be undone.
             List<(long, string)> order;
             using (store.Gate.Enter()) order = manifest.Downloads.Snapshot().Select(x => (x.GogId, x.FileKey)).ToList();
             engine.Reorder(order);
@@ -406,7 +406,7 @@ public static class BackupQueueBuilder
         return Done(new ReplanResult(changed, plan.FreeAfter));
     }
 
-    /// <summary>(09-19) Move the selection's queue entries to the front, keeping the selection's own order. The
+    /// <summary>Move the selection's queue entries to the front, keeping the selection's own order. The
     /// persisted order is the single truth every re-plan and the engine's Reorder follow. Caller holds the gate.</summary>
     public static void PromoteToFront(LibraryManifest manifest, IReadOnlyList<(LibraryItem Item, GameFile File)> selection)
     {
@@ -420,7 +420,7 @@ public static class BackupQueueBuilder
         List<(LibraryItem Item, GameFile File)> selection)
     {
         UiThreadGuard.NotOnUi("placing the queue");
-        // (09-25) Where each file is headed now, so a file waiting on an unplugged drive stays there.
+        // Where each file is headed now, so a file waiting on an unplugged drive stays there.
         List<string?>? current = null;
         if (DriveWaits.Roots.Count > 0)
         {

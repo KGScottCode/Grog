@@ -12,7 +12,7 @@ using Grog.Core.Volumes;
 namespace Grog.App.ViewModels;
 
 /// <summary>
-/// "New storage added" (owner, 09-13). Right after a second storage is added while the queue held files with
+/// "New storage added". Right after a second storage is added while the queue held files with
 /// nowhere to go, the queue has just been re-planned onto the new drive (RefreshFromManifest -> the idle
 /// RefreshBackupLocations branch runs ReplanWholeQueue). The one open question is what happens to the files
 /// already on the old primary, and this asks it once, with measured numbers:
@@ -120,7 +120,7 @@ public sealed partial class StorageViewModel
         Grog.Core.Volumes.ReorgJob job; string configDir;
         try
         {
-            // BackupLayout probes every root on disk; the planner is pure. Both off the dispatcher (UI-thread sweep 09-06).
+            // BackupLayout probes every root on disk; the planner is pure. Both off the dispatcher.
             (job, configDir) = await Task.Run(() =>
             {
                 var layout = new BackupLayout(manifest.Current, root);
@@ -147,7 +147,7 @@ public sealed partial class StorageViewModel
             return;
         }
 
-        // MOVE FIRST, PROMOTE AT THE END (architect 09-13): a file with no RootId resolves to the primary, so
+        // MOVE FIRST, PROMOTE AT THE END: a file with no RootId resolves to the primary, so
         // promoting first would make every such file read as already on the new drive while its bytes sit on the
         // old one. After the move every moved record carries an explicit RootId, so the promotion is safe. The
         // role pins follow the drive; the next reconcile re-plans the queue with the new primary first.

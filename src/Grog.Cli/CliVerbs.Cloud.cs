@@ -10,7 +10,7 @@ using Grog.Core.Runs;
 namespace Grog.Cli;
 
 /// <summary>Cloud-save and layout verbs that are thin shells over <see cref="CloudSaveRun"/> and
-/// <see cref="LayoutMigrationRun"/> (S2.1, 09-08): the verb parses flags, renders the result and picks the
+/// <see cref="LayoutMigrationRun"/>: the verb parses flags, renders the result and picks the
 /// exit code; the sequence -- per-account sessions, dated archive, retention, bookkeeping, journaled moves --
 /// is Core's and shared with the App.</summary>
 internal static partial class CliVerbs

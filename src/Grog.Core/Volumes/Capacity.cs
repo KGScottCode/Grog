@@ -9,7 +9,7 @@ namespace Grog.Core.Volumes;
 /// fill order (default first, then secondary).</summary>
 public sealed record DeviceSpace(string RootId, long FreeBytes, bool IsOnline, string? VolumeKey = null)
 {
-    /// <summary>The ledger a placement charges: two roots on ONE physical volume share it (QA 09-18: each root
+    /// <summary>The ledger a placement charges: two roots on ONE physical volume share it (each root
     /// reported the volume's whole free space and the planner kept a ledger per root, so 8 GB to A and 8 GB to B
     /// both read Fits on a 10 GB drive and the second transfer died mid-stream). Null = the root is its own volume.</summary>
     public string Key => VolumeKey ?? RootId;
@@ -25,7 +25,7 @@ public sealed record DeviceSpace(string RootId, long FreeBytes, bool IsOnline, s
     /// <summary>The volume's allocation unit (production devices, via <see cref="ForRoot"/>; 0 in arithmetic tests =
     /// bytes cost bytes). A file costs its size rounded up to this (<see cref="Grog.Core.Storage.DriveResolver.OnDisk"/>):
     /// the disk's own arithmetic, so a landing frees nothing the plan did not already know. The flat 256 KB per file it
-    /// replaces was given back on landing and let one more small file in after every landing (walk 10-01).</summary>
+    /// replaces was given back on landing and let one more small file in after every landing.</summary>
     public long ClusterBytes { get; init; }
     /// <summary>What <paramref name="bytes"/> of file cost this volume.</summary>
     public long Charge(long bytes) => Grog.Core.Storage.DriveResolver.OnDisk(bytes, ClusterBytes);

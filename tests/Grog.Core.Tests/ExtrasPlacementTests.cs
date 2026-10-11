@@ -12,7 +12,7 @@ using Grog.Core.Runs;
 using Grog.Core.Tests.Framework;
 using Grog.Core.Volumes;
 
-// The extras-placement change (09-11). The bug these pin: "Separate folder, on the second drive" wrote the
+// The extras-placement change. The bug these pin: "Separate folder, on the second drive" wrote the
 // routing and planned NOTHING, because the only planner on that screen renames within a root and never reads
 // routing. The preview then promised a layout the disk did not have, permanently and silently.
 //
@@ -135,7 +135,7 @@ public class ExtrasPlacementTests
         Assert.True(job.Moves.Any(mv => mv.ToRel == "Games/game/Extras/ost.zip"), "the shape change still happens");
     }
 
-    // (09-19, walk pass 3) Separate tree on the secondary, then back to With Each Game: the shape reverted and
+    // Separate tree on the secondary, then back to With Each Game: the shape reverted and
     // the extras STAYED on the secondary while the installers sat on the primary. WithGame brings an extra home.
     [Test]
     void WithGame_BringsAnExtraBackToItsGamesDrive()
@@ -182,7 +182,7 @@ public class ExtrasPlacementTests
         Assert.True(job.UnavailableDrives.Any(d => d.Contains("Second")), "and which one");
     }
 
-    // (09-13) The plan is made against the TARGET, with the manifest left as found. Planned against the
+    // The plan is made against the TARGET, with the manifest left as found. Planned against the
     // committed state it returned the moves that undo the change: WithGame committed, SeparateByType staged,
     // and the card footer said "nothing to move" while Apply then moved everything.
     [Test]
@@ -202,7 +202,7 @@ public class ExtrasPlacementTests
         Assert.Equal("r1", bed.M.Routing.RoleRoots[ContentRole.Extras], "committed routing untouched");
     }
 
-    // (09-13) An offline drive means NOTHING is committed: manifest and preview must not promise a device the
+    // An offline drive means NOTHING is committed: manifest and preview must not promise a device the
     // extras never reached.
     [Test]
     async Task ApplyAndPlan_CommitsNothingWhenADriveIsOffline()

@@ -158,7 +158,7 @@ public sealed class CloudSaveService
 
     /// <summary>THE build-meta read: builds?generation=2 -> items[0].link -> meta (zlib JSON, plain fallback) ->
     /// clientId + clientSecret, either null when absent. ResolveClientCredsAsync and ResolveClientIdAsync were two
-    /// line-for-line copies of this walk (sweep 2 refactor); they differ only in what they need from the answer.</summary>
+    /// line-for-line copies of this walk; they differ only in what they need from the answer.</summary>
     private async Task<(string? ClientId, string? ClientSecret)> ResolveClientMetaAsync(long gogId, string platform, CancellationToken ct)
     {
         var session = await _auth.EnsureAuthenticatedAsync(ct);
@@ -229,7 +229,7 @@ public sealed class CloudSaveService
     /// <summary>Every cloud-save container of the signed-in account, ALL pages. THROWS on a non-2xx answer
     /// (404 = the account has no containers, read as empty): an empty list is a fact ("no saves"), and the
     /// reconciler replaces the account's entries with it, so a 500 or a 403 read as empty wiped every game's
-    /// cloud entry for that account (sweep 2 #3). Callers already treat a throw as "keep as last seen".</summary>
+    /// cloud entry for that account. Callers already treat a throw as "keep as last seen".</summary>
     public async Task<IReadOnlyList<CloudContainer>> ListContainersAsync(CancellationToken ct = default)
     {
         var session = await _auth.EnsureAuthenticatedAsync(ct);
@@ -381,7 +381,7 @@ public sealed class CloudSaveService
         {
             // A capture that blew up is not a snapshot: between files it is a partial set, mid-file it holds a
             // truncated save. Left on disk it counted as the newest local save and retention pruned a
-            // COMPLETE older one to make room for it (sweep 2 #6). Any failure, not only a cancel: the whole
+            // COMPLETE older one to make room for it. Any failure, not only a cancel: the whole
             // dated folder goes.
             try { Directory.Delete(localSaveDir, recursive: true); } catch { /* best-effort cleanup */ }
             throw;

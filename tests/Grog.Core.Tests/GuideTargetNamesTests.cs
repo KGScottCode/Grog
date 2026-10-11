@@ -27,7 +27,7 @@ public sealed class GuideTargetNamesTests
 {
     /// <summary>Walk up to the repo root (Grog.slnx) from either the binary or the working directory --
     /// same reason as CliKnownFlagsTests: the container runs from a scratch folder outside the repo.</summary>
-    /// <para>Since the 09-02 page split the targets live in MainWindow.axaml AND Views/Pages/*.axaml; the
+    /// <para>Since the page split the targets live in MainWindow.axaml AND Views/Pages/*.axaml; the
     /// guide resolves them through the logical tree, so every view file under Views counts.</para>
     private static string ReadAllViewXaml()
     {

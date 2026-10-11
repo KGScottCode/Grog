@@ -10,7 +10,7 @@ using Grog.Core.Models;
 
 namespace Grog.Core.Volumes;
 
-/// <summary>(09-19) A .part belongs to its queued file and follows that file's drive. "Move files" moved only
+/// <summary>A.part belongs to its queued file and follows that file's drive. "Move files" moved only
 /// finished files, and a Detached drive is not bound by the layout, so the engine's own stray-partial adopt
 /// (PreparePartial) never looked there: clear a stick, detach it, and every in-progress download restarted from
 /// zero with its .part left behind on a drive Grog no longer writes to. The owner should not have to know that.

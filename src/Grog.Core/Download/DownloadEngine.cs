@@ -69,14 +69,14 @@ public sealed class DownloadEngine
     /// listener to record in the game's <see cref="Models.LibraryItem.OldVersionFiles"/> and persist.</summary>
     public event Action<Models.GameFile>? OldVersionArchived;
     public Action<string>? DebugTrace { get; set; }
-    /// <summary>(09-19) What happened to a PARTIAL when its file started again: resumed at N, or restarted from zero
+    /// <summary>What happened to a PARTIAL when its file started again: resumed at N, or restarted from zero
     /// and why. The user log had no line for either, so "my half-downloaded file went back to 0%" could not be
-    /// confirmed or ruled out from it (owner, walk pass 4). One line per file that had a .part; none otherwise.</summary>
+    /// confirmed or ruled out from it. One line per file that had a.part; none otherwise.</summary>
     public Action<string>? PartialNotice { get; set; }
     private void NotePartial(DownloadTask t, string what)
         => PartialNotice?.Invoke($"{t.GameTitle} - {t.File.ResolvedFileName ?? PartialLabel(t.File)}: {what}");
     /// <summary>Before the real file name is known, GOG's label is often the game title for every platform's installer:
-    /// say which one (Mac walk 10-10: two "Wanderlust: Transsiberian resumed at" lines read as one file going backwards).</summary>
+    /// say which one (two "Wanderlust: Transsiberian resumed at" lines read as one file going backwards).</summary>
     private static string PartialLabel(Models.GameFile f)
         => string.IsNullOrEmpty(f.Os) ? f.Name : $"{f.Name} ({Models.PlatformNames.Label(f.Os)})";
 
@@ -113,7 +113,7 @@ public sealed class DownloadEngine
         {
             // One live task per file. Two whole-queue re-plans (the run's mid-run pass on a pool thread, a sort or
             // Storage pass on the UI thread) each snapshot "known" before either enqueues, so both handed over the
-            // same newly fitting file: two workers on one .part, the second failing on the share lock (QA 09-19).
+            // same newly fitting file: two workers on one.part, the second failing on the share lock.
             var live = new HashSet<(long, string)>(_queue
                 .Where(t => t.State is DownloadTaskState.Pending or DownloadTaskState.Active)
                 .Select(t => (t.File.GameGogId, t.File.FileKey)));
@@ -178,7 +178,7 @@ public sealed class DownloadEngine
             var done = _queue.Where(t => t.State is not (DownloadTaskState.Pending or DownloadTaskState.Active)).ToList();
             _queue.Clear(); _queue.AddRange(sorted); _queue.AddRange(done);
 
-            // EVERY active task now beyond the window is preempted, not just the first (owner-hit 09-02 with
+            // EVERY active task now beyond the window is preempted, not just the first ( with
             // simultaneous downloads > 1: a re-sort left a second demoted file running to completion).
             bumped.AddRange(BeyondWindow(sorted));
         }
@@ -195,7 +195,7 @@ public sealed class DownloadEngine
     /// <remarks>Cancelling in a loop is O(N * queue): every call raises TaskChanged, which runs a full
     /// RunSettler pass over the whole snapshot, and QueueChanged, which rebuilds the whole queue pane. At a
     /// hundred-odd files against a thousand-file queue that is a multi-minute freeze indistinguishable from a
-    /// hang (owner-hit 09-10, twice, on a queue re-sort). Any bulk cancel MUST come through here.</remarks>
+    /// hang. Any bulk cancel MUST come through here.</remarks>
     public int CancelRange(IEnumerable<DownloadTask> tasks)
     {
         var list = tasks as IList<DownloadTask> ?? tasks.ToList();
@@ -236,7 +236,7 @@ public sealed class DownloadEngine
     /// in-flight transfers with it).</summary>
     public int CancelGames(IReadOnlySet<long> gogIds)
     {
-        // CancelRange, not a Cancel loop: one settle pass and one rebuild for the batch (measured 09-10,
+        // CancelRange, not a Cancel loop: one settle pass and one rebuild for the batch (measured,
         // 1100 files: 2200 events and 1.2M snapshot rows walked, versus 2 events and none).
         return CancelRange(Snapshot.Where(x => gogIds.Contains(x.File.GameGogId)).ToList());
     }
@@ -268,9 +268,9 @@ public sealed class DownloadEngine
         int ahead = 0;   // entries seen so far that hold or would take a worker slot
         // Per slow drive (one file at a time): whether a row above already holds or would take its one slot, and
         // whether a WAITING row ranks above. A Pending row counts even though the drive gates it: what gates it is
-        // the Active task below it, and skipping it let a demoted file keep the drive (walk 09-25: a 4 GB part ran
+        // the Active task below it, and skipping it let a demoted file keep the drive (a 4 GB part ran
         // for a minute under a Size sort while the 1 MB rows above it waited). Only the FIRST row per slow drive
-        // takes a global slot, so a fast drive's download is never bumped for rows that cannot run yet (QA 09-25).
+        // takes a global slot, so a fast drive's download is never bumped for rows that cannot run yet.
         var slowTaken = new HashSet<string>(StringComparer.Ordinal);
         var slowWaiting = new HashSet<string>(StringComparer.Ordinal);
         foreach (var t in live)
@@ -280,7 +280,7 @@ public sealed class DownloadEngine
             if (t.State == DownloadTaskState.Active)
             {
                 // A file past its transfer (writing to disk, verifying, saving) has every byte: it finishes, never
-                // bumped (owner 09-25). A second Active on a slow drive is bumped only when a waiting row on that
+                // bumped. A second Active on a slow drive is bumped only when a waiting row on that
                 // drive ranks above it, so raising the limit or an unrelated drag stops nothing.
                 bool finishing = t.FinishingPhase is not null;
                 if (!finishing && (ahead >= slots || (slow && slowWaiting.Contains(root)))) { bumped.Add(t); continue; }
@@ -297,19 +297,19 @@ public sealed class DownloadEngine
         => DeviceMonitor is { } mon && mon.IsSlow(x.TargetRootId ?? "")
            && _queue.Any(o => o.State == DownloadTaskState.Active && (o.TargetRootId ?? "") == (x.TargetRootId ?? ""));
 
-    /// <summary>(09-19) Finish what is transferring, start nothing else: workers retire as their files land and the
+    /// <summary>Finish what is transferring, start nothing else: workers retire as their files land and the
     /// run ends with the rest still Pending, exactly as a pause leaves them but with no partials made. A move that
     /// was asked for mid-backup sets it, so the move never waits for a 500 GB queue and nothing in flight is cut.</summary>
     public bool StartNothingNew { get; set; }
 
-    /// <summary>(09-25, owner) "Finish current files" from a PAUSE: only these files may start (the ones already in
+    /// <summary>"Finish current files" from a PAUSE: only these files may start (the ones already in
     /// progress). When none of them is left to start, the engine turns into a plain drain (StartNothingNew), so the
     /// run ends exactly as a running "Finish current files" does. Null = no restriction.</summary>
     public IReadOnlySet<(long GogId, string FileKey)>? OnlyStart { get; set; }
 
-    // ---- (09-25, owner) Storage that went away mid-run ----
+    // ---- Storage that went away mid-run ----
     // A drive pulled mid-transfer failed every file writing to it AND every file started in the ~2 s before the App's
-    // presence watch noticed (walk 09-25 on the Mac: 10 failures, 10 strikes). Now: a file whose root folder is gone is
+    // presence watch noticed (10 failures, 10 strikes). Now: a file whose root folder is gone is
     // DriveGone (no strike, stays queued), its root is marked offline here, and nothing new starts on it until the host
     // says it is back. Files bound elsewhere keep downloading.
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _offlineRoots = new(StringComparer.Ordinal);
@@ -337,7 +337,7 @@ public sealed class DownloadEngine
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _seenRoots = new(StringComparer.OrdinalIgnoreCase);
     /// <summary>The task's storage went away: its folder was there earlier in this run, is not now, AND its volume
     /// reads offline. A folder that never existed (a new --primary) is created as before; a folder deleted on a
-    /// drive that is still plugged in (Windows reads volume-present as online) fails as before (review 09-25: it
+    /// drive that is still plugged in (Windows reads volume-present as online) fails as before (it
     /// would otherwise wait forever for a "reconnect" the watch can never see). File I/O: worker threads only.</summary>
     private bool RootGone(DownloadTask t)
     {
@@ -356,7 +356,7 @@ public sealed class DownloadEngine
         Grog.Core.Volumes.DriveWaits.Add(t.TargetRootId);
         if (_offlineRoots.TryAdd(key, 0)) { try { RootWentAway?.Invoke(key); } catch { /* a host handler must not fail the worker */ } }
     }
-    /// <summary>(09-25) Pending files held back by a waiting drive: they did not fail, and did not land.</summary>
+    /// <summary>Pending files held back by a waiting drive: they did not fail, and did not land.</summary>
     public List<(long GogId, string FileKey)> WaitingPendingKeys()
     {
         lock (_gate) return _queue.Where(x => x.State == DownloadTaskState.Pending && Waiting(x))
@@ -369,7 +369,7 @@ public sealed class DownloadEngine
     }
 
     private readonly object _retireGate = new();
-    /// <summary>(09-22, owner "Keep downloading") Undo <see cref="StartNothingNew"/> while the run is still live: the
+    /// <summary>Undo <see cref="StartNothingNew"/> while the run is still live: the
     /// queue carries on as if it was never asked. False = the run already ended (the last worker retired); the
     /// host then treats it as a normal end. Under the same gate as the last worker's exit, so a worker is never
     /// spawned onto a run that has already completed.</summary>
@@ -384,7 +384,7 @@ public sealed class DownloadEngine
         }
     }
 
-    // (QA 09-30 B6) Files whose .part is being carried between drives right now: a worker must not open the same
+    // Files whose.part is being carried between drives right now: a worker must not open the same
     // .part for writing while the carry is still copying into it. Held keys are skipped by TakeNext and taken on the
     // next pass once the hold is released.
     private readonly HashSet<(long, string)> _held = new();
@@ -536,7 +536,7 @@ public sealed class DownloadEngine
                 // eventually condemning a never-fetched file as Corrupt.
                 // Reason BEFORE state: the settler scans every task on any worker's TaskChanged, so a sibling's
                 // event between the two writes settled this as a plain failure and struck it (flaky
-                // A_refusal_settles_as_Unavailable, 09-06).
+                // A_refusal_settles_as_Unavailable,).
                 task.Error = uex.Reason;
                 task.UnavailableReason = uex.Reason;
                 task.State = DownloadTaskState.Failed;
@@ -545,10 +545,10 @@ public sealed class DownloadEngine
             {
                 DebugTrace?.Invoke($"FAIL {task.File.FileKey}: {ex}");
                 task.FailureKind = DownloadFailure.Of(ex);
-                // (09-25) Whatever the exception says (I/O error, access denied, path not found), a file whose storage
+                // Whatever the exception says (I/O error, access denied, path not found), a file whose storage
                 // folder is gone lost its DRIVE, not its bytes: no strike, it waits for the drive.
                 bool gone = ex is DriveGoneException || RootGone(task);
-                // (walk 09-25, Mac) A force-detach fails the open .part with "Input/output error" BEFORE the mount point
+                // A force-detach fails the open.part with "Input/output error" BEFORE the mount point
                 // is gone: checked at once, the root still read present and 3 files took a strike. An I/O-type error on a
                 // file under a root gets up to 2 s to see whether its drive is going away.
                 // Only an unclassified I/O error: disk-full and network failures say what they are and never wait.
@@ -569,9 +569,9 @@ public sealed class DownloadEngine
             {
                 // Core's fact, like HasPartial: the bytes a stopped transfer left in its .part. Only the App
                 // recorded PartialBytes (per tick), so a CLI or scheduled run interrupted at 190 of 200 MB
-                // re-priced the file at its full size on the next plan (QA 09-18).
+                // re-priced the file at its full size on the next plan.
                 // The .part on disk is the fact; with no file at PartPath (failed before the first write) the record is
-                // left alone rather than stamped with a counter that names bytes nobody has (QA 09-30 A3).
+                // left alone rather than stamped with a counter that names bytes nobody has.
                 if (task.State is not (DownloadTaskState.Completed or DownloadTaskState.Skipped) && task.File.HasPartial && task.BytesReceived > 0
                     && PartLength(task) is { } partLen)
                     task.File.PartialBytes = partLen;
@@ -652,7 +652,7 @@ public sealed class DownloadEngine
             {
                 attempt++;
                 var delay = BackoffPolicy.Delay(attempt, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(60), bex.RetryAfter);
-                // Said out loud (09-19): this wait was silent, so a CDN slowing us down looked like Grog idling.
+                // Said out loud: this wait was silent, so a CDN slowing us down looked like Grog idling.
                 PartialNotice?.Invoke($"{task.GameTitle} - {task.File.Name}: GOG's download server asked us to slow down; waiting {delay.TotalSeconds:F0} s (try {attempt} of {MaxBackoffRetries}).");
                 await Task.Delay(delay, ct);
             }
@@ -661,14 +661,14 @@ public sealed class DownloadEngine
 
     /// <summary>One file, start to settled manifest entry, in five stages: place it, prepare its partial,
     /// adopt an existing copy if there is one, transfer, then verify and settle. Each stage is its own
-    /// method below; this is the storyline. Was a single 210-line method until 09-02.</summary>
+    /// method below; this is the storyline. Was a single 210-line method until.</summary>
     private async Task DownloadOneAsync(DownloadTask task, GogApiClient api, CancellationToken ct)
     {
-        // (09-25) Its storage is gone: say so before touching the network (a Mac answered "Access denied" for the
+        // Its storage is gone: say so before touching the network (a Mac answered "Access denied" for the
         // vanished /Volumes folder, and that read as a failure with a strike).
         if (RootGone(task)) throw new DriveGoneException(RootPathFor(task) ?? task.TargetRootId ?? "primary");
         DebugTrace?.Invoke($"start: {task.GameTitle} / {task.File.Name}  key={task.File.FileKey}");
-        // (09-19) "start" = picked up to the GET's headers in hand: GOG's link resolve plus the CDN's first answer.
+        // "start" = picked up to the GET's headers in hand: GOG's link resolve plus the CDN's first answer.
         // The phase line had no figure for it, so a slow GOG and a slow drive read the same in the log.
         var startClock = System.Diagnostics.Stopwatch.StartNew();
         // Skip the CDN sizing probe (one round-trip per file) when the manifest already carries the
@@ -686,7 +686,7 @@ public sealed class DownloadEngine
         task.PartPath = partPath;
         // Where the partial's bytes are: the planner discounts the file only there. Only when a .part is really here:
         // a stray that could not be carried (no room) stays on its drive, and repointing the record at this one
-        // priced the file at its remainder on a drive holding nothing (QA 09-30 A3).
+        // priced the file at its remainder on a drive holding nothing.
         if (File.Exists(partPath)) task.File.PartialRootId = place.RootId;
 
         // The REAL filename comes from the server, never from the display name. With the probe it is
@@ -703,7 +703,7 @@ public sealed class DownloadEngine
         // Defensive: a .part that is already >= the full expected size can't be resumed -- a Range
         // request from its length yields HTTP 416 and would loop forever. This also self-heals a
         // .part left behind by an older build that failed verification without cleaning up. Start clean.
-        // Only a REAL length may condemn a partial (walk 09-19): with the probe skipped `advertised` is GOG's rounded
+        // Only a REAL length may condemn a partial: with the probe skipped `advertised` is GOG's rounded
         // label, and a paused 1.99 MB partial of a file labelled "1 MB" was thrown away on every resume. The same
         // test would discard a 4.05 GB partial of a part labelled 4.00 GB. With no real length in hand the ranged
         // GET decides: a 416 carries the true length, and the branch below keeps or restarts on that.
@@ -726,7 +726,7 @@ public sealed class DownloadEngine
         DebugTrace?.Invoke($"GET status={(int)response.StatusCode} existing={existing}");
 
         // 416 on a resume: the .part is at or past the REAL end, which the advertised size did not reveal
-        // (GOG rounds it; a stale manifest size can be larger than the file - owner-hit 09-04 on a pause /
+        // (GOG rounds it; a stale manifest size can be larger than the file - on a pause /
         // resume of a fully-received .part). Content-Range "bytes */N" carries the truth: a .part of exactly
         // N is complete and goes straight to verify; anything else is bad and the download restarts clean.
         bool partIsComplete = false;
@@ -815,7 +815,7 @@ public sealed class DownloadEngine
         }
         long? expectedTotal = partIsComplete ? existing : resolved.ContentLength ?? task.BytesTotal;   // the CDN's own end wins over a stale probe
 
-        // The REAL size is in hand and nothing has been written yet: the last gate before bytes flow (owner 09-19).
+        // The REAL size is in hand and nothing has been written yet: the last gate before bytes flow.
         // The plan worked from GOG's rounded label; this compares the true remainder with the drive's live free
         // space, less what the other transfers on the same volume still have to write. No room: the file is held
         // as won't-fit (no strike, partial kept) instead of dying mid-stream with the drive full.
@@ -823,7 +823,7 @@ public sealed class DownloadEngine
         {
             // One file at a time through the gate: two workers checking at the same instant each counted the OTHER
             // at its rounded label (its real size not yet published), both passed, and together they over-filled
-            // the drive by a few hundred KB (fill simulation 09-19). Publishing the real size and checking are
+            // the drive by a few hundred KB. Publishing the real size and checking are
             // one step under this lock, so the later of any two always sees the earlier one's true remainder.
             lock (_roomGate)
             {
@@ -840,7 +840,7 @@ public sealed class DownloadEngine
         if (partIsComplete) { task.BytesReceived = existing; TaskChanged?.Invoke(task); }
         else streamedMd5 = await StreamToPartialAsync(task, response, partPath, existing, resuming, ct);
         // Per-phase durations, recorded from the worker: "100% and stuck" is answered with numbers, not
-        // impressions (owner, 09-04: a 300 MB file took ~10 s from 100% to the next file on a USB stick).
+        // impressions (a 300 MB file took ~10 s from 100% to the next file on a USB stick).
         double transferS = phaseClock.Elapsed.TotalSeconds - task.FlushSeconds; phaseClock.Restart();
 
         var actualSize = new FileInfo(partPath).Length;
@@ -855,13 +855,13 @@ public sealed class DownloadEngine
 
         bool verified = await VerifyPartialAsync(task, partPath, fileName, md5Task, sizeless, streamedMd5, ct);
         double verifyS = phaseClock.Elapsed.TotalSeconds; phaseClock.Restart();
-        // The device's cost per file is the flush PLUS the read-back for the hash: on the 09-04 stick the
+        // The device's cost per file is the flush PLUS the read-back for the hash: on the stick the
         // verify was the long tail (15-18 s), the flush often under a second.
         DeviceMonitor?.Record(task.TargetRootId ?? "", task.FlushSeconds + verifyS);
 
         task.FinishingPhase = "Saving"; TaskChanged?.Invoke(task);
         // One step, not delete-then-move: a move that threw (antivirus lock, long path) had already destroyed the
-        // old good copy, and the complete .part was then discarded as "not smaller than the file" (QA 09-19).
+        // old good copy, and the complete.part was then discarded as "not smaller than the file".
         // A same-name update lands on the old build: with KeepOldVersions on it is held aside under a sibling
         // name, put back if the move fails, and archived only once the new build is under the name.
         var held = HoldOldBuild(task, finalPath!);
@@ -877,7 +877,7 @@ public sealed class DownloadEngine
         }
         if (held is not null) ArchiveHeldBuild(task, held, finalPath!, place.RootBase, place.RootId);
         // A stray partial of this file left on ANOTHER drive (no room to carry it over) has no use now: the file is
-        // complete. Left, it held that drive's room until a later sweep (fill simulation 09-19).
+        // complete. Left, it held that drive's room until a later sweep.
         if (Layout is { } lay2)
             foreach (var other in lay2.OnlineRootPaths)
                 try
@@ -889,10 +889,10 @@ public sealed class DownloadEngine
                 catch { /* the sweep takes it later */ }
         // Temp means temp: the folder goes with its last file. Every finisher tries; the folder only goes when
         // it is empty, so a sibling with an open .part keeps it. The one hole is a sibling between its
-        // CreateDirectory and its .part open (owner-hit 09-05, 16:0x): closed by that sibling retrying the open
+        // CreateDirectory and its.part open (0x): closed by that sibling retrying the open
         // once (StreamToPartialAsync). The 1116 "no other Active task" guard read the queue list unlocked and
         // threw "collection was modified" under a Try Again or re-sort mid-save; and two files finishing together
-        // each saw the other Active, so neither removed the folder (review 09-06).
+        // each saw the other Active, so neither removed the folder.
         RemoveTmpDirIfEmpty(Path.GetDirectoryName(partPath)!);
         UpdateManifestEntry(task, finalPath!, actualSize, verified, place.RootBase, place.RootId);
         task.PhaseSummary = $"start {startS:F1} s · transfer {transferS:F1} s · flush {task.FlushSeconds:F1} s · verify {verifyS:F1} s · save {phaseClock.Elapsed.TotalSeconds:F1} s";
@@ -949,9 +949,9 @@ public sealed class DownloadEngine
         // finalizing is always a same-device rename and reorg/orphan scans never see half-written files.
         // The .part is keyed by the file's IDENTITY (root + game + FileKey), never by a display name:
         // GameFile.Name is GOG's label ("Setup (Part 1 of 3)", "manual (33 pages)") and two files of one
-        // game can share it - keying by name collided their partials under concurrent workers (09-02).
+        // game can share it - keying by name collided their partials under concurrent workers.
         var tmpDir = Path.Combine(place.RootBase, ".grog-tmp");
-        // Under the same lock as the remove-if-empty (09-20): this create was the one left outside it, and a worker
+        // Under the same lock as the remove-if-empty: this create was the one left outside it, and a worker
         // deleting the empty folder at the same instant failed the transfer with "'.grog-tmp' already exists"
         // (fill simulation, seed 3; about 1 full-suite run in 10).
         lock (_tmpDirGate) Directory.CreateDirectory(tmpDir);
@@ -966,7 +966,7 @@ public sealed class DownloadEngine
             try { File.Move(legacyPart, partPath); } catch { /* start clean if the adopt fails */ }
         // A Pause/Resume re-plan can route the file to ANOTHER device than the one its partial sits on. Bring
         // the partial along (cross-volume move) instead of leaving an orphan .part that no count owns and
-        // re-fetching bytes already paid for (owner-caught 09-04).
+        // re-fetching bytes already paid for.
         if (!File.Exists(partPath) && Layout is { } lay)
             foreach (var otherRoot in lay.OnlineRootPaths)
             {
@@ -974,10 +974,10 @@ public sealed class DownloadEngine
                 var stray = PartialPathFor(otherRoot, task.File);
                 if (!File.Exists(stray)) continue;
                 // Adopt, else leave it: the stray is paid-for bytes, and deleting it on a failed move (no room on
-                // the new device for a partial the plan priced at its remainder) lost them (QA 09-18). An orphan
+                // the new device for a partial the plan priced at its remainder) lost them. An orphan
                 // .part is swept by SweepOrphanPartials once nothing owns it.
                 // Across volumes the move is a COPY of the whole partial onto the new drive: only when it has the
-                // room for it, beside what its running transfers still need (fill simulation 09-19: a stray carried
+                // room for it, beside what its running transfers still need (a stray carried
                 // onto a nearly full second drive over-filled it). No room: it stays, and this file starts clean here.
                 try
                 {
@@ -1035,7 +1035,7 @@ public sealed class DownloadEngine
     /// <summary>GOG's listed size is a display figure and can be off by several percent (a 941 MB label for an 897 MB
     /// file, measured); the checksum decides those. Only a body of a different order (an error page, a stub) is refused.
     /// An extra's label is not even that: GOG lists many manuals and wallpapers at a flat 10.00 MB (a 111.90 KB manual,
-    /// measured 09-30), so for extras only the media type decides.</summary>
+    /// measured), so for extras only the media type decides.</summary>
     internal static bool RefusesBodyLength(FileKind kind, long len, long label)
         => kind != FileKind.Extra && label > 0 && !PlausibleBodyLength(len, label);
 
@@ -1060,8 +1060,8 @@ public sealed class DownloadEngine
 
             // Creating the temp folder and opening the .part inside it is ONE step against the folder's removal (a
             // sibling finishing on this device removes .grog-tmp when it is empty). Unguarded, the removal landed between
-            // the two and the transfer failed with "could not find" / "already exists" (owner-hit 09-05; the fill
-            // simulation reproduced it 09-19). RemoveTmpDirIfEmpty takes the same lock.
+            // the two and the transfer failed with "could not find" / "already exists" (; the fill
+            // simulation reproduced it). RemoveTmpDirIfEmpty takes the same lock.
             FileStream outStream;
             lock (_tmpDirGate)
             {
@@ -1166,7 +1166,7 @@ public sealed class DownloadEngine
     /// <summary>A fixed floor per volume that no plan and no transfer may spend: directory growth and filesystem
     /// metadata that the per-file cluster rounding does not name. Fixed, so a landing frees nothing the plan did not
     /// already count (the per-file 256 KB slack it replaces was given back on landing and let one more small file in
-    /// after every landing; walk 10-01).</summary>
+    /// after every landing;).</summary>
     public const long FloorBytes = 2 * 1024 * 1024;
     /// <summary>The target volume's allocation unit; overridable for tests (0 = bytes cost bytes).</summary>
     internal Func<string, long> ClusterBytesProbe { get; set; } = path => Storage.DriveResolver.ClusterBytes(path);
@@ -1193,8 +1193,8 @@ public sealed class DownloadEngine
             throw NoRoomException($"{Format.ByteFormat.Size(real)} is over the {Format.ByteFormat.Size(ceiling)} a single file can be on this drive's filesystem");
         // ORDER MATTERS: what the others still have to write is read BEFORE the drive's free space. Bytes they write
         // between the two reads are then counted twice (safe) instead of not at all. The other way round, a free
-        // probe that takes seconds on a busy USB stick (4.8 s measured 09-19) let a 45 MB/s sibling write 200 MB
-        // that neither figure held (fill simulation 09-19).
+        // probe that takes seconds on a busy USB stick let a 45 MB/s sibling write 200 MB
+        // that neither figure held.
         long others = OthersStillToWrite(task, place.RootBase);
         if (FreeBytesProbe(place.RootBase) is not { } probed) return;
         long free = probed - FloorBytes;   // the floor is nobody's to spend
@@ -1208,7 +1208,7 @@ public sealed class DownloadEngine
     private long OthersStillToWrite(DownloadTask task, string rootBase)
     {
         string? myVolume = VolumeOf(rootBase);
-        long others = PendingWrites?.ForVolume(rootBase) ?? 0L;   // (09-22) a running move's remaining copies count too
+        long others = PendingWrites?.ForVolume(rootBase) ?? 0L;   // a running move's remaining copies count too
         lock (_gate)
             foreach (var t in _queue)
             {
@@ -1217,14 +1217,14 @@ public sealed class DownloadEngine
                 if (!string.Equals(VolumeOf(root), myVolume, StringComparison.OrdinalIgnoreCase)) continue;
                 long total = t.BytesTotal ?? t.File.PlanSizeBytes ?? 0;
                 // BytesReceived counts what was HANDED to the file stream; up to one write buffer of it has not reached
-                // the disk yet, so the free figure still includes that much (fill simulation 09-19: the drive went
+                // the disk yet, so the free figure still includes that much (the drive went
                 // over by just under 1 MiB with two transfers running).
                 // Before its own room check a transfer's BytesReceived is only its RECORDED partial, which may still sit
                 // on another drive (the stray is carried over just before the check): counted as on this disk, a
                 // sibling checking in that window passed, and the carried partial then over-filled the drive (fill
-                // simulation 09-19). Unchecked = its whole size is still to come.
+                // simulation). Unchecked = its whole size is still to come.
                 // Unchecked, but its recorded partial already sits on THIS volume: those bytes are in the free figure
-                // already, so charging the whole size counted them twice (QA 09-30 A9).
+                // already, so charging the whole size counted them twice.
                 long onDisk = t.RoomChecked ? Math.Max(0, t.BytesReceived - WriteBufferBytes)
                             : t.File.HasPartial && t.File.PartialRootId is { } pr
                               && string.Equals(VolumeOf(Layout?.RootPath(pr) ?? ""), myVolume, StringComparison.OrdinalIgnoreCase)
@@ -1256,7 +1256,7 @@ public sealed class DownloadEngine
     }
 
     /// <summary>What the .part really holds. The counter runs ahead of the disk by whatever sat in the stream's
-    /// buffer when a write threw (14,679 bytes past FAT32's ceiling, walk 09-19), and the planner prices the file
+    /// buffer when a write threw, and the planner prices the file
     /// by this figure.</summary>
     /// <summary>The .part's length on disk, or null when there is no file at PartPath.</summary>
     private static long? PartLength(DownloadTask task)
@@ -1272,7 +1272,7 @@ public sealed class DownloadEngine
         try { if (File.Exists(partPath)) File.Delete(partPath); } catch { /* best-effort */ }
         // The record follows the disk: a discarded .part left HasPartial/PartialBytes standing, so the next plan
         // priced the file at "what it still needs" over bytes that were gone, marked it Fits on a drive without
-        // the room, and the restart died out of space (QA 09-18).
+        // the room, and the restart died out of space.
         task.File.HasPartial = false; task.File.PartialBytes = null;
     }
 
@@ -1302,7 +1302,7 @@ public sealed class DownloadEngine
             // The .part lives on the same root as the resolved final file: resolve straight from RootId.
             else root = Layout?.RootPath(f.RootId ?? "") ?? BackupRoot;
 
-            // Identity-keyed name (current builds) AND the legacy path-keyed names (pre-09-02 and the
+            // Identity-keyed name (current builds) AND the legacy path-keyed names (pre- and the
             // 1060-1083 display-name key), so a cancel never strands a partial from an older build.
             foreach (var part in new[]
                      {
@@ -1315,7 +1315,7 @@ public sealed class DownloadEngine
         }
         catch { /* best effort: cleanup must never fail a cancel */ }
         // The transfer writes to the task's TARGET root, which a spill makes different from the routed one resolved
-        // above: look on every connected root, or a spilled file's .part is orphaned (QA 09-19).
+        // above: look on every connected root, or a spilled file's.part is orphaned.
         var all = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { BackupRoot };
         if (Layout is { } l3) foreach (var r in l3.OnlineRootPaths) all.Add(r);
         foreach (var r in all)
@@ -1326,7 +1326,7 @@ public sealed class DownloadEngine
     /// <summary>The GET's header wait under the same stall timeout the body gets. The download client has an
     /// infinite timeout by design (a 10 GB body must not time out), and the body loop times out per read, but a
     /// CDN that never answers the request itself left a file Active forever at the head of the queue
-    /// (owner-hit 09-04: a resume stuck at 476 of 486 MB, 0%). Expiry throws a normal failure: strike, retry.</summary>
+    /// (a resume stuck at 476 of 486 MB, 0%). Expiry throws a normal failure: strike, retry.</summary>
     private async Task<HttpResponseMessage> SendWithStallTimeoutAsync(HttpRequestMessage request, CancellationToken ct)
     {
         using var stall = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -1334,7 +1334,7 @@ public sealed class DownloadEngine
         try { return await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, stall.Token); }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            throw new StallException($"No response from the download server within {StallTimeout.TotalSeconds:F0} s");   // a network failure, not Other (QA 09-30 C9)
+            throw new StallException($"No response from the download server within {StallTimeout.TotalSeconds:F0} s");   // a network failure, not Other
         }
     }
 
@@ -1359,7 +1359,7 @@ public sealed class DownloadEngine
     }
 
     /// <summary>A .grog-tmp with nothing left in it is removed: it exists only while something is mid-flight
-    /// (owner, 09-05: "if it is temp it should not be permanent"). Best effort; a concurrent worker that is
+    /// ("if it is temp it should not be permanent"). Best effort; a concurrent worker that is
     /// about to create its .part simply recreates the folder (PreparePartial does CreateDirectory).</summary>
     private static readonly object _tmpDirGate = new();
     private static void RemoveTmpDirIfEmpty(string dir)
@@ -1419,7 +1419,7 @@ public sealed class DownloadEngine
 
     /// <summary>Identity-keyed partial name: root + game + FileKey. Stable across runs and unique per file,
     /// whatever GOG's display name says.</summary>
-    /// <remarks>The root's PATH is no longer in the key (QA 09-19): a stick re-plugged under another drive letter
+    /// <remarks>The root's PATH is no longer in the key: a stick re-plugged under another drive letter
     /// hashed to a new name, so its .part was orphaned while the record still discounted the file by it, and the
     /// restart died out of space. <see cref="RootKeyedPartName"/> is the old name, adopted once where found.</remarks>
     private static string StablePartName(Grog.Core.Models.GameFile f)
@@ -1524,7 +1524,7 @@ public sealed class DownloadEngine
     /// <paramref name="archiveAs"/> names the archived file when the source sits under a temp name.</summary>
     private void ArchiveOldVersion(DownloadTask task, string prev, string relBase, string gameTitle, string? rootId, string? archiveAs = null)
     {
-        // Archived on the drive it ALREADY sits on (QA 09-19): an update that spilled to another drive dragged
+        // Archived on the drive it ALREADY sits on: an update that spilled to another drive dragged
         // the old build across with it, a whole second file of room on the target that no plan had charged.
         // In place it is a rename: no bytes move, no drive's free space changes.
         if (task.File.RootId is { } keepRoot && Layout?.RootPath(keepRoot) is { } keepBase) { relBase = keepBase; rootId = keepRoot; }

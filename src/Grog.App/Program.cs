@@ -26,7 +26,7 @@ internal static class Program
             .UsePlatformDetect()
             .WithInterFont()
             // macOS: the bundled Inter lacks the UI glyphs (carets, completeness pips, status marks - the
-            // half-circle U+25D0 rendered as stacked bars, MacinCloud 2026-08-29) and Avalonia's implicit
+            // half-circle U+25D0 rendered as stacked bars) and Avalonia's implicit
             // per-codepoint fallback does not kick in for a custom default font there the way DirectWrite
             // does on Windows. Explicit fallbacks are consulted for codepoints the current font cannot
             // shape; Apple Symbols ONLY - it carries the geometric/technical glyphs and next to no Latin,

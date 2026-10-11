@@ -15,7 +15,7 @@ using Grog.Core.Volumes;
 
 namespace Grog.App.ViewModels;
 
-// Overview: the Downloading pane's queue MOVES and the won't-fit line (09-16). The tail is drawn (Activity.cs
+// Overview: the Downloading pane's queue MOVES and the won't-fit line. The tail is drawn (Activity.cs
 // RebuildQueueCore); this file owns everything that changes the order or reads the line: drag mapping, the row
 // menu, Pull up, the drop rule, the glow, Show me and Remove them. Rules live in Core (QueueShaper,
 // PlacementPlanner.WouldFit); this file renders and commits.
@@ -25,11 +25,11 @@ public sealed partial class OverviewViewModel
     /// Clear()/Reset, so the list control only realizes/drops the rows that actually changed.</summary>
     private void ReconcileTail(List<object> desired)
     {
-        // (09-25) A re-sort or a regroup reorders most of the list: one Move per displaced row, each an O(N) shift plus
-        // a list-control pass, was the 150-450 ms "reconcile" phase (grog.log 09-25). Past a quarter of the rows out
+        // A re-sort or a regroup reorders most of the list: one Move per displaced row, each an O(N) shift plus
+        // a list-control pass, was the 150-450 ms "reconcile" phase. Past a quarter of the rows out
         // of place, ONE reset is cheaper: a virtualized list re-realizes only the rows on screen.
         // Counted as breaks in RELATIVE order, not rows out of position: a file landing at the head shifts every row by
-        // one, which is one change, not N (review 09-25).
+        // one, which is one change, not N.
         int n = desired.Count, breaks = 0;
         if (n >= 64)
         {
@@ -89,14 +89,14 @@ public sealed partial class OverviewViewModel
         _root.RecomputeActivity();
         // Placement is planned in queue order, so the flags must be re-planned with the new order, run live or
         // not. RefreshStorageIfIdle skipped a PAUSED run (engine still up), so a red row dragged above the divider
-        // kept its stale flag and dropped straight back below it (owner-hit 09-16). The glow + scroll come AFTER
+        // kept its stale flag and dropped straight back below it. The glow + scroll come AFTER
         // the re-plan: a row can cross the divider on the re-plan and land somewhere else than the drop point
         // (a small red row dropped among red rows fits, turns white and regroups up), and scrolling to the
-        // pre-plan spot showed the row "vanishing" (owner-hit 09-16, twice).
+        // pre-plan spot showed the row "vanishing".
         _ = ReplanThenFlashAsync(row, wasRed);
     }
 
-    /// <summary>Row menu (09-16): straight to the front. Behind the file downloading now when one is; the very
+    /// <summary>Row menu: straight to the front. Behind the file downloading now when one is; the very
     /// head otherwise (nothing running to preempt).</summary>
     [RelayCommand(CanExecute = nameof(CanMoveUp))]
     private void MoveQueueRowToFront(QueueRow? row)
@@ -104,7 +104,7 @@ public sealed partial class OverviewViewModel
         if (row is null || _manifest is null) return;
         // Behind the ACTIVE row wherever it sits in the persisted order (a red row can sit at the persisted
         // head while the pill is the first fitting row): assuming index 1 displaced the file downloading now
-        // (QA 09-18). MoveTo's index is post-removal, so a row above the active one counts one less.
+        // . MoveTo's index is post-removal, so a row above the active one counts one less.
         int at = 0;
         if (DownloadPill is { IsActive: true } pill && KeyOf(pill) is { } pk)
         {
@@ -118,12 +118,12 @@ public sealed partial class OverviewViewModel
 
     /// <summary>A fitting row can always move up; a red row only when the planner's own rule says it could land
     /// somewhere with the room still free (routed root first, spill only outside Manual mode). The menu greys
-    /// out otherwise, so a move the next re-plan would undo is never offered (owner 09-16).</summary>
+    /// out otherwise, so a move the next re-plan would undo is never offered.</summary>
     private bool CanMoveUp(QueueRow? row)
         => row is not null && _manifest is not null
            && (!row.WontFit || Grog.Core.Runs.QueueShaper.CouldFit(_manifest.Current, row.Task.File, WontFitDivider.RoomByRoot));
 
-    /// <summary>Row menu (09-16): lift this red row to the bottom of the white group, the lowest place it fits.</summary>
+    /// <summary>Row menu: lift this red row to the bottom of the white group, the lowest place it fits.</summary>
     [RelayCommand(CanExecute = nameof(CanMoveUp))]
     private void PullUpRow(QueueRow? row)
     {
@@ -133,8 +133,8 @@ public sealed partial class OverviewViewModel
         MoveQueueRow(row, at);
     }
 
-    /// <summary>Drag rule for the download tail (09-16): a fitting row over a won't-fit row is refused, with a
-    /// hint saying why; everything else is a valid target. The hint shows on EVERY attempt (owner: they may not
+    /// <summary>Drag rule for the download tail: a fitting row over a won't-fit row is refused, with a
+    /// hint saying why; everything else is a valid target. The hint shows on EVERY attempt (they may not
     /// have read it the first time), throttled to once per few seconds because this is asked on every pointer
     /// move over the red group during one drag.</summary>
     public bool CanDropOn(QueueRow row, object target)
@@ -166,7 +166,7 @@ public sealed partial class OverviewViewModel
             // rows is drawn at the bottom of the white group, not where the pointer let go).
             int drawn = 0, of = 0;
             foreach (var o in DownloadTail) if (o is QueueRow q && q.WontFit == row.WontFit) { of++; if (ReferenceEquals(q, row)) drawn = of; }
-            // The pill is not in the tail: a row moved to the head is "next up", not "row 0 of N" (QA 09-18).
+            // The pill is not in the tail: a row moved to the head is "next up", not "row 0 of N".
             Log(drawn == 0
                 ? $"Moved {row.Name}: {where}, next up."
                 : $"Moved {row.Name}: {where} (row {drawn} of {of} {(row.WontFit ? "below" : "above")} it).", category: LogCategory.Download);
@@ -182,7 +182,7 @@ public sealed partial class OverviewViewModel
         PullUpWhatFitsCommand.NotifyCanExecuteChanged();
     }
 
-    /// <summary>Divider action (09-16): walk the won't-fit rows in queue order and lift every one that fits in the
+    /// <summary>Divider action: walk the won't-fit rows in queue order and lift every one that fits in the
     /// room still free up to the end of the fitting block, greedily, keeping their relative order. The user's
     /// click, one reorder, then one re-plan; nothing is removed.</summary>
     [RelayCommand(CanExecute = nameof(CanPullUpAnything))]
@@ -194,8 +194,8 @@ public sealed partial class OverviewViewModel
         if (pulledKeys.Count == 0) { Log("Nothing below the line fits in the room still free.", category: LogCategory.Download); return; }
         var pulled = pulledKeys.Select(k => _rowCache.TryGetValue(k, out var r) ? r : null).Where(r => r is not null).Select(r => r!).ToList();
         // One reorder, not one MoveTo per file: each engine MoveTo raises QueueChanged and runs pre-emption
-        // (the O(N x queue) shape CancelRange/EnqueueRange exist to avoid; review 09-16).
-        _manifest.Mutate(m => m.Downloads.SetOrder(order));   // (manifest gate 09-08)
+        // (the O(N x queue) shape CancelRange/EnqueueRange exist to avoid;).
+        _manifest.Mutate(m => m.Downloads.SetOrder(order));   // 
         _liveEngine?.Reorder(order);
         if (QueueSort != QueueSortKey.Order) { _queueSortState.Reset(QueueSortKey.Order, asc: true); RaiseQueueSortGlyphs(); }
         _manifest?.SaveSoon();   // ordering only
@@ -205,10 +205,10 @@ public sealed partial class OverviewViewModel
             TaskScheduler.FromCurrentSynchronizationContext());
     }
 
-    /// <summary>Greyed until at least one red row could land in the room still free (review 09-16: the button
+    /// <summary>Greyed until at least one red row could land in the room still free (the button
     /// did nothing, silently, on a full drive).</summary>
     // Reads the row CACHE (every queued row), not the drawn tail: red rows are only drawn while the divider is
-    // unfolded, so the folded default greyed the button over rows that would have fit (QA 09-18).
+    // unfolded, so the folded default greyed the button over rows that would have fit.
     private bool CanPullUpAnything()
         => _manifest is not null && WontFitDivider.RoomLeft > 0
            && _rowCache.Values.Any(r => r.WontFit && Grog.Core.Runs.QueueShaper.CouldFit(_manifest.Current, r.Task.File, WontFitDivider.RoomByRoot));
@@ -226,16 +226,16 @@ public sealed partial class OverviewViewModel
         if (row is null || _manifest is null) return;
         // Remove from the persisted queue, cancel the live transfer, DELETE the partial. Pause keeps the
         // partial (coming back to it); an explicit cancel says you are not, so no .grog-tmp stub stays.
-        _manifest.Mutate(m => m.Downloads.Remove(row.Task.File.GameGogId, row.Task.File.FileKey));   // (manifest gate 09-08)
+        _manifest.Mutate(m => m.Downloads.Remove(row.Task.File.GameGogId, row.Task.File.FileKey));   // 
         _liveEngine?.CancelFile(row.Task.File.GameGogId, row.Task.File.FileKey);
         row.Task.File.HasPartial = false;
         Log($"Canceled {row.Name}. Its partial download was removed.", category: LogCategory.Download);
         _root.RecomputeActivity();
-        RaiseHealth();   // a failed file taken out of the queue is unaddressed again: the card reads queue membership (QA 09-30 C7)
+        RaiseHealth();   // a failed file taken out of the queue is unaddressed again: the card reads queue membership
         // Re-plan NOW, not on the next page visit: the fits-nowhere warning, bar segment and chip must
         // fall with every removal so trimming the queue down to "fits" is watchable in place.
         _root.Storage.RefreshBackupLocations();
-        // DISK WORK OFF THE CLICK (owner-felt lag, 08-30): serializing the whole manifest and deleting a
+        // DISK WORK OFF THE CLICK: serializing the whole manifest and deleting a
         // partial on a busy USB device both block for real time -- neither belongs on the UI thread.
         // SaveAsync is gate-serialized, so a concurrent save is safe; the UI state above updated already.
         var engine = _liveEngine; var file = row.Task.File; var title = row.GameTitle;
@@ -246,19 +246,19 @@ public sealed partial class OverviewViewModel
         });
     }
 
-    // ---- Won't-fit banner actions (owner 09-11: inform, never choose -- but make the informing actionable) ----
+    // ---- Won't-fit banner actions (inform, never choose -- but make the informing actionable) ----
 
     /// <summary>The view scrolls the waiting list to this tail index. Raised by Show me (centered: the rows
     /// that fit above the divider, the red rows below it) and by a moved row (nearest edge).</summary>
     public event Action<int, bool>? ShowWontFitRequested;
 
-    /// <summary>(09-16) A moved row is scrolled into view and lit for a moment: a drop that lands off screen, or
-    /// under a re-plan that regroups the list, otherwise reads as the row vanishing (owner-hit). The pill is
+    /// <summary>A moved row is scrolled into view and lit for a moment: a drop that lands off screen, or
+    /// under a re-plan that regroups the list, otherwise reads as the row vanishing. The pill is
     /// not in the tail, so a row moved to the head is not scrolled to (it is already at the top).</summary>
     private void FlashMoved(QueueRow row)
     {
         // A row that landed below the line lives in the folded group: unfold it, or the glow lights an
-        // unrealized row and the drop still reads as "vanished" (review 09-16).
+        // unrealized row and the drop still reads as "vanished".
         if (row.WontFit && !WontFitDivider.Expanded) { WontFitDivider.Expanded = true; RebuildQueue(); }
         int i = DownloadTail.IndexOf(row);
         if (i >= 0) ShowWontFitRequested?.Invoke(i, false);
@@ -274,7 +274,7 @@ public sealed partial class OverviewViewModel
     }
     private readonly Dictionary<QueueRow, DispatcherTimer> _glowTimers = new();
 
-    /// <summary>Unfold the won't-fit divider and scroll the tail to it (09-16). The pill is never a won't-fit
+    /// <summary>Unfold the won't-fit divider and scroll the tail to it. The pill is never a won't-fit
     /// row unless every row is, so the divider is always in the tail while any row is flagged.</summary>
     [RelayCommand]
     private void ShowWontFit()
@@ -331,7 +331,7 @@ public sealed partial class OverviewViewModel
     private async Task DoRemoveWontFitCore()
     {
         if (_manifest is null) return;
-        // (09-25) The flags are re-decided off the UI thread now: settle them first, so a row a pending re-plan would
+        // The flags are re-decided off the UI thread now: settle them first, so a row a pending re-plan would
         // have turned green is never removed as red.
         await ReplanQueueAsync("removing what won't fit");
         var manifest = _manifest;
@@ -342,7 +342,7 @@ public sealed partial class OverviewViewModel
         // that stops fitting (Replan via BackupRun's CancelRange, ReplanWholeQueue directly). The queue entry
         // was the only thing they had.
         Log($"Removed {gone.Count} file{(gone.Count == 1 ? "" : "s")} that won't fit from the queue. The rest of the queue is unchanged.", category: LogCategory.Download);
-        RaiseHealth();   // (QA 09-30 C7)
+        RaiseHealth();   // 
         _root.RecomputeActivity();
         _root.Storage.RefreshBackupLocations();   // the banner and the red segment fall with the removal
         Runtime.ManifestSaves.Default.SaveInBackground(_manifest, "remove won't fit");

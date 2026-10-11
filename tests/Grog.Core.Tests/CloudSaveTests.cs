@@ -262,7 +262,7 @@ public class CloudSaveTests
     }
 }
 
-/// <summary>A save body cut short by the connection was renamed into place as the save (sweep: F7).</summary>
+/// <summary>A save body cut short by the connection was renamed into place as the save (F7).</summary>
 [Trait("cloud")]
 public class CloudSaveDownloadLengthTests
 {

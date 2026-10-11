@@ -18,7 +18,7 @@ namespace Grog.App.Views;
 
 public partial class MainWindow : Window
 {
-    /// <summary>Named-control lookup that crosses page boundaries. The pages are UserControls (09-02 split)
+    /// <summary>Named-control lookup that crosses page boundaries. The pages are UserControls
     /// with their own name scopes, so <c>FindControl</c> on the window no longer sees LibraryGrid or the
     /// queue lists; the logical tree does. Null until the page exists, exactly as before.</summary>
     private T? Find<T>(string name) where T : class
@@ -86,7 +86,7 @@ public partial class MainWindow : Window
             {
                 if (e.Property != WindowStateProperty) return;
                 // Deminiaturize fighting a deliberate hide. An IMMEDIATE Hide() is silently ignored while
-                // the window is mid-animation (upstream #12971: a minimized window cannot be hidden), so
+                // the window is mid-animation (a minimized window cannot be hidden), so
                 // wait for the transitions to stop: each one restarts a short timer, and only the timer's
                 // expiry - the animation having settled - actually hides. A second check catches a late
                 // orderFront that arrives with no state event at all.
@@ -106,9 +106,9 @@ public partial class MainWindow : Window
                 }
             };
 
-            // MINIMIZE IS BROKEN UPSTREAM on this backend: the window bounces back (#13002's state flap)
-            // and, when it does stay down, restores with a dead renderer (#18148) - a blank canvas.
-            // Verified on hardware from BOTH normal and maximized states (MacinCloud 2026-08-28). So on
+            // MINIMIZE IS BROKEN UPSTREAM on this backend: the window bounces back
+            // and, when it does stay down, restores with a dead renderer - a blank canvas.
+            // Verified on hardware from BOTH normal and maximized states. So on
             // macOS minimize becomes HIDE (the Cmd+H idiom every mac user knows), and a Dock click
             // (ActivationKind.Reopen) brings the window back through Show(), which renders correctly.
             PropertyChanged += (_, e) =>
@@ -123,7 +123,7 @@ public partial class MainWindow : Window
                 Dispatcher.UIThread.Post(() => { WindowState = WindowState.Normal; Hide(); });
             };
             // The yellow button is the ONE control still broken after builds 1009-1017: native minimize
-            // bounces back (#13002) and every workaround lost to the backend (#12971/#18148). So remove
+            // bounces back and every workaround lost to the backend. So remove
             // the capability itself - clear NSWindowStyleMaskMiniaturizable and the yellow light grays
             // out, which is honest UI and standard for plenty of mac apps. Close-to-tray covers the
             // "get it out of my way" need. One objc_msgSend round-trip, macOS-only, after the native
@@ -165,7 +165,7 @@ public partial class MainWindow : Window
                 // Collection view seeded Title-ascending so the header shows the starting sort; header
                 // clicks keep updating this same view.
                 var view = new Avalonia.Collections.DataGridCollectionView(vm.Library.Games);
-                // (09-22, owner) Seeded from the saved sort, and every header click is saved: the grid comes back
+                // Seeded from the saved sort, and every header click is saved: the grid comes back
                 // the way it was left.
                 var settings = vm.Session.Settings;
                 var path = string.IsNullOrEmpty(settings.LibrarySortPath) ? nameof(ViewModels.GameRowViewModel.Title) : settings.LibrarySortPath;
@@ -197,7 +197,7 @@ public partial class MainWindow : Window
         {
             if (_forceClose) return;   // user already chose "Close & pause"; let it through
             if (DataContext is not MainWindowViewModel vm) return;
-            // Staged extras placement (09-13): the leave guard covered page changes but not the window's X, so
+            // Staged extras placement: the leave guard covered page changes but not the window's X, so
             // a close silently discarded the staged choice. Same question, same prompt; answering it re-issues
             // the close (CloseAfterLeave), which then takes the normal quit / tray / confirm path below.
             if (!vm.Quitting && vm.Settings.ExtrasCard.HasPending)
@@ -296,11 +296,11 @@ public partial class MainWindow : Window
         }
 
         WireRowReordering<QueueRow>("WaitingList", vm => vm.Overview.DownloadTail,
-            // The drawn tail groups fitting rows above the won't-fit divider (09-16), so a drop index is mapped
+            // The drawn tail groups fitting rows above the won't-fit divider, so a drop index is mapped
             // back onto the persisted queue; the pinned pill holds position 0 either way.
             (vm, row, i) => { int p = vm.Overview.PersistedIndexOfTailDrop(i, row); if (p >= 0) vm.Overview.MoveQueueRow(row, p); },
             // A fitting row cannot be dropped into the won't-fit group: fit is decided by the planner, not by
-            // where the pointer lets go, so the drop would only pop the row back up (owner-hit 09-16). The
+            // where the pointer lets go, so the drop would only pop the row back up. The
             // divider itself is a valid target (bottom of the white group); red rows may go anywhere.
             (vm, row, target) => vm.Overview.CanDropOn(row, target));
         WireRowReordering<ReorgMoveRow>("MoveWaitingList", vm => vm.Storage.ReorgTail,
@@ -308,7 +308,7 @@ public partial class MainWindow : Window
             (vm, row, i) => vm.Storage.MoveReorgRow(row, i + (vm.Storage.HasReorgActive ? 0 : 1)));
         WireInventoryDrag();
         WirePillResponsiveness();
-        WireChromeWidth();   // (09-09) queue sort pill labels shorten before they can wrap
+        WireChromeWidth();   // queue sort pill labels shorten before they can wrap
 
         // The Library page may not be realized yet (Overview is home), so bind on every layout pass until
         // it is; TryBindPillControls short-circuits on a flag once bound.

@@ -52,7 +52,7 @@ public class StorageReportTests
     [Test]
     void DrivesFor_CountsWhatIsActuallyInGrogTmp_NotAModelledPartial()
     {
-        // Owner-caught 09-04: partial bytes were modelled from the manifest (and credited to the wrong root
+        // Owner-caught: partial bytes were modelled from the manifest (and credited to the wrong root
         // while a file streamed to the secondary). The .part directory IS the fact: measure it per root.
         var m = new Grog.Core.Manifest.LibraryManifest();
         m.Roots.Add(new Grog.Core.Models.BackupRoot { Id = "p", Label = "Primary" });

@@ -64,7 +64,7 @@ public class VerifyImportTests
 
     // Fix Now re-queues a gone file as NotBackedUp but keeps its old LocalRelativePath (the download
     // rewrites it). Verify must SKIP such files: re-flagging them from the leftover path is how a fixed
-    // "gone from disk" error resurrected on every restart (owner-reported, 2026-08-31).
+    // "gone from disk" error resurrected on every restart.
     [Test]
     async Task Verify_SkipsNotBackedUpFiles_EvenWithLeftoverLocalPath()
     {
@@ -162,7 +162,7 @@ public class VerifyImportTests
         finally { Directory.Delete(root, true); }
     }
 
-    // (09-25) An adopted file with no checksum on record: with FetchMissingChecksums the pass asks GOG, hashes, and
+    // An adopted file with no checksum on record: with FetchMissingChecksums the pass asks GOG, hashes, and
     // a match reads Verified with the checksum stored; a mismatch changes nothing and is counted (the user decides);
     // without the switch (or in SizeOnly) it stays a size check and GOG is never asked.
     private static async System.Threading.Tasks.Task<(JsonManifestStore store, string root, GameFile f)> AdoptedNoChecksum()
@@ -358,7 +358,7 @@ public class VerifyImportTests
         finally { Directory.Delete(root, true); }
     }
 
-    // (09-19, walk pass 3) The Storage FILE row's "Rescan & verify": a Verified file overwritten with same-size
+    // The Storage FILE row's "Rescan & verify": a Verified file overwritten with same-size
     // junk passed the size-only file pass. Asked for a full re-hash, the file pass reads the bytes; asked for
     // nothing (every other single-file site), it stays the size-only confirm.
     [Test]

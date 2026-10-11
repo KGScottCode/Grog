@@ -4,8 +4,7 @@ namespace Grog.Core.Models;
 
 /// <summary>
 /// THE platform vocabulary. GOG's file records carry lowercase tokens ("windows", "mac"/"osx", "linux");
-/// every surface that shows one goes through here, so a scope label, a chip and a badge can never drift
-/// ("Mac" beside "macOS" was live until 09-02).
+/// every surface that shows one goes through here, so a scope label, a chip and a badge can never drift.
 /// </summary>
 public static class PlatformNames
 {

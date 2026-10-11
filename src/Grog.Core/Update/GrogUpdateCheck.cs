@@ -12,7 +12,7 @@ namespace Grog.Core.Update;
 /// Tier-1 update check: one anonymous GET to GitHub's latest-release endpoint, a version compare, and
 /// nothing else. Finds, never downloads -- same contract as the GOG version check, and the same silence
 /// rules: a backup tool is often offline, so every failure is swallowed and the answer is simply null.
-/// Full auto-update is deliberately out of scope until real users exist (owner decision, handoff 08-24).
+/// Full auto-update is deliberately out of scope until real users exist.
 /// </summary>
 public static class GrogUpdateCheck
 {
@@ -27,7 +27,7 @@ public static class GrogUpdateCheck
     {
         try
         {
-            // (09-19) GROG_UPDATE_API: a REHEARSAL seam. While the repo is private the real endpoint answers 404 to
+            // GROG_UPDATE_API: a REHEARSAL seam. While the repo is private the real endpoint answers 404 to
             // an anonymous caller, so the whole path (request, headers, parse, the Settings row, the log line) could
             // not be exercised before going public. Point it at any public repo's releases/latest to walk it.
             var api = Environment.GetEnvironmentVariable("GROG_UPDATE_API") is { Length: > 0 } o ? o : LatestReleaseApi;

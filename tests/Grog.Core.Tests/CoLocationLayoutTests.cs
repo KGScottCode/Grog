@@ -31,7 +31,7 @@ public class CoLocationLayoutTests
     [Test] void PrimaryBindsToTheManifestsPath_NotTheCallersStaleOne()
     {
         // One fact: the primary root's PathHint. A host whose own setting lags (App after a promotion, or after
-        // a CLI --primary) must FOLLOW the manifest, not drag the root onto its stale folder (owner-hit 09-04).
+        // a CLI --primary) must FOLLOW the manifest, not drag the root onto its stale folder.
         var (store, root) = New();
         try
         {

@@ -10,7 +10,7 @@ namespace Grog.App.Controls;
 /// <summary>
 /// The body of a column-header filter popup: heading, one checkbox per <c>FilterOption</c> (with its legend
 /// swatch when it has one), a rule, then All / None. Four Library headers (storage, extras, account, status)
-/// each carried a hand-built copy before 09-02.
+/// each carried a hand-built copy before.
 /// </summary>
 public sealed class FilterPanel : TemplatedControl
 {

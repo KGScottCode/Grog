@@ -15,7 +15,7 @@ using Grog.Core.Models;
 using Grog.Core.Storage;
 using Grog.Core.Tests.Framework;
 
-/// <summary>The App's session layer (S1, 09-08), driven with a temp profile and no window: the first tests
+/// <summary>The App's session layer, driven with a temp profile and no window: the first tests
 /// of App-level behaviour that never needed Avalonia. Operations join in S2.</summary>
 [Trait("session")]
 public class GrogSessionTests

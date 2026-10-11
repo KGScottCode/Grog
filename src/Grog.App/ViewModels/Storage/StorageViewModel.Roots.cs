@@ -51,7 +51,7 @@ public sealed partial class StorageViewModel
             Avalonia.Platform.Storage.IStorageFolder? start = null;
             try
             {
-                // (UI-thread sweep 09-06) both Directory.Exists probes can hit a sleeping drive: run them off the dispatcher.
+                // both Directory.Exists probes can hit a sleeping drive: run them off the dispatcher.
                 var seedRoot = _session.BackupRoot;
                 var seed = await Task.Run(() =>
                 {
@@ -97,8 +97,8 @@ public sealed partial class StorageViewModel
 
         // Same physical drive is allowed but worth saying out loud: one failure loses both copies.
         var manifestAl = _session.Manifest;
-        var sameVol = await Task.Run(() => vol.FindSameVolume(path!));   // (UI-thread sweep 09-06 r2) mount-point lookups (DriveInfo) off the dispatcher
-        if (!ReferenceEquals(_session.Manifest, manifestAl)) return;   // (UI-thread sweep 09-06 r2) manifest swapped while probing
+        var sameVol = await Task.Run(() => vol.FindSameVolume(path!));   // mount-point lookups (DriveInfo) off the dispatcher
+        if (!ReferenceEquals(_session.Manifest, manifestAl)) return;   // manifest swapped while probing
         PendingSameVolumeWarning = sameVol is not null
             ? "Heads up: this is on the same physical drive as your other storage, so a drive failure would lose both."
             : "";
@@ -120,7 +120,7 @@ public sealed partial class StorageViewModel
         ShowLocationErrorModal = true;
     }
     /// <summary>A failed storage action: the dialog gets the message, the log gets the whole exception (site
-    /// and path), because "Access to the path is denied" alone is undiagnosable (owner-hit 09-17).</summary>
+    /// and path), because "Access to the path is denied" alone is undiagnosable.</summary>
     private void ShowLocationError(string what, Exception ex)
     {
         _root.Log($"{what}: {ex}", isError: true, category: LogCategory.Move);
@@ -138,7 +138,7 @@ public sealed partial class StorageViewModel
 
     [RelayCommand] private void CancelAddIntent() { ShowAddIntent = false; _pendingAddPath = null; }
 
-    /// <summary>Register the folder WITHOUT the import scan (owner 08-30): for a folder the user knows is
+    /// <summary>Register the folder WITHOUT the import scan: for a folder the user knows is
     /// empty, forcing a scan is busywork. Rescan &amp; Verify later covers a wrong guess.</summary>
     [RelayCommand]
     private async Task AddIntentSkipScan()
@@ -149,7 +149,7 @@ public sealed partial class StorageViewModel
         _pendingAddPath = null;
         try
         {
-            // (UI-thread sweep 09-06 r2) AddRoot's CreateDirectory touches the just-picked drive: pre-create off the
+            // AddRoot's CreateDirectory touches the just-picked drive: pre-create off the
             // dispatcher, then AddRoot (manifest mutation) on the UI thread finds the folder present.
             var manifest = _session.Manifest;
             await Task.Run(() => System.IO.Directory.CreateDirectory(path));
@@ -157,9 +157,9 @@ public sealed partial class StorageViewModel
             var added = new Grog.Core.Volumes.VolumeService(_session.Manifest).AddRoot(path);
             await _session.Manifest.SaveAsync();
             _root.RefreshFromManifest();   // the secondary grid must learn its root id or the move buttons stay dead
-            RebuildInventory();            // (09-14) RefreshFromManifest refreshes the CARD, never the grid rows
+            RebuildInventory();            // RefreshFromManifest refreshes the CARD, never the grid rows
             _root.Log("Added storage (scan skipped).");
-            await _root.Overview.ReplanQueueAsync("the new storage");   // (09-25) the offer reads the flags: decide them first
+            await _root.Overview.ReplanQueueAsync("the new storage");   // the offer reads the flags: decide them first
             MaybeOfferStorageAddition(added.Id);
         }
         catch (Exception ex) { ShowLocationError("Couldn't add that folder", ex); }
@@ -176,19 +176,19 @@ public sealed partial class StorageViewModel
         _pendingAddPath = null;
         try
         {
-            // (S2.2) Core's ImportRun registers the root and either defers the import (empty library: the flag
+            // Core's ImportRun registers the root and either defers the import (empty library: the flag
             // lives on the manifest so a restart before the first scan does not forget the promise) or plans and
             // adopts now. Disk work throughout: off the dispatcher, applied after an identity re-check.
             var manifest = _session.Manifest;
             var result = await Task.Run(() => Grog.Core.Runs.ImportRun.AddAndImportAsync(manifest, path,
                 Grog.Core.Verify.ImportMode.Adopt, new MainWindowViewModel.AppRunHost(_root, LogCategory.General), _session.Cts?.Token ?? default,
-                new Grog.Core.Runs.ImportRun.Options { VerifyAdopted = false }));   // (09-19) the App verifies AFTER the refresh, as a visible activity (below)
+                new Grog.Core.Runs.ImportRun.Options { VerifyAdopted = false }));   // the App verifies AFTER the refresh, as a visible activity (below)
             if (!ReferenceEquals(_session.Manifest, manifest)) return;
             if (result.Status == Grog.Core.Runs.ImportRunStatus.Deferred) { _root.RefreshFromManifest(); RebuildInventory(); return; }
             _root.RefreshFromManifest();   // re-plans the queue onto the new root (idle branch) before the offer reads it
-            RebuildInventory();            // (09-14) the card counted the adopted files while the grid still said "Nothing backed up here yet"
+            RebuildInventory();            // the card counted the adopted files while the grid still said "Nothing backed up here yet"
             await ShowImportOutcome(result, interactive: true);
-            await _root.Overview.ReplanQueueAsync("the new storage");   // (09-25) the offer reads the flags: decide them first
+            await _root.Overview.ReplanQueueAsync("the new storage");   // the offer reads the flags: decide them first
             MaybeOfferStorageAddition(result.Root.Id);
             await _root.VerifyAdoptedAsync(result, ImportVerifyChecksums);
         }
@@ -227,7 +227,7 @@ public sealed partial class StorageViewModel
         {
             await PromoteToPrimaryAsync(row.RootId);
             await _session.Manifest.SaveAsync();
-            // A slot change like any other (QA 09-18): RefreshFromManifest alone left the grids under the old root
+            // A slot change like any other: RefreshFromManifest alone left the grids under the old root
             // ids (the PRIMARY column listed the new secondary's files) and a live run kept its old targets.
             await AfterSlotChangeAsync($"{row.DriveName} is now the Primary storage.");
         }
@@ -240,7 +240,7 @@ public sealed partial class StorageViewModel
     //      is a plain remove (no choice, no gate).
     private BackupLocationRow? _pendingDeleteRow;
     [ObservableProperty] private bool _showDeleteDeviceDialog;
-    /// <summary>The destructive "delete files and remove storage" path is visible while it runs (09-13): on a slow
+    /// <summary>The destructive "delete files and remove storage" path is visible while it runs: on a slow
     /// USB drive it took 30+ seconds with nothing on screen, and read as broken. Count and bytes tick per file.</summary>
     [ObservableProperty] private bool _showDeleteDeviceProgress;
     [ObservableProperty] private string _deleteDeviceProgressTitle = "";
@@ -254,17 +254,17 @@ public sealed partial class StorageViewModel
     private BackupLocationRow? OtherDeviceForDelete => _pendingDeleteRow is { } r
         ? BackupLocations.FirstOrDefault(d => d.RootId != r.RootId) : null;
 
-    // VOCABULARY (owner 09-13): "Removable" and "Disconnected" are PHYSICAL words (the drive type, and whether
+    // VOCABULARY: "Removable" and "Disconnected" are PHYSICAL words (the drive type, and whether
     // it is plugged in). Grog's own relationship to a folder uses none of them: Detach (shelf, still counted),
     // Forget (stop tracking, files stay), Move & Forget, Delete (erase). The button and this dialog say Detach.
     public string DeleteDeviceTitle => _pendingDeleteRow is { } r ? (r.IsPrimary ? $"Forget the {r.Label} storage?" : $"Detach the {r.Label} storage?") : "";
 
     public bool DeleteHasFiles => (_pendingDeleteRow?.FileCount ?? 0) > 0;
     public string DeleteOtherLabel => OtherDeviceForDelete?.Label ?? "Primary";
-    /// <summary>(09-15 review) "Move & Forget" needs another device; with a lone primary it silently ran as Forget.</summary>
+    /// <summary>"Move & Forget" needs another device; with a lone primary it silently ran as Forget.</summary>
     public bool DeleteCanMove => OtherDeviceForDelete is not null;
     /// <summary>Erase is offered only while the drive is here: on an absent drive every File.Exists is false, so
-    /// "Delete" removed 0 files and then forgot the records, stranding the bytes (QA 09-18). A root folder absent
+    /// "Delete" removed 0 files and then forgot the records, stranding the bytes. A root folder absent
     /// from disk is an unplugged drive, not a missing file.</summary>
     public bool DeleteCanErase => _pendingDeleteRow is { IsOnline: true };
     public string DeleteMoveOptionText => $"Move its files to {DeleteOtherLabel}, then forget this storage";
@@ -286,13 +286,13 @@ public sealed partial class StorageViewModel
     public string DeleteDestructiveNote => _pendingDeleteRow is { } r && r.FileCount > 0
         ? $"Destructive - the {r.FileCount} file{(r.FileCount == 1 ? "" : "s")} in this storage {(r.FileCount == 1 ? "is" : "are")} permanently deleted. This can't be undone."
         : "Destructive - files in this storage are permanently deleted.";
-    /// <summary>Detach (09-13): the drive goes on the shelf with its files still counted as backed up. Not for the
+    /// <summary>Detach: the drive goes on the shelf with its files still counted as backed up. Not for the
     /// primary (something must hold the slot) and pointless for an empty folder.</summary>
     public bool DeleteCanDetach => _pendingDeleteRow is { IsPrimary: false };
     public string DeleteDetachNote => _pendingDeleteRow is { } r
         ? $"Nothing touched, nothing re-downloaded. Its {r.FileCount} file{(r.FileCount == 1 ? "" : "s")} stay{(r.FileCount == 1 ? "s" : "")} recorded as backed up on {r.Label}, the slot frees for another drive, and it waits under Other storage on this page until you use it again." + PartialsCarryNote(r.RootId)
         : "";
-    /// <summary>(09-19) Detach carries the drive's in-progress downloads to where each file belongs now; the dialog says so.</summary>
+    /// <summary>Detach carries the drive's in-progress downloads to where each file belongs now; the dialog says so.</summary>
     private string PartialsCarryNote(string rootId)
     {
         if (_session.Manifest is not { } st) return "";
@@ -324,7 +324,7 @@ public sealed partial class StorageViewModel
 
     [RelayCommand] private void SetDeleteChoice(string? which) { if (int.TryParse(which, out var n)) DeleteChoice = n; }
 
-    /// <summary>Non-blocking heads-up (owner 08-30): re-plan the live queue WITHOUT the device being
+    /// <summary>Non-blocking heads-up: re-plan the live queue WITHOUT the device being
     /// removed, and say when the queued backup can no longer finish. Never blocks the removal --
     /// the user may be about to attach a different device.</summary>
     [ObservableProperty] private string _deleteQueueImpactText = "";
@@ -368,7 +368,7 @@ public sealed partial class StorageViewModel
         DeleteQueueImpactText = BuildDeleteQueueImpact(row);
         OnPropertyChanged(nameof(ShowDeleteQueueImpact));
         // Default = the choice that changes the least: Detach when it is offered, else Forget (empty folder).
-        DeleteChoice = row.IsPrimary ? (row.FileCount > 0 && OtherDeviceForDelete is not null ? 0 : 1) : 3;   // (09-15) Move needs somewhere to move to
+        DeleteChoice = row.IsPrimary ? (row.FileCount > 0 && OtherDeviceForDelete is not null ? 0 : 1) : 3;   // Move needs somewhere to move to
         DeleteTypedConfirm = "";
         foreach (var p in new[] { nameof(DeleteDeviceTitle), nameof(DeleteHasFiles), nameof(DeleteOtherLabel), nameof(DeleteCanMove),
                  nameof(DeleteMoveOptionText), nameof(DeleteSummary), nameof(DeleteLeaveNote), nameof(DeleteDestructiveNote),
@@ -381,9 +381,9 @@ public sealed partial class StorageViewModel
 
     [RelayCommand] private void CancelDeleteDevice() { ShowDeleteDeviceDialog = false; _pendingDeleteRow = null; }
 
-    // ---- OTHER STORAGE (09-13/14): a drive with no slot. Use as <slot> when free, Swap with <slot> when held,
+    // ---- OTHER STORAGE: a drive with no slot. Use as <slot> when free, Swap with <slot> when held,
     //      Forget is the plain remove. Files never move; the queue is re-planned after every slot change. ----
-    /// <summary>The rail's "N other storage" lands here: the section shows (it is hidden otherwise; owner 09-15),
+    /// <summary>The rail's "N other storage" lands here: the section shows,
     /// every drive expanded. Leaving the page, or its own close, hides it again. The empty-slot offer is separate
     /// and always shown.</summary>
     public event Action? ScrollToOtherStorageRequested;
@@ -425,7 +425,7 @@ public sealed partial class StorageViewModel
         if (row is null || _session.Manifest is null) return;
         if (MoveTouchesRoot(row.RootId) || (PrimaryLocation is { } pl && MoveTouchesRoot(pl.RootId))) return;
         if (PrimaryLocation is { } slot) { RequestSwap(row, slot); return; }
-        // No primary at all (09-15 review): "Use as Primary" is a plain reattach + role, no swap.
+        // No primary at all: "Use as Primary" is a plain reattach + role, no swap.
         try
         {
             var vol = new Grog.Core.Volumes.VolumeService(_session.Manifest);
@@ -481,11 +481,11 @@ public sealed partial class StorageViewModel
         RefreshBackupLocations(); RebuildInventory();
         _root.Log(logLine, category: LogCategory.Move);
         await _root.Overview.ReplanQueueAsync("the new storage slots");
-        // (09-19) A drive that just left its slot (Detach, Swap) is no longer bound by the layout. AFTER the re-plan (review 09-19):
+        // A drive that just left its slot (Detach, Swap) is no longer bound by the layout. AFTER the re-plan:
         // that is what takes a live run's tasks off the shelved drive, so no transfer is writing the .part being carried, so the engine
         // would never find the in-progress downloads on it: carry them to where each file belongs now.
         // Not awaited: a multi-GB partial leaving a USB stick is minutes of copying, and the command that asked for the
-        // slot change stays disabled while its task runs (the Detach button greyed out for 2 min 15 s, walk 09-30).
+        // slot change stays disabled while its task runs (the Detach button greyed out for 2 min 15 s,).
         if (_session.Manifest is { } st)
             _ = CarryOffShelvedAsync(st);
     }
@@ -497,7 +497,7 @@ public sealed partial class StorageViewModel
             catch (Exception ex) { _root.Log($"In-progress downloads were not carried off {shelved.Label}: {ex.Message}", isError: false, category: LogCategory.Move); }
     }
 
-    /// <summary>(QA 09-30 B5) A slot change on a root a move is reading from or writing to (running or paused) is
+    /// <summary>A slot change on a root a move is reading from or writing to (running or paused) is
     /// refused with a toast: Forget reset the files of a drive the runner was still copying onto, and the runner
     /// then stamped them with a root that no longer existed.</summary>
     private bool MoveTouchesRoot(string? rootId)
@@ -511,7 +511,7 @@ public sealed partial class StorageViewModel
         return touches;
     }
 
-    // ---- Rename (09-15): the user's name for a drive, from the card or an Other-storage row. Blank = folder name.
+    // ---- Rename: the user's name for a drive, from the card or an Other-storage row. Blank = folder name.
     [ObservableProperty] private bool _showRenameDialog;
     [ObservableProperty] private string _renameText = "";
     private string? _renameRootId; private string _renamePath = "";
@@ -549,7 +549,7 @@ public sealed partial class StorageViewModel
         ? $"Stop tracking {r.Label} ({r.Path})? Its {r.FileCount} file{(r.FileCount == 1 ? "" : "s")} ({Grog.Core.Format.ByteFormat.Size(r.Bytes)}) will count as not backed up until you back {(r.FileCount == 1 ? "it" : "them")} up again or re-add this storage. Nothing on the drive is touched."
           + PartialsStayNote(r.RootId)
         : "";
-    /// <summary>(09-19) The confirm's last word when in-progress downloads are still recorded on the drive: a carry
+    /// <summary>The confirm's last word when in-progress downloads are still recorded on the drive: a carry
     /// already ran when it left its slot, so what is left could not go.</summary>
     private string PartialsStayNote(string rootId)
     {
@@ -661,10 +661,10 @@ public sealed partial class StorageViewModel
             ShowLocationError($"{row.DriveName} is not connected, so its files can't be erased. Plug it in, or choose Forget to leave them where they are.");
             return;
         }
-        // (09-14) The choice is logged BEFORE it runs: the log is the evidence when the dialog and the outcome disagree.
+        // The choice is logged BEFORE it runs: the log is the evidence when the dialog and the outcome disagree.
         _root.Log($"{row.DriveName}: you chose {choice switch { 3 => "Detach", 1 => "Forget", 0 => "Move & Forget", 2 => "Delete", _ => choice.ToString() }}.", category: LogCategory.Move);
 
-        // DETACH (09-13): the shelf. No promotion (never the primary), no file work, no slot.
+        // DETACH: the shelf. No promotion (never the primary), no file work, no slot.
         if (choice == 3)
         {
             if (row.IsPrimary) return;
@@ -672,7 +672,7 @@ public sealed partial class StorageViewModel
             {
                 new Grog.Core.Volumes.VolumeService(_session.Manifest).DetachRoot(row.RootId);
                 await _session.Manifest.SaveAsync();
-                // (09-15 review) Through the one slot-change path: with a run live, the queue must be re-planned
+                // Through the one slot-change path: with a run live, the queue must be re-planned
                 // or its tasks keep downloading onto the shelved drive.
                 await AfterSlotChangeAsync($"Detached {row.DriveName}: its {row.FileCount} file{(row.FileCount == 1 ? " stays" : "s stay")} recorded as backed up there. It is listed under Other storage; use it in a slot again any time.");
             }
@@ -703,7 +703,7 @@ public sealed partial class StorageViewModel
             var files0 = _session.Manifest.Current.Items
                 .SelectMany(i => i.Files.Concat(i.OldVersionFiles)   // carry the Old Versions/ archive too
                     .Where(f => f.RootId == row.RootId).Select(f => (i, f))).ToList();
-            // (UI-thread sweep 09-06) BackupLayout probes every root's PathHint and Resolve probes the config
+            // BackupLayout probes every root's PathHint and Resolve probes the config
             // dir: both off the dispatcher; the planner itself is pure. The slot is taken inside RunReorgWithPaneAsync.
             var manifest0 = _session.Manifest; var root0 = _session.BackupRoot; var pending0 = _session.PendingWrites;
             var (job0, cfg0) = await Task.Run(() =>
@@ -716,7 +716,7 @@ public sealed partial class StorageViewModel
             });
             if (BlockIfDrivesUnavailable(job0))   // don't remove the folder if its files can't move
             {
-                // (UI-thread sweep 09-06 r2) the promotion above already moved the app's primary (settings +
+                // the promotion above already moved the app's primary (settings +
                 // _backupRoot); persist the manifest side too, or a restart would disagree with settings.
                 if (wasPrimary) { await _session.Manifest.SaveAsync(); RefreshBackupLocations(); }
                 return;
@@ -727,7 +727,7 @@ public sealed partial class StorageViewModel
             {
                 new Grog.Core.Volumes.VolumeService(_session.Manifest).RemoveRoot(row.RootId, force: true);
                 await _session.Manifest.SaveAsync();
-                // Said when it is TRUE, at the end of the move, with what actually moved (QA 09-30 B13).
+                // Said when it is TRUE, at the end of the move, with what actually moved.
                 int moveCount; lock (job0.SyncRoot) moveCount = job0.Moves.Count(x => x.State == Grog.Core.Volumes.ReorgMoveState.Done);
                 _root.Log($"Moved {moveCount} file{(moveCount == 1 ? "" : "s")} to {otherLabel} and deleted {driveName}.", category: LogCategory.Move);
             });
@@ -743,7 +743,7 @@ public sealed partial class StorageViewModel
                 if (choice == 2)
                 {
                     // Physically delete this device's files, then remove it. Through LocalDeletion, THE delete
-                    // (sweep 2 #7): the hand loop here left every .part, the emptied game folders and the
+                    // : the hand loop here left every.part, the emptied game folders and the
                     // wrong records behind. Plan + Apply under the gate, the disk work off it.
                     var store = _session.Manifest;
                     Grog.Core.Sync.LocalDeletion.DeletePlan plan;
@@ -813,7 +813,7 @@ public sealed partial class StorageViewModel
     {
         if (row is null || _session.Manifest is null) return;
         if (MoveTouchesRoot(row.RootId)) return;
-        // (UI-thread sweep 09-06 r2) the seed probe (Directory.Exists on a possibly sleeping drive) runs off the
+        // the seed probe (Directory.Exists on a possibly sleeping drive) runs off the
         // dispatcher; the picker only gets a seed that is known to exist.
         var seedPath = row.Path;
         var seed = await Task.Run(() => !string.IsNullOrEmpty(seedPath) && System.IO.Directory.Exists(seedPath) ? seedPath : null);
@@ -931,7 +931,7 @@ public sealed partial class StorageViewModel
 
         // Block if either drive is offline/missing: the source (whose files we move) or the destination
         // drive. Don't create the target folder or start a partial repoint.
-        // (UI-thread sweep 09-06) the layout's root probes, the destination-volume probe and the mkdir all run
+        // the layout's root probes, the destination-volume probe and the mkdir all run
         // off the dispatcher, in the original order (mkdir only when nothing is offline). Slot is taken later.
         var manifestCm = _session.Manifest; var rootCm = _session.BackupRoot;
         var offline = await Task.Run(() =>
@@ -947,14 +947,14 @@ public sealed partial class StorageViewModel
             return list;
         });
         if (offline.Count > 0) { BlockMoveForDrives(offline); return; }
-        // (UI-thread sweep 09-06 r2) the probe took a while: the storage may have been removed or the primary swapped.
+        // the probe took a while: the storage may have been removed or the primary swapped.
         if (!ReferenceEquals(_session.Manifest, manifestCm) || _session.BackupRoot != rootCm || !_session.Manifest.Current.Roots.Any(r => r.Id == row.RootId))
         { _root.Log("Change folder: storage changed while checking drives; move not started."); return; }
 
         var job = Grog.Core.Volumes.ReorgPlanner.ForRootPathChange(_session.Manifest.Current, row.RootId, row.Path, full);   // pure
         if (job.Total == 0) { if (await RepointRootAsync(row, full)) { RefreshBackupLocations(); _root.Log($"{row.Label} storage set to {full}"); } return; }
 
-        var configDir = await Task.Run(() => Grog.Core.Storage.GrogPaths.Resolve(rootCm).ConfigDir);   // (UI-thread sweep 09-06)
+        var configDir = await Task.Run(() => Grog.Core.Storage.GrogPaths.Resolve(rootCm).ConfigDir);   // 
         await RunReorgWithPaneAsync(job, configDir, onReachedEnd: async () =>
         {
             if (!await RepointRootAsync(row, full)) return;
@@ -985,7 +985,7 @@ public sealed partial class StorageViewModel
         if (row is null || newPath is null || _session.Manifest is null) return;
         try
         {
-            // (UI-thread sweep 09-06 r2) ReplaceRoot's CreateDirectory touches the new drive: pre-create off the dispatcher.
+            // ReplaceRoot's CreateDirectory touches the new drive: pre-create off the dispatcher.
             var manifest = _session.Manifest; var full = System.IO.Path.GetFullPath(newPath);
             await Task.Run(() => System.IO.Directory.CreateDirectory(full));
             if (!ReferenceEquals(_session.Manifest, manifest) || !_session.Manifest.Current.Roots.Any(r => r.Id == row.RootId))
@@ -1036,7 +1036,7 @@ public sealed partial class StorageViewModel
     /// <summary>THE way a root becomes primary. The manifest's PrimaryRootId and the app's own primary folder
     /// (settings ChosenRoot / _backupRoot) must move together: BackupLayout binds the primary to the app's
     /// path and rewrites the root's PathHint from it, so a promotion that left _backupRoot on the OLD folder
-    /// silently re-pointed the new primary at the old drive (owner-hit 09-04: the promoted USB root took the
+    /// silently re-pointed the new primary at the old drive (the promoted USB root took the
     /// removed F: path, F: could not be re-added, and new downloads would have landed on F:).</summary>
     internal async Task PromoteToPrimaryAsync(string rootId)
     {
@@ -1047,13 +1047,13 @@ public sealed partial class StorageViewModel
     }
 
     /// <summary>The ONLY storage is going: clear the primary everywhere the app keeps it (manifest, shared root,
-    /// settings) so the app returns to the choose-folder state. Before 09-18 only the manifest was cleared and
+    /// settings) so the app returns to the choose-folder state. Before only the manifest was cleared and
     /// the next BackupLayout built on the still-set root re-created a "Primary" at the same path from a worker
-    /// thread (QA 09-18): the card never left, the files stayed counted, and a fresh import was queued.</summary>
+    /// thread: the card never left, the files stayed counted, and a fresh import was queued.</summary>
     private void ClearPrimary()
     {
         if (_session.Manifest is null) return;
-        _session.Manifest.Mutate(m => m.PrimaryRootId = null);   // (manifest gate 09-08)
+        _session.Manifest.Mutate(m => m.PrimaryRootId = null);   // 
         _session.BackupRoot = "";
         _session.Settings.ChosenRoot = null;
         _session.Settings.SaveSoon();
@@ -1065,8 +1065,8 @@ public sealed partial class StorageViewModel
     {
         _session.BackupRoot = full;
         _session.Settings.ChosenRoot = Grog.Core.Storage.GrogPaths.StorePath(full);
-        _session.Settings.SaveSoon();   // (UI-thread sweep 09-06 r2) debounced; flushed on exit/crash
-        GameRowViewModel.ArtDir = Grog.Core.Storage.GrogPaths.ResolveNoProbe(_session.BackupRoot).ArtDir;   // (UI-thread sweep 09-06 r2) path only, no disk probe
+        _session.Settings.SaveSoon();   // debounced; flushed on exit/crash
+        GameRowViewModel.ArtDir = Grog.Core.Storage.GrogPaths.ResolveNoProbe(_session.BackupRoot).ArtDir;   // path only, no disk probe
         _root.RaiseRootPathChanged();
         return Task.CompletedTask;
     }

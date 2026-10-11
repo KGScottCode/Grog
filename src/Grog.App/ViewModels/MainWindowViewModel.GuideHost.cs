@@ -33,7 +33,7 @@ public partial class MainWindowViewModel : IGuideHost
     GameRowViewModel? IGuideHost.SelectedRow { get => Library.SelectedRow; set => Library.SelectedRow = value; }
     AppSettings IGuideHost.Settings => _settings;
     void IGuideHost.Navigate(string view) => Navigate(view);
-    // (09-19) The primary's label reads the GRID's selection (SelectedRows), not SelectedRow: clearing only the
+    // The primary's label reads the GRID's selection (SelectedRows), not SelectedRow: clearing only the
     // latter left "Back up - 1 item" on the tour's Overview stop after the one-file demo.
     void IGuideHost.ClearGridSelection() { Library.SelectedRow = null; Library.ClearSelection(); Library.SelectedRows.Clear(); RaiseBarState(); }
     void IGuideHost.ScaffoldChosenFolder() => ScaffoldChosenFolder();

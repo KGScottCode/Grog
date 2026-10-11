@@ -92,15 +92,15 @@ public partial class MainWindowViewModel
     public string BarPrimaryLabel => Bar switch
     {
         // Same rule as the queue chip (1039): a REGISTERED account that is merely signed out needs
-        // "Log In", not "Connect Account" - the latter reads as "you have no account" (owner, mac 09-02).
+        // "Log In", not "Connect Account" - the latter reads as "you have no account".
         BarState.NotConnected => Overview.QueueConnectLabel,
         BarState.NoFolder     => "Choose a Folder",
         BarState.NeverScanned => "Scan GOG Library",
-        // "Skip LIBRARY Scan", not "Skip Scan" (owner 09-10): the folder-import dialog carries its own
+        // "Skip LIBRARY Scan", not "Skip Scan": the folder-import dialog carries its own
         // "Skip Scan & Add", which skips walking a FOLDER for existing backups. Two controls named the same
         // for two different scans is exactly the operational drift the vocabulary rule exists to stop.
         BarState.Scanning     => "Skip Library Scan",
-        // (09-22, owner) Files already waiting in the queue and nothing running (a failed run, a network drop, a
+        // Files already waiting in the queue and nothing running (a failed run, a network drop, a
         // finished drain) is a RESUME, not a fresh "Back up": the queue is kept and picks up where it stopped.
         BarState.WorkToDo     => QueueHeldResume ? $"Resume · {Grog.Core.Format.Plural.Of(Overview.ResumableCount, "file")}"
                                                  : Library.SyncBackupLabel,   // selection-aware ("Back up · 3 items")
@@ -159,9 +159,9 @@ public partial class MainWindowViewModel
         BarState.Scanning     => "Back up",
         BarState.WorkToDo     => Library.RescanLabel,
         BarState.UpToDate     => Library.RescanLabel,
-        // (09-19) Run verbs live here, queue verbs in the Downloading pane: Clear left this row for the pane's
+        // Run verbs live here, queue verbs in the Downloading pane: Clear left this row for the pane's
         // "Clear queue…", and the running state got the clean stop beside Pause.
-        // (09-22, owner) After the click it offers the way back: the "Finishing N files" status moves to the lede.
+        // After the click it offers the way back: the "Finishing N files" status moves to the lede.
         BarState.Running      => FinishingCurrent ? "Keep downloading" : "Finish current files",
         BarState.Paused       => _pausedInProgressCount > 0 ? "Finish current files" : Library.RescanLabel,
         _                     => Library.RescanLabel,
@@ -170,7 +170,7 @@ public partial class MainWindowViewModel
     /// <summary>LEFT slot is a live control (operational) vs a dimmed preview (setup ramp).</summary>
     public bool BarSecondaryIsLive => !BarInSetup;
     public bool BarSecondaryEnabled => BarSecondaryIsLive && !(Bar == BarState.Running && !FinishingCurrent && !CanDrain);
-    /// <summary>Nothing destructive sits in this row any more (09-19): Clear is the Downloading pane's.</summary>
+    /// <summary>Nothing destructive sits in this row any more: Clear is the Downloading pane's.</summary>
     public bool BarSecondaryIsDestructive => false;
 
     public System.Windows.Input.ICommand? BarSecondaryCommand => Bar switch
@@ -179,7 +179,7 @@ public partial class MainWindowViewModel
         BarState.UpToDate => CheckForUpdatesCommand,
         // Confirms first, exactly like the queue pane's Clear -- same action, same guard.
         BarState.Running  => FinishingCurrent ? KeepDownloadingCommand : FinishCurrentFilesCommand,
-        // (09-25, owner) Paused with files part-way down: finish just those, then pause again.
+        // Paused with files part-way down: finish just those, then pause again.
         BarState.Paused   => _pausedInProgressCount > 0 ? FinishPausedFilesCommand : CheckForUpdatesCommand,
         _                 => null,                      // setup ramp: dimmed preview, not clickable
     };

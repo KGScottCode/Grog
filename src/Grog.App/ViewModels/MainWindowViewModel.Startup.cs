@@ -67,7 +67,7 @@ public partial class MainWindowViewModel
             try { await EnsureServicesAsync(); }
             catch (Exception ex) when (ex is Grog.Core.Manifest.ManifestTooNewException or Grog.Core.Manifest.ManifestLockedException)
             {
-                // A newer Grog wrote this profile (09-08), or another program holds it open: say so and stop
+                // A newer Grog wrote this profile, or another program holds it open: say so and stop
                 // short of touching it. The wizard would bind a fresh library over the real one.
                 Log(ex.Message, isError: true);
                 Storage.ShowLocationError(ex.Message);
@@ -146,7 +146,7 @@ public partial class MainWindowViewModel
         MarkWelcomeShown();
         _settings.FirstRunGuideDone = true;
         _settings.SaveSoon();
-        // (UI-thread sweep 09-06 r2) scaffolding creates folders on the backup drive: off the dispatcher
+        // scaffolding creates folders on the backup drive: off the dispatcher
         // (best-effort, same as ScaffoldChosenFolder's own catch). The dashboard raise does not depend on it.
         var manifestSk = _manifest; var rootSk = _backupRoot;   // skipping the tour still accepts the default folder
         if (manifestSk is not null && !string.IsNullOrWhiteSpace(rootSk))

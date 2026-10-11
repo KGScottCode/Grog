@@ -22,7 +22,7 @@ using Grog.App.Runtime;
 namespace Grog.App.ViewModels;
 
 /// <summary>
-/// The Overview page's view model (S3.3, 09-08): the health signal and its tally, the lede and the deck, the
+/// The Overview page's view model: the health signal and its tally, the lede and the deck, the
 /// issues modal with its fix flows, the run readouts (throughput, ETA, speed graph, coverage table, extras
 /// segments), the download queue pane with its sort and pill, the activity log and the toast. Split into
 /// partials by those topics. It PRESENTS the run: the download machinery (DownloadFiltered, the engine host,
@@ -57,7 +57,7 @@ public sealed partial class OverviewViewModel : ObservableObject
 
     // Health signal: derived from durable state (corrupt, gone, offline fixed drives), not log chatter.
     // Counted ONCE per tally in RecomputeHealthTally (one pass over Items x Files) and read back from fields:
-    // these getters are hit ~20 times per RaiseHealth, and each used to be a full library walk (UI-thread sweep 09-06).
+    // these getters are hit ~20 times per RaiseHealth, and each used to be a full library walk.
     private int _healthCorruptCount, _healthGoneCount, _healthUnavailableCount;
     public int HealthCorruptCount => _healthCorruptCount;
     public int HealthGoneCount    => _healthGoneCount;
@@ -72,7 +72,7 @@ public sealed partial class OverviewViewModel : ObservableObject
     public bool ShowHealthBadge => HealthIssueCount > 0;
     /// <summary>The rail badge says what it counts when there is room ("10 issues"); collapsed to the icon
     /// rail it is the bare number. Issues outrank the queue count beside it, so they must never read as
-    /// "10 what?" (owner 09-02).</summary>
+    /// "10 what?".</summary>
     public string HealthBadgeText => HealthIssueCount == 0 ? ""
         : !_root.RailExpanded ? HealthIssueCount.ToString()
         : HealthIssueCount == 1 ? "1 issue" : $"{HealthIssueCount} issues";
@@ -81,7 +81,7 @@ public sealed partial class OverviewViewModel : ObservableObject
         : $"{HealthIssueCount} issues need attention: see Local Library Health on the Overview";
 
     // Rail row state: the rail is the summary, pages are the detail. Two readouts only.
-    /// <summary>(09-19) THE rail's library fraction, one reader for its three texts. Counts every game the
+    /// <summary>THE rail's library fraction, one reader for its three texts. Counts every game the
     /// library HOLDS that is in scope and not hidden (HiddenPolicy: the mature toggle and the per-game picks), so
     /// the rail agrees with a grid that hides them. It read the FILTERED grid (Library.Games): right for hidden
     /// games by accident, and wrong the moment a search or a filter narrowed the grid.</summary>
@@ -115,14 +115,14 @@ public sealed partial class OverviewViewModel : ObservableObject
             return $"{done}/{all} Games";
         }
     }
-    /// <summary>(UX 09-08 #6) Library rail second line, the verb spelled out: "{done} of {total} items backed
+    /// <summary>Library rail second line, the verb spelled out: "{done} of {total} items backed
     /// up". Same scoped counts as RailLibraryCount ("Items": games and movies both live in the grid).</summary>
     public string RailLibrarySub
     {
         get
         {
             var (done, all) = RailLibraryCounts();
-            // (Rail exceptions 09-09) "N new" used to ride INSIDE this line to avoid a third rail row. It was
+            // "N new" used to ride INSIDE this line to avoid a third rail row. It was
             // being truncated to "..." at the real rail width, so the count it existed to show was invisible.
             // It lives on its own line now; this one states the standing fact only, in the shape every rail
             // line uses ("N of M backed up").
@@ -130,7 +130,7 @@ public sealed partial class OverviewViewModel : ObservableObject
             return $"{done} of {all} backed up";
         }
     }
-    /// <summary>(Rail exceptions 09-09) Library's outstanding items, worst first. The rail is the one
+    /// <summary>Library's outstanding items, worst first. The rail is the one
     /// surface you see without opening a page, so it earns a line per exception rather than cramming them
     /// into one that then truncates. Ordered by the SAME grading Core uses (Fault above Attention): data you
     /// had and lost outranks data you have not fetched yet, so "missing" can never be hidden behind "new".
@@ -148,12 +148,12 @@ public sealed partial class OverviewViewModel : ObservableObject
         }
     }
 
-    /// <summary>(UX 09-08 #6) Overview rail second line: what the queue holds, in Files.</summary>
+    /// <summary>Overview rail second line: what the queue holds, in Files.</summary>
     public string RailOverviewSub
     {
         get
         {
-            // (09-22, owner) The rail line says what is HAPPENING, not only what is queued: downloading, moving, both.
+            // The rail line says what is HAPPENING, not only what is queued: downloading, moving, both.
             int n = DownloadQueueCount;
             int moving = _root.Storage.IsReorgRunning ? _root.Storage.MovesLeft : 0;
             if (_railSubOverride is { } forced) return forced;   // render harness only (see .Shots.cs)
@@ -161,19 +161,19 @@ public sealed partial class OverviewViewModel : ObservableObject
                       : _root.DownloadPaused && n > 0 ? $"paused, {Plural.Of(n, "file")} queued"
                       : n > 0 ? $"{Plural.Of(n, "file")} queued" : "";
             string mv = moving > 0 ? $"moving {Plural.Of(moving, "file")}" : "";
-            if (dl.Length > 0 && mv.Length > 0) return dl + "\n" + mv;   // one verb per line: the rail is narrow (owner 09-22)
+            if (dl.Length > 0 && mv.Length > 0) return dl + "\n" + mv;   // one verb per line: the rail is narrow
             if (dl.Length > 0) return dl;
             if (mv.Length > 0) return mv;
             return "nothing queued";
         }
     }
 
-    /// <summary>(09-22, owner) The rail line is amber while something is HAPPENING (downloading or moving), dim otherwise.</summary>
+    /// <summary>The rail line is amber while something is HAPPENING (downloading or moving), dim otherwise.</summary>
     public IBrush RailOverviewSubBrush =>
         (_root.DownloadRunning && !_root.DownloadPaused) || (_root.Storage.IsReorgRunning && _root.Storage.MovesLeft > 0)
             ? Palette.AccentAmber : Palette.InkDim;
 
-    internal void RaiseRailOverviewSub() { OnPropertyChanged(nameof(RailOverviewSub)); OnPropertyChanged(nameof(RailOverviewSubBrush)); }   // (UX 09-08 #6)
+    internal void RaiseRailOverviewSub() { OnPropertyChanged(nameof(RailOverviewSub)); OnPropertyChanged(nameof(RailOverviewSubBrush)); }   // 
 
     /// <summary>Primary's drive for the Folders row: "F:" on Windows, the last path segment elsewhere.</summary>
     public string RailPrimaryDrive
@@ -206,12 +206,12 @@ public sealed partial class OverviewViewModel : ObservableObject
         _stats = _manifest is null ? Grog.Core.Sync.LibraryStats.Empty
             : Grog.Core.Sync.LibraryStats.From(_manifest.Current, _library.EffectiveScope, _library.ShowLegacyMovies);
 
-        // PARTIAL bytes ride beside the tally for the coverage DATA figures only (owner call 2026-08-29:
+        // PARTIAL bytes ride beside the tally for the coverage DATA figures only (
         // one big installer must make the GB creep, not sit frozen for an hour). File COUNTS stay
         // settled-only - a half file is not a file you have - and the verdict/queue logic stays on the
         // two present-rules; this is display arithmetic, never a third "present" rule.
         _partialGameBytes = 0; _partialExtraBytes = 0;
-        // The fault counts and the drill-down rows come out of this same pass (UI-thread sweep 09-06): they are
+        // The fault counts and the drill-down rows come out of this same pass: they are
         // UNSCOPED (every file the manifest holds), so they are taken before the scope test below.
         _healthCorruptCount = 0; _healthGoneCount = 0; _healthUnavailableCount = 0;
         var corruptRows = new List<HealthFileRow>(); var goneRows = new List<HealthFileRow>();
@@ -293,7 +293,7 @@ public sealed partial class OverviewViewModel : ObservableObject
     private void RefreshLastRunFailure()
     {
         if (string.IsNullOrEmpty(_backupRoot)) { _lastRunFailure = null; _lastRunFailureRaw = null; _lastRunSummary = null; return; }
-        // Measured 09-05 (grog.log): this ran every 1 Hz tick and cost 0.9 s - GrogPaths.Resolve(root) probes
+        // Measured (grog.log): this ran every 1 Hz tick and cost 0.9 s - GrogPaths.Resolve(root) probes
         // the BACKUP ROOT on disk (a legacy-state check on the USB stick) and then the journal is read again.
         // The config dir never moves during a session and the journal only changes on a settle: resolve once,
         // re-read on change or at most every 5 s.
@@ -302,10 +302,10 @@ public sealed partial class OverviewViewModel : ObservableObject
         if (_lastRunReading) return;   // one read in flight; the dirty flag (still set) re-arms the next pass
         _lastRunDirty = false; _lastRunReadAt = now;
         // The two journal reads are file IO on the profile dir: on the pool, result posted back; the bound
-        // properties raise once the record actually changed (UI-thread sweep 09-06 r2). Same throttle as before.
+        // properties raise once the record actually changed. Same throttle as before.
         _lastRunReading = true;
-        int gen = _lastRunGen;   // a Dismiss while this read is in flight must win over its result (QA 09-30 C12)
-        bool runLive = _root.DownloadRunning;   // a live run's journal is not the last run (QA 09-30 C2); a crashed run's is
+        int gen = _lastRunGen;   // a Dismiss while this read is in flight must win over its result
+        bool runLive = _root.DownloadRunning;   // a live run's journal is not the last run; a crashed run's is
         _ = Task.Run(() =>
         {
             try
@@ -332,9 +332,9 @@ public sealed partial class OverviewViewModel : ObservableObject
                 if (changed)
                 {
                     OnPropertyChanged(nameof(HasRunFailure)); OnPropertyChanged(nameof(RunFailureIssueText));
-                    RaiseIssueCountSet();   // (09-26) the rail icon + badge read HasRunFailure too: the card cleared, the icon stayed red
+                    RaiseIssueCountSet();   // the rail icon + badge read HasRunFailure too: the card cleared, the icon stayed red
                     RebuildHealthChecks(retally: false);   // the "Last run" row reads _lastRunFailure
-                    RaiseLede();   // the headline counts the same failures: it read "1 file" beside "3 files failed" (walk 09-19)
+                    RaiseLede();   // the headline counts the same failures: it read "1 file" beside "3 files failed"
                     _root.Schedule.RaiseReadouts();              // the SCHEDULE card's last-run lines read the summary
                 }
             });
@@ -349,7 +349,7 @@ public sealed partial class OverviewViewModel : ObservableObject
 
     public bool HasRunFailure => _lastRunFailure is { Failed: > 0 };
 
-    /// <summary>(1280) A failed file that is back in the queue is addressed: the next Resume retries it, so the card
+    /// <summary>A failed file that is back in the queue is addressed: the next Resume retries it, so the card
     /// has nothing to say about it; only files that failed and are NOT queued remain a failure. A journal from before
     /// the keys were written names no file, so its count stands as is.</summary>
     private Grog.Core.Runs.RunOutcome? _lastRunFailureRaw;
@@ -364,14 +364,14 @@ public sealed partial class OverviewViewModel : ObservableObject
     private Grog.Core.Runs.RunOutcome? Unaddressed(Grog.Core.Runs.RunOutcome? failure)
     {
         if (failure is not { } f || f.FailedKeys.Length == 0 || _session.Manifest is not { } store) return failure;
-        // Distinct files (a file re-added mid-run can fail twice: two journal lines, one file; QA 09-30 C8). A condemned
+        // Distinct files (a file re-added mid-run can fail twice: two journal lines, one file;). A condemned
         // (Corrupt) file is counted and fixed under Corrupt already; counting it here too made one file two issues (C10).
         int left = store.Read(m => f.FailedFiles().Distinct().Count(k => !m.Downloads.Contains(k.GogId, k.FileKey)
             && m.ItemById(k.GogId)?.Files.FirstOrDefault(x => x.FileKey == k.FileKey)?.State != FileState.Corrupt));
         return left == 0 ? null : f with { Failed = left };
     }
 
-    /// <summary>(09-26) Every readout of <see cref="HealthIssueCount"/> moves together: the Health card, the Overview
+    /// <summary>Every readout of <see cref="HealthIssueCount"/> moves together: the Health card, the Overview
     /// rail icon and the rail badge. Any change to one of its inputs (here: the last-run failure) raises all of them.</summary>
     private void RaiseIssueCountSet()
     {
@@ -384,14 +384,14 @@ public sealed partial class OverviewViewModel : ObservableObject
     /// the journal's current.json is what ReadLastFailure reads on every refresh, so the file goes too.</summary>
     internal void ClearRunJournalFailure()
     {
-        // The summary stays: Dismiss clears the failure, not the Schedule card's "N of M files" line (QA 09-30 C12).
+        // The summary stays: Dismiss clears the failure, not the Schedule card's "N of M files" line.
         _lastRunFailure = null; _lastRunFailureRaw = null; _lastRunGen++; MarkLastRunDirty();
         OnPropertyChanged(nameof(HasRunFailure)); OnPropertyChanged(nameof(RunFailureIssueText));
         RaiseIssueCountSet();
         if (string.IsNullOrEmpty(_backupRoot)) return;
-        if (_root.DownloadRunning) return;   // the file on disk is the LIVE run's journal: never delete it from under the run (QA 09-30 C2)
+        if (_root.DownloadRunning) return;   // the file on disk is the LIVE run's journal: never delete it from under the run
         // Synchronous and BEFORE any requeue: a background delete landing after the next run wrote its own
-        // current.json would erase the live journal (review 09-06). The profile dir is local; one unlink.
+        // current.json would erase the live journal. The profile dir is local; one unlink.
         try
         {
             var cfg = Grog.Core.Storage.GrogPaths.ResolveConfigDir();
@@ -402,7 +402,7 @@ public sealed partial class OverviewViewModel : ObservableObject
     }
     public string RunFailureIssueText => _lastRunFailure is { } r
         ? $"{Grog.Core.Format.Plural.Of(r.Failed, "file")} failed in the last backup run."
-          + (r.ConnectionLost ? $" {char.ToUpperInvariant(ConnectionLostShort[0])}{ConnectionLostShort[1..]}; Resume picks up where they stopped."   // (09-22) the symptom, said plainly
+          + (r.ConnectionLost ? $" {char.ToUpperInvariant(ConnectionLostShort[0])}{ConnectionLostShort[1..]}; Resume picks up where they stopped."   // the symptom, said plainly
              : string.IsNullOrWhiteSpace(r.Reason) ? "" : $" {r.Reason!.TrimEnd('.')}.")
         : "";
     /// <summary>The one phrase every surface uses for a run that failed because the connection went away.</summary>
@@ -411,7 +411,7 @@ public sealed partial class OverviewViewModel : ObservableObject
     // The run's own lede: a transfer in flight headlines WHEN IT ENDS; when idle the state word leads.
 
     /// <summary>A finish clock only while a run is MOVING: after "Backup finished" with leftovers queued, the
-    /// meter's last rate projected a finish time over a stopped queue (owner-hit 09-17).</summary>
+    /// meter's last rate projected a finish time over a stopped queue.</summary>
     public bool RunLedeIsClock => _root.DownloadRunning && !_root.DownloadPaused && !_root.FinishingCurrent && FinishClockValue is not null
         && !_root.Storage.HasWaitingDrive;
     /// <summary>A catalog scan IS the current run while it lasts, so it outranks the download state here;
@@ -450,7 +450,7 @@ public sealed partial class OverviewViewModel : ObservableObject
         get
         {
             if (RunLedeIsScan) return "your GOG library for changes";
-            // (09-25) A run held up by a drive that is slow to answer says so, instead of an ETA that stops moving.
+            // A run held up by a drive that is slow to answer says so, instead of an ETA that stops moving.
             if (_root.DownloadRunning && !_root.DownloadPaused && _root.Storage.HasWaitingDrive)
                 return $"waiting for {_root.Storage.WaitingDrives} to respond";
             if (RunLedeIsClock)
@@ -469,7 +469,7 @@ public sealed partial class OverviewViewModel : ObservableObject
         }
     }
 
-    /// <summary>(UX 09-08 #2b) Paused is a state, not an error: the big word keeps its size and this dim
+    /// <summary>Paused is a state, not an error: the big word keeps its size and this dim
     /// inline reason says why nothing moves. Empty unless the run is paused (and no scan outranks it).</summary>
     public string RunLedePausedReason
     {
@@ -477,7 +477,7 @@ public sealed partial class OverviewViewModel : ObservableObject
         {
             if (RunLedeIsScan || !_root.DownloadPaused || !RunActive) return "";
             if (_root.PausedAfterFinish) return "\u2014 finished the files in progress";
-            if (_root.Storage.PausedForDriveLabel is { } drive) return $"\u2014 waiting for {drive} to be reconnected";   // (09-25)
+            if (_root.Storage.PausedForDriveLabel is { } drive) return $"\u2014 waiting for {drive} to be reconnected";   // 
             if (_root.QueueNeedsAccount) return "\u2014 waiting for you to connect an account";
             return _root.PausedSinceLastClose ? "\u2014 paused when Grog last closed" : "\u2014 paused by you";
         }
@@ -501,7 +501,7 @@ public sealed partial class OverviewViewModel : ObservableObject
     public string LedeValue    => Lede.Value;
     public string LedeHeadline => Lede.Headline;
     public string LedeDetail   => Lede.Detail;
-    /// <summary>How much of the gap is already queued, beside the headline (owner 08-31): "to Back Up"
+    /// <summary>How much of the gap is already queued, beside the headline: "to Back Up"
     /// alone reads as if nothing is planned when a queue is sitting right there. GAP LEDES ONLY - on
     /// the longer fault headlines (files gone) the note is off-topic and clipped into the transport
     /// buttons at 1366 (render-measured).</summary>
@@ -576,7 +576,7 @@ public sealed partial class OverviewViewModel : ObservableObject
             if (HealthFoldersBad)    return DeckFoldersText;
             if (HealthGoneCount > 0) return DeckMissingText;
             // The rail badge counts a failed run as an issue; the page must say the same thing in the same
-            // place, or the badge is a red number with no story (owner 09-02).
+            // place, or the badge is a red number with no story.
             if (HasRunFailure)       return RunFailureIssueText;
             // Stale knowledge IS an exception: it means the number above may be understated.
             if (HealthCheckStale)    return DeckOutdatedText;
@@ -684,8 +684,8 @@ public sealed partial class OverviewViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(HealthBadgeText));
         OnPropertyChanged(nameof(RailLibraryCount)); OnPropertyChanged(nameof(RailLibraryTip));
-        OnPropertyChanged(nameof(RailLibrarySub));   // (UX 09-08 #6)
-        OnPropertyChanged(nameof(RailLibraryExceptions));   // (Rail exceptions 09-09)
+        OnPropertyChanged(nameof(RailLibrarySub));   // 
+        OnPropertyChanged(nameof(RailLibraryExceptions));   // 
     }
 
     /// <summary>The Overview-facing readouts the 1 Hz dashboard pass raises (coverage table, byte rollup,
@@ -714,6 +714,6 @@ public sealed partial class OverviewViewModel : ObservableObject
         OnPropertyChanged(nameof(LibraryDoneText)); OnPropertyChanged(nameof(LibraryRemainText));
         OnPropertyChanged(nameof(LibraryFilesText));
         OnPropertyChanged(nameof(LibraryDoneCol)); OnPropertyChanged(nameof(LibraryRemainCol));
-        RebuildExtraSegments();   // legend tracks landed bytes at 1 Hz, but only diffs the bound list (UI-thread sweep 09-06)
+        RebuildExtraSegments();   // legend tracks landed bytes at 1 Hz, but only diffs the bound list
     }
 }

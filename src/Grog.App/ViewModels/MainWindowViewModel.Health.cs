@@ -31,7 +31,7 @@ public partial class MainWindowViewModel
     /// <summary>Device summary line: what THIS folder holds against what the whole in-scope library needs.
     /// Both halves come from one pass with one predicate -- the device's raw FileCount counts every file on
     /// the drive, not just in-scope ones, and mixing the two yields "holds 4/3". The figures are gathered by
-    /// the single per-root pass in RefreshBackupLocationsCore (UI-thread sweep 09-06); this only words them.</summary>
+    /// the single per-root pass in RefreshBackupLocationsCore; this only words them.</summary>
     internal static string CoverageLineFrom(int hereGames, int hereN, long hereB, int totalN, long totalB)
     {
         if (totalN == 0) return "";
@@ -39,7 +39,7 @@ public partial class MainWindowViewModel
         return $"{hereGames} game{(hereGames == 1 ? "" : "s")}  ·  {bytes}  ·  {hereN} / {totalN} files";
     }
 
-    /// <summary>(S2.2) Core's FixRun resets and front-queues the selection; what follows is the App's
+    /// <summary>Core's FixRun resets and front-queues the selection; what follows is the App's
     /// handoff: a paused queue stays staged, a live engine gets the fresh copies at the front, otherwise the
     /// queue is drained now.</summary>
     internal async Task RequeueProblemFiles(Grog.Core.Runs.FixSelector selector, string label,
@@ -75,7 +75,7 @@ public partial class MainWindowViewModel
         {
             // A run is under way: DownloadFiltered would refuse (Busy) and "fetching now" would be a lie.
             // Hand the fresh copies to the LIVE engine at the front, the way QueueRemainingForGame does.
-            // Only a LIVE task blocks a re-add: a Failed or Canceled one is exactly what is being re-queued (QA 09-19).
+            // Only a LIVE task blocks a re-add: a Failed or Canceled one is exactly what is being re-queued.
             var have = live.Snapshot
                 .Where(t => t.State is Grog.Core.Download.DownloadTaskState.Pending or Grog.Core.Download.DownloadTaskState.Active)
                 .Select(t => (t.File.GameGogId, t.File.FileKey)).ToHashSet();
@@ -98,7 +98,7 @@ public partial class MainWindowViewModel
             else live.SetMaxConcurrent(Settings.Xfer.MaxConcurrentDownloads);
             Log($"Re-queued {count} {label} file(s) at the top of the running queue.", category: LogCategory.Download);
             // These went in unplanned (no target, Fits by default): the whole-queue pass gives each a drive or
-            // takes it back out as won't-fit, instead of letting it fail disk-full a second time (QA 09-19).
+            // takes it back out as won't-fit, instead of letting it fail disk-full a second time.
             _ = Overview.ReplanQueueAsync("the re-queued files");
             RecomputeActivity();
             return;
@@ -133,7 +133,7 @@ public partial class MainWindowViewModel
     // ---- Health-card verify progress: inline bar + "Verifying N of M" text by the Rescan & Verify button ----
     [ObservableProperty] private bool _verifying;
 
-    /// <summary>Per-game "Rescan &amp; Verify": a FULL re-hash of every checksummed file of this one game (09-19).
+    /// <summary>Per-game "Rescan &amp; Verify": a FULL re-hash of every checksummed file of this one game.
     /// It was read-frugal (Unverified: a file already Verified got a size check only), so the user's explicit
     /// verify passed a Verified installer overwritten with same-size junk and toasted "all files verified".
     /// The user asked for THIS game; reading its files is the point. Automatic sweeps stay out of scope.
@@ -147,11 +147,11 @@ public partial class MainWindowViewModel
         if (!TryBeginActivitySlot("Can't verify right now")) return;
         try
         {
-            // Said at the start, not only at the end: a large game hashes for minutes with nothing else on screen (walk 7.2).
+            // Said at the start, not only at the end: a large game hashes for minutes with nothing else on screen.
             ShowToast($"Rescanning and verifying {group.Title}…", 0);
             await RunBusy($"Verifying {group.Title}…", async () =>
             {
-                // (S2.2) Core's VerifyRun; the per-game line and toast below stay this view's (silent host).
+                // Core's VerifyRun; the per-game line and toast below stay this view's (silent host).
                 var request = Grog.Core.Runs.VerifyRequest.ForItems(new[] { item.GogId }, Grog.Core.Verify.VerifyMode.FullRehash) with
                 {
                     Progress = p => Dispatcher.UIThread.Post(() =>
@@ -176,11 +176,11 @@ public partial class MainWindowViewModel
         finally { EndActivitySlot(); }
     }
 
-    /// <summary>(09-19, owner) Files an import adopted are verified at once, as a VISIBLE activity: the import
+    /// <summary>Files an import adopted are verified at once, as a VISIBLE activity: the import
     /// returns first so the grid and the outcome show immediately, then this takes the activity slot (so a
     /// Forget, a move or a run cannot land mid-verify), shows progress in the status bar and can be cancelled.
     /// Core's own in-import verify is for hosts with no UI (CLI, BackupRun); the App turns it off and calls this.</summary>
-    /// <remarks>(09-25) <paramref name="withChecksums"/> is the Add dialog's "Verify file integrity with GOG's
+    /// <remarks> <paramref name="withChecksums"/> is the Add dialog's "Verify file integrity with GOG's
     /// checksums": on, every adopted file is hashed against GOG's checksum (fetched when none is on record); off,
     /// a size check only.</remarks>
     internal async Task VerifyAdoptedAsync(Grog.Core.Runs.ImportRunResult result, bool withChecksums)

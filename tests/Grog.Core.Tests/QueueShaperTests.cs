@@ -9,7 +9,7 @@ using Grog.Core.Tests.Framework;
 
 namespace Grog.Core.Tests;
 
-/// <summary>(09-16) The queue moves offered around the won't-fit line: where "the bottom of the white group"
+/// <summary>The queue moves offered around the won't-fit line: where "the bottom of the white group"
 /// is, whether a red row could be lifted, and the greedy lift. All pure over a snapshot; the planner's own
 /// rules (routed root first, spill only outside Manual), so a move offered is never one the next re-plan undoes.</summary>
 [NewBatch]
@@ -42,7 +42,7 @@ public sealed class QueueShaperTests
 
     private static DeviceSpace[] Room(long p, long s) => new[] { new DeviceSpace("p", p, true), new DeviceSpace("s", s, true) };
 
-    /// <summary>(09-19) The row says "too big for this drive" only when a per-file ceiling is what stops the file:
+    /// <summary>The row says "too big for this drive" only when a per-file ceiling is what stops the file:
     /// over every online drive's ceiling, or over the ceiling of a drive that has the room. A full drive with no
     /// ceiling is plain "won't fit".</summary>
     [Test]
@@ -59,7 +59,7 @@ public sealed class QueueShaperTests
         Assert.Null(QueueShaper.FileLimitBlocking(big, new[] { stick with { IsOnline = false } }), "an offline drive says nothing");
     }
 
-    /// <summary>(09-19) GOG's "4 GB" label is 4 GiB exactly, one byte over FAT32's ceiling, on a part cut to fit under
+    /// <summary>GOG's "4 GB" label is 4 GiB exactly, one byte over FAT32's ceiling, on a part cut to fit under
     /// it. A label inside the rounding slack is planned as fitting and is unsettled until the CDN's length is known;
     /// a real length answers exactly, either way.</summary>
     [Test]
@@ -156,7 +156,7 @@ public sealed class QueueShaperTests
         Assert.Equal("False,True,True,True", string.Join(",", plan.Placements.Select(p => p.Fits)), "nothing pulled flips back");
     }
 
-    // 1283 (QA 09-30 A6): the pull-up spends the planner's cost (whole size off the partial's volume, plus the per-file
+    // 1283: the pull-up spends the planner's cost (whole size off the partial's volume, plus the per-file
     // overhead), not the bare remainder, so what it lifts the next plan keeps.
     [Test]
     public void PullUpWhatFits_spends_the_planners_cost_not_the_bare_remainder()

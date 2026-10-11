@@ -29,12 +29,12 @@ public sealed partial class OverviewViewModel
     public ObservableCollection<QueueRow> WaitingRows { get; } = new();
 
     // Head-of-queue pill: the first row that FITS (the active file when running, else the next up); null on an
-    // empty queue and when nothing queued fits (owner 09-19: a won't-fit file is never the pill; the frame then
+    // empty queue and when nothing queued fits (a won't-fit file is never the pill; the frame then
     // shows a placeholder and every red row sits under the divider). DownloadTail is everything after it, in queue order.
     [ObservableProperty] private QueueRow? _downloadPill;
     /// <summary>The rendered tail: QueueRows that fit, in queue order, then (while any row is flagged) the one
     /// <see cref="WontFitDividerRow"/>, then the won't-fit QueueRows in queue order when it is expanded. Typed
-    /// object because it holds two row kinds; the view picks the template by type (owner 09-16).</summary>
+    /// object because it holds two row kinds; the view picks the template by type.</summary>
     public Services.BulkObservableCollection<object> DownloadTail { get; } = new();
     public bool HasDownloadTail => DownloadTail.Count > 0;
     /// <summary>The single divider instance, so reconciling the tail never re-realizes it.</summary>
@@ -43,7 +43,7 @@ public sealed partial class OverviewViewModel
     // Stable QueueRow instances keyed by (GogId, FileKey) so RebuildQueue updates the bound tail incrementally.
     // Never Clear(): a collection Reset forces the list control to re-realize every row on each progress tick.
     private readonly Dictionary<(long, string), QueueRow> _rowCache = new();
-    /// <summary>(09-19) The rows are REUSED, so a fact they derive (hidden name, needs sign-in) is re-raised in place.</summary>
+    /// <summary>The rows are REUSED, so a fact they derive (hidden name, needs sign-in) is re-raised in place.</summary>
     internal void RefreshQueueRowFacts() { foreach (var r in _rowCache.Values.ToList()) r.Refresh(); DownloadPill?.Refresh(); }
     public bool DownloadPillIdle => DownloadPill is null;
     public string DownloadPillIdleText => DownloadQueueCount > 0 ? "Nothing in the queue fits" : "Queue files from your library to download";
@@ -78,17 +78,17 @@ public sealed partial class OverviewViewModel
     public bool HasQueuedWork => !QueueIsEmpty;
     /// <summary>Show Pause: there's queued work and it isn't already paused.</summary>
     /// <summary>Pause only while a run is MOVING. A run that finished with files still queued (won't-fit
-    /// leftovers) is idle, not paused: it showed "Pause" over a stopped queue (owner-hit 09-17).</summary>
+    /// leftovers) is idle, not paused: it showed "Pause" over a stopped queue.</summary>
     public bool ShowPauseDownloadQueue => HasQueuedWork && _root.DownloadRunning && !_root.DownloadPaused;
     /// <summary>Show Resume: there's queued work and it's paused - and an account exists to serve it.
-    /// With none connected, Resume is a lie; Connect Account takes its slot (owner 08-31).</summary>
-    /// (09-19) PAUSED shows Resume AT ONCE. It waited for the run to unwind (DownloadRunning false), and the unwind
+    /// With none connected, Resume is a lie; Connect Account takes its slot.</summary>
+    /// PAUSED shows Resume AT ONCE. It waited for the run to unwind (DownloadRunning false), and the unwind
     /// flushes partial files: on a slow USB drive the slot sat EMPTY for seconds after the click, no Pause and no
     /// Resume. A Resume clicked during the unwind is safe: ResumeDownloads waits the unwind out before it starts.
     public bool ShowResumeDownloadQueue => HasQueuedWork && (!_root.DownloadRunning || _root.DownloadPaused) && !_root.QueueNeedsAccount;
     public bool ShowQueueConnectAccount => HasQueuedWork && (!_root.DownloadRunning || _root.DownloadPaused) && _root.QueueNeedsAccount;
     /// <summary>With registered accounts merely signed out the fix is a Log In; with none registered
-    /// it is a full connect. One button, the honest verb (owner 08-31).</summary>
+    /// it is a full connect. One button, the honest verb.</summary>
     /// <summary>The queue's pause/resume/connect button states as ONE set (S3.3).</summary>
     internal void RaiseDownloadControls()
     {
@@ -126,7 +126,7 @@ public sealed partial class OverviewViewModel
     public string QueueSortGlyphSize => SortGlyph(QueueSortKey.Size);
     private string SortGlyph(QueueSortKey k) => _queueSortState.Glyph(k);
     // Which pill is the active sort (neutral "selected" emphasis; the amber arrow is separate).
-    // Order has NO pill (owner 09-10: unclear what it meant, and it cost a row that wrapped at 1366). It is
+    // Order has NO pill (unclear what it meant, and it cost a row that wrapped at 1366). It is
     // still the resting key and still what a manual drag resets to -- MoveQueueRow does that -- so the way
     // back to hand-ordered is the drag itself, which is the gesture that earns it.
     public bool QueueSortIsGame => QueueSort == QueueSortKey.Game;
@@ -174,7 +174,7 @@ public sealed partial class OverviewViewModel
     /// needed). Event-driven: called on header click or enqueue only -- a draining queue stays in order.</summary>
     /// <param name="replan">Re-check what fits for the new order. TRUE only for an explicit header click.
     /// At run start the plan was just made by Place over this very queue, so re-planning there is a full
-    /// placement walk that can only produce the answer it already has (owner 09-10: queue membership changing
+    /// placement walk that can only produce the answer it already has (queue membership changing
     /// is not a reason to re-plan; free space changing is).</param>
     internal void ApplyQueueSortToModel(bool replan = false)
     {
@@ -193,7 +193,7 @@ public sealed partial class OverviewViewModel
             QueueSortKey.Game => snap.OrderBy(x => L(x)?.Title ?? "", StringComparer.OrdinalIgnoreCase)
                                      .ThenBy(x => F(x)?.Name ?? "", StringComparer.OrdinalIgnoreCase),
             // Kind: only the BUCKET flips with direction; names stay A-Z inside each bucket. A whole-list
-            // Reverse ran the names Z-A under "Extras first" (09-13; the pitfall the old Storage sort named).
+            // Reverse ran the names Z-A under "Extras first".
             QueueSortKey.Kind => snap.OrderBy(x => (F(x)?.Kind == FileKind.Extra) == _queueSortState.Asc ? 1 : 0)
                                      .ThenBy(x => F(x)?.Name ?? "", StringComparer.OrdinalIgnoreCase),
             QueueSortKey.Size => snap.OrderBy(x => F(x)?.PlanSizeBytes ?? 0L),
@@ -201,7 +201,7 @@ public sealed partial class OverviewViewModel
         };
         var list = ordered.ToList();
         if (!_queueSortState.Asc && QueueSort != QueueSortKey.Kind) list.Reverse();
-        // Deliberately NO special-casing of in-flight files (owner 09-02): a re-sort takes effect
+        // Deliberately NO special-casing of in-flight files: a re-sort takes effect
         // immediately and preempts whatever it demotes - that is the documented contract of the queue.
 
         // Idempotent guard: already in this order -> nothing to do (no engine churn / preempt).
@@ -215,23 +215,23 @@ public sealed partial class OverviewViewModel
         Services.UiWatch.Time("ApplyQueueSort.EngineReorder", () => _liveEngine?.Reorder(order));
         // Placement is ORDER-DEPENDENT (the planner walks the queue and consumes free space greedily), so the
         // new order changes what fits. Recompute it over the whole queue, or the pane shows the order you
-        // asked for on top of the previous order's fit decisions (owner 09-10).
+        // asked for on top of the previous order's fit decisions.
         if (replan) ReplanAfterSort();
         _manifest?.SaveSoon();   // ordering only: debounced, coalesces with the drag that follows
     }
 
     /// <summary>Re-decide what fits for the order just applied. Whole-queue, so a file that was won't-fit can
     /// come back: the per-file re-plan during a run cannot do that (it only sees what the engine holds). Runs
-    /// with or without a live engine (09-13): idle, the records are rewritten so the red rows match the order.</summary>
+    /// with or without a live engine: idle, the records are rewritten so the red rows match the order.</summary>
     private void ReplanAfterSort() => _ = ReplanQueueAsync("the new order");
 
     /// <summary>Re-check every queued row's target and fit now, run live or idle, and repaint every surface
     /// from the rewritten flags. <paramref name="why"/> names the trigger in the log ("the new order", "the
-    /// pinned games"). (09-14) Shared with the Storage page's game pins.</summary>
+    /// pinned games"). Shared with the Storage page's game pins.</summary>
     /// <returns>True when a plan ran over the newest order; false when it was skipped (logged). A request that
     /// lands while a plan is in flight is coalesced into ONE trailing run, and its caller awaits that run, so
     /// nobody paints a verdict, a glow or a scroll against a list the trailing run is about to regroup
-    /// (review 09-16).</returns>
+    /// .</returns>
     internal Task<bool> ReplanQueueAsync(string why)
     {
         if (_manifest is null) return Task.FromResult(false);
@@ -245,7 +245,7 @@ public sealed partial class OverviewViewModel
     }
     private Task<bool>? _replanLoop;
 
-    /// <summary>(09-25) True while the re-plan publishes its result through the Storage refresh: that refresh must
+    /// <summary>True while the re-plan publishes its result through the Storage refresh: that refresh must
     /// not ask for another re-plan.</summary>
     internal bool PublishingPlan { get; private set; }
     /// <summary>The newest plan's per-device leftover: the one "still free" figure an idle refresh shows.</summary>
@@ -282,12 +282,12 @@ public sealed partial class OverviewViewModel
         {
             // Disk probes OFF the UI thread (a spun-down USB drive stalls DriveInfo for seconds); the mutation
             // back on it, so RecomputeActivity's observable writes stay on the dispatcher.
-            // BackupLayout's constructor probes each root folder (Directory.Exists): off the UI thread too (09-25).
+            // BackupLayout's constructor probes each root folder (Directory.Exists): off the UI thread too.
             var spaces = await Task.Run(() => new Grog.Core.Volumes.VolumeService(manifest, _session.PendingWrites)
                 .DeviceSpaces(new Grog.Core.Volumes.BackupLayout(manifest.Current, rootPath)));
             // NOT under the gate: ReplanWholeQueue takes it itself, and must touch the engine without it
-            // (engine events land in RunSettler, which takes the settler lock then the gate -- owner-hit 09-10).
-            // OFF the UI thread (walk 09-25: 5 to 24 s here froze the sort click). The run's own mid-run re-plan
+            // (engine events land in RunSettler, which takes the settler lock then the gate --).
+            // OFF the UI thread (5 to 24 s here froze the sort click). The run's own mid-run re-plan
             // already runs this on a pool thread: it takes the gate itself and calls the engine without it.
             var result = await Task.Run(() => Grog.Core.Runs.BackupQueueBuilder.ReplanWholeQueueDetailed(manifest, spaces, engine));
             if (result.TotalMs >= 500)
@@ -295,7 +295,7 @@ public sealed partial class OverviewViewModel
             if (result.Changed > 0)
             {
                 _root.Log($"Re-checked what fits for {why}: {result.Changed} file(s) changed.", false, LogCategory.Download);
-                Runtime.ManifestSaves.Default.SaveInBackground(manifest, "re-plan");   // the flags are persisted facts (09-17)
+                Runtime.ManifestSaves.Default.SaveInBackground(manifest, "re-plan");   // the flags are persisted facts
             }
             LastPlanRoom = result.FreeAfter;
             Services.UiWatch.Time("SetRoomLeft", () => SetRoomLeft(result.FreeAfter));   // the plan's own leftover: the one "still free" figure
@@ -309,12 +309,12 @@ public sealed partial class OverviewViewModel
         catch (Exception ex) { _root.Log($"Fit re-check skipped: {ex.Message}", false, LogCategory.Download); return false; }
     }
 
-    /// <summary>The per-file ceiling that stops a red row, or null when it is simply out of room (09-19).</summary>
+    /// <summary>The per-file ceiling that stops a red row, or null when it is simply out of room.</summary>
     private string? FileLimitOf(QueueRow r) => Grog.Core.Runs.QueueShaper.FileLimitBlocking(r.Task.File, WontFitDivider.RoomByRoot);
 
     /// <summary>Publish the room left per device to the divider and re-evaluate the row menus. "Fits" is a
     /// per-device test (the planner needs ONE drive with the room), so the divider's number and the menus' gate
-    /// use the largest single-device leftover, never the sum across drives (review 09-16).</summary>
+    /// use the largest single-device leftover, never the sum across drives.</summary>
     internal void SetRoomLeft(IReadOnlyList<Grog.Core.Volumes.DeviceSpace> freeAfter)
     {
         WontFitDivider.SetRoom(freeAfter);
@@ -327,10 +327,10 @@ public sealed partial class OverviewViewModel
     internal void RebuildQueue() => Services.UiWatch.Time("RebuildQueue", RebuildQueueCore);
     private void RebuildQueueCore()
     {
-        // (09-20) Split timings, logged only when the pass is slow: a 550 ms rebuild stalled the window on Pause and
+        // Split timings, logged only when the pass is slow: a 550 ms rebuild stalled the window on Pause and
         // the first guess at its cause (rows re-created at the edges of a run) was wrong. Measure, then fix.
         var sw = System.Diagnostics.Stopwatch.StartNew(); long tRows = 0, tGames = 0, tTail = 0, tReconcile = 0;
-        // (09-25) The phase that ate the time moved around between identical passes: a garbage collection or a lock is
+        // The phase that ate the time moved around between identical passes: a garbage collection or a lock is
         // the suspect, so both are measured into the same line.
         var gcPause0 = GC.GetTotalPauseDuration(); int gc2_0 = GC.CollectionCount(2); long lockWaits0 = System.Threading.Monitor.LockContentionCount;
         // ActiveRows/WaitingRows aren't rendered (only counts + pill + tail source), so rebuilding is cheap.
@@ -359,14 +359,14 @@ public sealed partial class OverviewViewModel
                 // a display task derived from the manifest so the row renders with no engine.
                 // Only a REAL partial counts as received. LocalSizeBytes survives a removed drive on purpose
                 // (re-import matching), so seeding from it made a fresh queue read "0 of 790 files · 53.67 GB
-                // of 542.63 GB" after a device delete (owner-hit 09-13).
+                // of 542.63 GB" after a device delete.
                 long received = file.HasPartial ? file.PartialBytes ?? 0 : 0;
                 // Reuse the cached row -> the bound tail sees only real add/remove/move deltas, never a churn of
                 // new objects. A live row is kept while it wraps the engine's same instance; a DISPLAY row (no
-                // live task) is kept and its task refreshed in place (09-16: a new display task per rebuild made a
+                // live task) is kept and its task refreshed in place (a new display task per rebuild made a
                 // new row per rebuild, and the whole tail re-realized on every pass).
                 _rowCache.TryGetValue(key, out var row);
-                // The row is the FILE's; the task under it changes at the edges of a run (09-19: it was replaced
+                // The row is the FILE's; the task under it changes at the edges of a run (it was replaced
                 // there, and the whole tail re-realized on every Pause and Resume).
                 if (row is not null && lt is not null && !ReferenceEquals(row.Task, lt)) row.Rebind(lt, live: true);
                 else if (row is not null && lt is null && row.IsLiveTask)
@@ -389,7 +389,7 @@ public sealed partial class OverviewViewModel
                     row.Task.TargetRootId = q.TargetRootId; row.Task.BytesTotal = file.PlanSizeBytes; row.Task.BytesReceived = received;
                     row.Refresh();
                 }
-                row.WontFit = !q.Fits;   // the persisted entry is the one source: red row, in place (09-11)
+                row.WontFit = !q.Fits;   // the persisted entry is the one source: red row, in place
 
                 (isActive ? ActiveRows : WaitingRows).Add(row);
             }
@@ -409,7 +409,7 @@ public sealed partial class OverviewViewModel
         }
 
         tGames = sw.ElapsedMilliseconds;
-        // Pill = head of the queue; tail = the rest IN QUEUE ORDER, active or not (owner 09-02). Position is
+        // Pill = head of the queue; tail = the rest IN QUEUE ORDER, active or not. Position is
         // priority and the engine preempts anything running outside the top-N window, so the pane shows the
         // one true order and an in-flight row is recognizable by its DOWNLOADING readout, not by being
         // hoisted - hoisting is exactly what read as "my file got reordered".
@@ -418,14 +418,14 @@ public sealed partial class OverviewViewModel
             foreach (var q in _manifest.Current.Downloads.Snapshot())
                 if (_rowCache.TryGetValue((q.GogId, q.FileKey), out var r)) all.Add(r);
         // The pill is "what is happening now": the first row that WILL move, or nothing. A won't-fit row is
-        // never the pill, not even when every row is red (owner 09-19); it lives under the divider.
+        // never the pill, not even when every row is red; it lives under the divider.
         DownloadPill = all.FirstOrDefault(r => !r.WontFit);
         // The DRAWN tail groups: fitting rows first (queue order), then the divider, then the red rows (queue
         // order) only while the divider is expanded. Grouping is display-only; `all` keeps the persisted order
-        // and MoveQueueRow maps a drop back onto it (owner 09-16).
+        // and MoveQueueRow maps a drop back onto it.
         var tailRows = all.Where(r => !ReferenceEquals(r, DownloadPill)).ToList();
         var desiredTail = new List<object>(tailRows.Count + 1);
-        // Count over ALL rows: the pill is never red (09-19), so this equals the red rows under the divider.
+        // Count over ALL rows: the pill is never red, so this equals the red rows under the divider.
         long redBytes = 0; int redCount = 0;
         foreach (var r in all)
             if (r.WontFit) { redCount++; redBytes += r.RemainingBytes; r.FileLimit = FileLimitOf(r); }   // same field as the Storage tally's unplaceable bytes
@@ -444,16 +444,16 @@ public sealed partial class OverviewViewModel
         OnPropertyChanged(nameof(HasActive)); OnPropertyChanged(nameof(HasWaiting));
         OnPropertyChanged(nameof(QueueIsEmpty)); OnPropertyChanged(nameof(QueueStatsText));
         long tN0 = sw.ElapsedMilliseconds; RaiseRunStats(); long tRunStats = sw.ElapsedMilliseconds - tN0;
-        // The headline's queued note and the Files & issues card carry the queue too (owner 08-31).
+        // The headline's queued note and the Files & issues card carry the queue too.
         // retally:false -- the queue rebuild changes no file state; the tally (a full library walk) is redone by
-        // the dashboard pass that follows every settle and every manifest refresh (UI-thread sweep 09-06 r2).
+        // the dashboard pass that follows every settle and every manifest refresh.
         OnPropertyChanged(nameof(LedeQueuedNote));
         long tN1 = sw.ElapsedMilliseconds; RebuildHealthChecks(retally: false); long tChecks = sw.ElapsedMilliseconds - tN1;
         OnPropertyChanged(nameof(ActivityTabHeader));
         OnPropertyChanged(nameof(HasQueuedWork));
         OnPropertyChanged(nameof(DownloadQueueCount)); OnPropertyChanged(nameof(DownloadCountText));
         long tN2 = sw.ElapsedMilliseconds;
-        _root.RaiseBarState();   // "Resume · N files" vs "Back up" follows the queue count (owner 09-22)
+        _root.RaiseBarState();   // "Resume · N files" vs "Back up" follows the queue count
         _root.RaiseDownloadControls();
         long tBar = sw.ElapsedMilliseconds - tN2;
         if (sw.ElapsedMilliseconds >= 250)
@@ -472,7 +472,7 @@ public sealed partial class OverviewViewModel
         OnPropertyChanged(nameof(ShowMoveCount));
     }
 
-    /// <summary>The Primary-first pill hides without a secondary (1117); a sort left on it would show no pill
+    /// <summary>The Primary-first pill hides without a secondary; a sort left on it would show no pill
     /// selected and no glyph. Back to queue order, the resting state.</summary>
 
     public ObservableCollection<LogEntry> LogEntries { get; } = new();
@@ -526,7 +526,7 @@ public sealed partial class OverviewViewModel
     public string ToastActionLabel => _toastFix.RetryQueue ? "Retry" : "Fix";
     /// <summary>Warnings and errors read larger: they exist to be noticed (readability law -- an alert in
     /// caption type is an alert designed to be missed).</summary>
-    public double ToastFontSize => ToastSeverity > 0 ? 17 : 15;   // info at 12 was below the readability floor (owner, 09-04)
+    public double ToastFontSize => ToastSeverity > 0 ? 17 : 15;   // info at 12 was below the readability floor
     /// <summary>Alerts get extra vertical body (roughly two text rows of air) so the card itself is
     /// bigger and harder to miss; info toasts keep their compact shape.</summary>
     public Avalonia.Thickness ToastPadding => ToastSeverity > 0 ? new Avalonia.Thickness(22, 34) : new Avalonia.Thickness(20, 20);
@@ -577,7 +577,7 @@ public sealed partial class OverviewViewModel
     {
         _toastGen++; ToastVisible = false;
         _root.Navigate(_toastFix.View);
-        if (_toastFix.RetryQueue) RetryRunFailureCommand.Execute(null);   // retries the failed files, not just Resume over whatever is queued (QA 09-30 C1)
+        if (_toastFix.RetryQueue) RetryRunFailureCommand.Execute(null);   // retries the failed files, not just Resume over whatever is queued
     }
 
     /// <summary>The pill's eyebrow (STARTING / UP NEXT / PAUSED) follows the run flags the shell owns.</summary>

@@ -28,7 +28,7 @@ public readonly record struct GuideState(
     IReadOnlySet<string>? Acked = null,
     // The demo file the back-up stop points at is on disk. Distinct from HasBackedUpAnything: a library that
     // already holds files from earlier runs must not make the stop claim "that file is backed up" while the
-    // freshly picked file still shows its download arrow (owner 09-02).
+    // freshly picked file still shows its download arrow.
     bool FirstFileBackedUp = false,
     // The Cloud Saves page has rows, so its Download-all button (the cloud stop's usual target) is on screen.
     bool HasCloudSaves = false,

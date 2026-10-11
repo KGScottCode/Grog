@@ -37,7 +37,7 @@ public sealed class BackupQueueBuilderTests
     private static List<string> Keys(LibraryManifest m, BackupRunOptions o)
         => BackupQueueBuilder.Build(m, null, o).Select(x => x.File.FileKey).OrderBy(k => k).ToList();
 
-    // (09-19, walk pass 3) "Back up this game" with a queue already standing: two of its three files ran, the third
+    // "Back up this game" with a queue already standing: two of its three files ran, the third
     // stayed at position 46 because the mid-run re-plan admits the whole queue in PERSISTED order.
     [Test]
     public void A_picked_games_files_go_to_the_front_of_a_standing_queue_in_their_own_order()
@@ -69,7 +69,7 @@ public sealed class BackupQueueBuilderTests
         public string? ResolveCloudDir(string slug, out string rootId) { rootId = "p"; return null; }
     }
 
-    /// <summary>(QA 09-18) The resume drain applies the unplugged-home-drive rule the fresh path has: an Outdated
+    /// <summary>The resume drain applies the unplugged-home-drive rule the fresh path has: an Outdated
     /// file whose drive is away is not fetched onto another root (that splits one file across two roots and
     /// strands its Old Versions step). It stays queued and waits.</summary>
     [Test]
@@ -137,7 +137,7 @@ public sealed class BackupQueueBuilderTests
     [Test]
     public void Replan_moves_a_pending_whole_game_onto_the_primary_once_room_appears()
     {
-        // Owner, 09-05: 1.09 GB left on the primary at the end of a run, three games under that size queued for the
+        // Owner,: 1.09 GB left on the primary at the end of a run, three games under that size queued for the
         // secondary. The first plan reserved with rounded-up sizes; a re-plan against real free space fixes it.
         var m = Lib();
         m.Roots.Add(new BackupRoot { Id = "p", Label = "Primary" }); m.Roots.Add(new BackupRoot { Id = "s", Label = "Secondary" });

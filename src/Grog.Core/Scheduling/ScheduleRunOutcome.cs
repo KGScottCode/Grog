@@ -15,7 +15,7 @@ public enum ScheduleRunOutcome
     /// <summary>The run itself errored out.</summary>
     Failed,
     /// <summary>The user stopped it (Stop / Clear queue).</summary>
-    // JSON name pinned to the pre-09-01 spelling so saved schedules and run journals still read.
+    // JSON name pinned to the pre- spelling so saved schedules and run journals still read.
     [JsonStringEnumMemberName("Cancelled")] Canceled,
     /// <summary>Never started: no account was signed in when the slot came round.</summary>
     Skipped,

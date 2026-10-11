@@ -23,7 +23,7 @@ public enum CloseWindowAction
 public sealed class AppSettings
 {
     // --- persisted fields ---
-    /// <summary>Settings shape version (09-08). Migrations key off this instead of ad-hoc flags from here on.</summary>
+    /// <summary>Settings shape version. Migrations key off this instead of ad-hoc flags from here on.</summary>
     public int Schema { get; set; } = 1;
     public string? ChosenRoot { get; set; }
     // LEGACY: the backup-scope block (IncludeExtras/IncludeGames/Languages/ExtraLanguages/Platforms + *Chosen)
@@ -67,16 +67,16 @@ public sealed class AppSettings
     /// touches no user data and costs no disk.</summary>
     public bool CheckGrogUpdatesOnLaunch { get; set; } = true;
     /// <summary>Max concurrent downloads. Kept modest -- Grog is a guest on GOG's servers.</summary>
-    // Default 2 (owner call 09-01): on strings of tiny files the per-file round-trips dominate, and a
+    // Default 2: on strings of tiny files the per-file round-trips dominate, and a
     // second worker overlaps them; on big files two streams just share the pipe, which is harmless.
     public int MaxConcurrentDownloads { get; set; } = 2;
 
-    /// <summary>Auto simultaneous downloads (default ON, owner call 09-01): the engine's worker count
+    /// <summary>Auto simultaneous downloads: the engine's worker count
     /// follows ConcurrencyAdvisor's read of the queue head, re-evaluated per completion. Off = the
     /// number above is obeyed exactly.</summary>
     public bool AutoConcurrency { get; set; } = true;
 
-    /// <summary>Morning-after notice (PO, 09-01): the first backup that ran UNATTENDED (a scheduled slot,
+    /// <summary>Morning-after notice: the first backup that ran UNATTENDED (a scheduled slot,
     /// no human watching) leaves a one-line account of what it did on the Overview until dismissed. Empty
     /// = nothing to show; Noticed = it has fired once and never will again.</summary>
     public string FirstUnattendedRunSummary { get; set; } = "";
@@ -114,7 +114,7 @@ public sealed class AppSettings
     /// Persistent policy, not a transient filter.</summary>
     public bool HideMatureContent { get; set; }
 
-    /// <summary>(09-26, owner) Games the user chose to Keep visible in the mature review; they are exempt from
+    /// <summary>Games the user chose to Keep visible in the mature review; they are exempt from
     /// <see cref="HideMatureContent"/> only (a per-game Hide still applies).</summary>
     public List<long> MatureKeptIds { get; set; } = new();
     /// <summary>Age cutoff: a game hides when GOG's own rating is >= this (the other boards are shown, never
@@ -169,11 +169,11 @@ public sealed class AppSettings
     /// games leaving the library). Same store as the mark warning: a prompt preference, not a backup fact.</summary>
     public bool SuppressRemoveAccountConfirm { get; set; }
 
-    /// <summary>"Don't ask again" for the banner's "Remove them from the queue" (won't-fit rows, 09-11). A
+    /// <summary>"Don't ask again" for the banner's "Remove them from the queue". A
     /// prompt preference, so it lives here, per machine.</summary>
     public bool SuppressRemoveWontFitConfirm { get; set; }
 
-    /// <summary>"Don't ask again" for Delete downloaded files (right-click, 09-11). Per machine.</summary>
+    /// <summary>"Don't ask again" for Delete downloaded files. Per machine.</summary>
     public bool SuppressDeleteConfirm { get; set; }
 
     /// <summary>User-chosen width (px) of the EXPANDED rail, set by dragging the splitter; the collapsed rail
@@ -188,7 +188,7 @@ public sealed class AppSettings
     /// <summary>Close/minimize to the system tray so the in-app scheduler keeps running with no window.
     /// Opt-in (default off): needs a tray, which bare GNOME lacks.</summary>
     public bool MinimizeToTray { get; set; }
-    /// <summary>(09-22) The Library grid's sort, kept across restarts: the column's SortMemberPath and direction.</summary>
+    /// <summary>The Library grid's sort, kept across restarts: the column's SortMemberPath and direction.</summary>
     public string LibrarySortPath { get; set; } = "Title";
     public bool LibrarySortDescending { get; set; }
     /// <summary>True once the Minimize-to-tray default has been applied or the user touched the toggle, so
@@ -239,7 +239,7 @@ public sealed class AppSettings
         // Normalize out-of-range persisted values so the rest of the app never re-clamps (UI clamps 1..5 too).
         s.MaxConcurrentDownloads = Math.Clamp(s.MaxConcurrentDownloads, 1, 5);
         s.DownloadLimitKBps = Math.Clamp(s.DownloadLimitKBps, 32, 1_000_000);
-        // One-time 1->2 bump for pre-change profiles (owner call 09-01); see the marker's doc comment.
+        // One-time 1->2 bump for pre-change profiles; see the marker's doc comment.
         if (!s.ConcurrencyDefaultMigrated)
         {
             if (s.MaxConcurrentDownloads == 1) s.MaxConcurrentDownloads = 2;
@@ -259,7 +259,7 @@ public sealed class AppSettings
         return null;
     }
 
-    // (UI-thread sweep 09-06) All file writes go through one static gate: the file is one even when two
+    // All file writes go through one static gate: the file is one even when two
     // AppSettings instances exist (the window's layout read-modify-write), so a debounced worker write and a
     // synchronous Save() can never interleave and tear the file.
     private static readonly object _ioLock = new();
@@ -278,14 +278,14 @@ public sealed class AppSettings
         string json;
         try { json = Snapshot(); } catch { return; }
         // Under the IO lock end to end: a worker flush that had already taken its (older) snapshot could
-        // otherwise write AFTER this one and win (verification 09-06). Sequence numbers settle it: a
+        // otherwise write AFTER this one and win. Sequence numbers settle it: a
         // snapshot only lands if nothing newer has been written.
         long seq = System.Threading.Interlocked.Increment(ref _seq);
         lock (_pendingLock) { _pending = null; }
         WriteJson(json, this, seq);
     }
 
-    /// <summary>(UI-thread sweep 09-06) Debounced, off-thread save for high-frequency setters (splitter drags):
+    /// <summary>Debounced, off-thread save for high-frequency setters (splitter drags):
     /// a snapshot is serialized NOW on the caller's thread, so a later mutation cannot tear the file, and the
     /// newest snapshot within ~500 ms is written once on a worker thread.</summary>
     public void SaveSoon()
@@ -302,7 +302,7 @@ public sealed class AppSettings
         }
     }
 
-    /// <summary>(UI-thread sweep 09-06) Write a pending debounced snapshot synchronously, if any. Called at
+    /// <summary>Write a pending debounced snapshot synchronously, if any. Called at
     /// shutdown and before any read-modify-write Load, so nothing queued is lost or read stale.</summary>
     public static void FlushPendingSave()
     {

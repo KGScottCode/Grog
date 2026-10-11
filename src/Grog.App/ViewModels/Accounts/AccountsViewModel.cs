@@ -19,7 +19,7 @@ using Grog.App.Runtime;
 namespace Grog.App.ViewModels;
 
 /// <summary>
-/// The Accounts page's view model (S3.4, 09-08): the account cards, add / log in / log out / remove, the
+/// The Accounts page's view model: the account cards, add / log in / log out / remove, the
 /// primary registration, the SIGN-IN SECURITY card (token protection snapshot, plaintext opt-in), the rail's
 /// account dots and the connected-owner answer the library rows read. The interactive sign-in itself
 /// (Connect / ConnectCore, the scrim, RequireAccount, IsConnected) stays on the shell as session
@@ -60,7 +60,7 @@ public sealed partial class AccountsViewModel : ObservableObject
 
     /// <summary>Rebuild the Accounts panel rows from the manifest. Fire-and-forget wrapper over
     /// <see cref="RefreshAccountsAsync"/> for the many call sites that need no completion; the async body
-    /// carries its own try/catch (UI-thread sweep 09-06 r2).</summary>
+    /// carries its own try/catch.</summary>
     internal void RefreshAccounts() => _ = RefreshAccountsAsync();
 
     /// <summary>Generation stamp: a refresh that finishes after a newer one started applies nothing.</summary>
@@ -69,7 +69,7 @@ public sealed partial class AccountsViewModel : ObservableObject
     /// <summary>Rebuild the Accounts panel rows from the manifest. The per-account token probe (stat + open +
     /// read and, for a keyring-sealed token, a keyring call) and the keyring protection readout run on the
     /// thread pool; the bound ObservableCollection is only touched on the UI thread, after the await, and only
-    /// when this is still the newest refresh against the same manifest (UI-thread sweep 09-06 r2).</summary>
+    /// when this is still the newest refresh against the same manifest.</summary>
     internal async Task RefreshAccountsAsync()
     {
         if (!Dispatcher.UIThread.CheckAccess()) { await Dispatcher.UIThread.InvokeAsync(async () => await RefreshAccountsAsync()); return; }
@@ -111,7 +111,7 @@ public sealed partial class AccountsViewModel : ObservableObject
             _library.RebuildOwnerBadges(svcUi.Accounts
                 .Select(a => (a.Id, string.IsNullOrWhiteSpace(a.Username) ? a.Id : a.Username)).ToList());
             var counts = svcUi.ItemCountsByAccount();
-            // (UX 09-08 #1) Row subline stats from data already in the manifest: games per owner with any local
+            // Row subline stats from data already in the manifest: games per owner with any local
             // copy, and the last completed library check. Same UI-thread manifest read ItemCountsByAccount does.
             var backedUp = BackedUpGamesByOwner(m.Current);
             var lastChecked = m.Current.LastSyncCompleted is { } lsc ? Grog.Core.Format.RelativeTime.Ago(lsc) : null;
@@ -150,7 +150,7 @@ public sealed partial class AccountsViewModel : ObservableObject
         catch (Exception ex) { Log($"Accounts panel refresh failed: {ex.Message}", isError: true); }
     }
 
-    /// <summary>(UX 09-08 #1) Per-owner count of GAMES (not movies) with at least one file on disk. Owners-based
+    /// <summary>Per-owner count of GAMES (not movies) with at least one file on disk. Owners-based
     /// like ItemCountsByAccount: a co-owned game counts for every owner.</summary>
     private static Dictionary<string, int> BackedUpGamesByOwner(Grog.Core.Manifest.LibraryManifest manifest)
     {
@@ -191,7 +191,7 @@ public sealed partial class AccountsViewModel : ObservableObject
         if (_manifest is null || string.IsNullOrWhiteSpace(username)) return;
         try
         {
-            // (UI-thread sweep 09-06) config-dir resolve (probe + legacy migration) off the dispatcher.
+            // config-dir resolve (probe + legacy migration) off the dispatcher.
             var root = _backupRoot;
             var paths = await Task.Run(() => Grog.Core.Storage.GrogPaths.Resolve(root));
             var svc = new Grog.Core.Auth.AccountService(_manifest, paths);
@@ -200,7 +200,7 @@ public sealed partial class AccountsViewModel : ObservableObject
                 var acct = await svc.AddOrUpdateAsync("", username, username);
                 var home = svc.TokenPathFor(acct.Id);
                 var scratch = _interactiveTokenPath;
-                // (UI-thread sweep 09-06) the token file's exists/copy/delete run off the dispatcher; same order as before.
+                // the token file's exists/copy/delete run off the dispatcher; same order as before.
                 bool moved = !string.Equals(scratch, home, StringComparison.OrdinalIgnoreCase)
                     && await Task.Run(() =>
                     {
@@ -216,7 +216,7 @@ public sealed partial class AccountsViewModel : ObservableObject
             _root.RaiseAccountStatus();
             // Row flags derive from the REGISTERED account set at build time, so a registration
             // change must rebuild them -- reconnecting the last account left every "(account
-            // removed)" caption standing until the next rescan/restart (owner 08-31).
+            // removed)" caption standing until the next rescan/restart.
             _root.RefreshFromManifest();
         }
         catch { /* best-effort naming */ }
@@ -229,7 +229,7 @@ public sealed partial class AccountsViewModel : ObservableObject
         if (_manifest is null || !IsConnected || _api is null) return;
         try
         {
-            // Inside the try and config-dir only (UI-thread sweep 09-06 r2).
+            // Inside the try and config-dir only.
             var svc = new Grog.Core.Auth.AccountService(_manifest, Grog.Core.Storage.GrogPaths.ResolveNoProbe(_backupRoot));
             if (svc.Accounts.Count > 0) return;
             var user = await _api.GetUserInfoAsync(); await RegisterPrimaryAsync(user.Username);
@@ -243,10 +243,10 @@ public sealed partial class AccountsViewModel : ObservableObject
     // (their bytes stay -- untrack, never delete). "Don't show this again" skips the dialog entirely.
     [ObservableProperty] private bool _showRemoveAccountConfirm;
     [ObservableProperty] private bool _dontAskRemoveAccountAgain;
-    /// <summary>(09-19, owner) The OPT-IN half of Remove account: also untrack the games only this account owns.
+    /// <summary>The OPT-IN half of Remove account: also untrack the games only this account owns.
     /// Off by default and reset on every open: removing an account wipes its login and stops syncing it, and
     /// changes NOTHING else. Before, removal always untracked them -- with one account that emptied the library,
-    /// the queue and the Storage page (owner-hit on the release walk), and the rescan that "brings them back"
+    /// the queue and the Storage page (on the release walk), and the rescan that "brings them back"
     /// returned games with no file records.</summary>
     [ObservableProperty] private bool _alsoRemoveAccountGames;
     partial void OnAlsoRemoveAccountGamesChanged(bool value) => OnPropertyChanged(nameof(RemoveAccountWarningText));
@@ -311,7 +311,7 @@ public sealed partial class AccountsViewModel : ObservableObject
         if (_manifest is null) return;
         try
         {
-            var svc = new Grog.Core.Auth.AccountService(_manifest, Grog.Core.Storage.GrogPaths.ResolveNoProbe(_backupRoot));   // (UI-thread sweep 09-06 r2)
+            var svc = new Grog.Core.Auth.AccountService(_manifest, Grog.Core.Storage.GrogPaths.ResolveNoProbe(_backupRoot));   // 
             // The first account's file backs the in-memory _auth session: pause first (in-flight downloads
             // hold a token about to be wiped) and drop the live auth before removing. No promotion needed.
             if (row.BacksInteractiveSession)
@@ -320,12 +320,12 @@ public sealed partial class AccountsViewModel : ObservableObject
                 _root.StopSizing();
                 try { await _auth.SignOutAsync(); } catch { }
             }
-            // (09-19, owner) DEFAULT: the library is left alone. Files keep the removed account's owner stamp, so
+            // DEFAULT: the library is left alone. Files keep the removed account's owner stamp, so
             // their downloads wait ("owner signed out") and signing that account in again picks them straight up.
             // OPT-IN: owner decrement BEFORE RemoveAsync so its SaveAsync persists both in one write; sole-owned
             // items leave the library with the account (owner refcount hits zero); bytes stay on disk.
             var removedItems = alsoRemoveGames
-                ? _manifest.Read(m => Grog.Core.Sync.LibraryUntrack.RemoveOwner(m, row.Id))   // (manifest gate 09-08)
+                ? _manifest.Read(m => Grog.Core.Sync.LibraryUntrack.RemoveOwner(m, row.Id))   // 
                 : new System.Collections.Generic.List<Grog.Core.Models.LibraryItem>();
 
             // The queue entries are purged; an in-flight transfer for a removed game must stop too.
@@ -333,9 +333,9 @@ public sealed partial class AccountsViewModel : ObservableObject
             await svc.RemoveAsync(row.Id);
             // The interactive session was bound to the removed account's token file. Bind it to whoever is
             // first NOW (or the scratch file): left alone, Connect wrote the next login into a file no
-            // registered account reads, and Api kept the wiped session (sweep 2 #5).
+            // registered account reads, and Api kept the wiped session.
             if (row.BacksInteractiveSession) _root.RebindInteractiveSession(Grog.Core.Storage.GrogPaths.ResolveNoProbe(_backupRoot));
-            var connected = await _root.AnyAccountConnectedAsync();   // token probes off the dispatcher (UI-thread sweep 09-06 r2)
+            var connected = await _root.AnyAccountConnectedAsync();   // token probes off the dispatcher
             await Dispatcher.UIThread.InvokeAsync(() => _root.IsConnected = connected);
             _root.RaiseBarState();
             RefreshAccounts();
@@ -392,7 +392,7 @@ public sealed partial class AccountsViewModel : ObservableObject
             return;
         }
         if (!row.Connected) { await AddAccount(); return; }   // the button reads "Log In" then
-        // The token-file delete runs off the dispatcher; config dir only (UI-thread sweep 09-06 r2).
+        // The token-file delete runs off the dispatcher; config dir only.
         var m = _manifest; var root = _backupRoot; var id = row.Id;
         await Task.Run(() => new Grog.Core.Auth.AccountService(m, Grog.Core.Storage.GrogPaths.ResolveNoProbe(root)).LogOut(id));
         RefreshAccounts();
@@ -406,7 +406,7 @@ public sealed partial class AccountsViewModel : ObservableObject
     private async Task ConnectOrAddAccount()
     {
         if (_manifest is null) { await _root.Connect(); return; }
-        var svc = new Grog.Core.Auth.AccountService(_manifest, Grog.Core.Storage.GrogPaths.ResolveNoProbe(_backupRoot));   // (UI-thread sweep 09-06 r2)
+        var svc = new Grog.Core.Auth.AccountService(_manifest, Grog.Core.Storage.GrogPaths.ResolveNoProbe(_backupRoot));   // 
         if (svc.Accounts.Count == 0 || !IsConnected) await _root.Connect();
         else await AddAccount();
     }
@@ -419,13 +419,13 @@ public sealed partial class AccountsViewModel : ObservableObject
     /// wording flips the instant the scheduled-tasks toggle changes.</summary>
     // FileTokenStore.Protection is a keyring probe on Linux/macOS; the bound getters read a snapshot taken on the
     // thread pool (RefreshAccounts, RaiseTokenSafety, the ResetAvailabilityCache sites) instead of probing on
-    // every binding evaluation (UI-thread sweep 09-06 r2). Until the first snapshot lands the live value is read
+    // every binding evaluation. Until the first snapshot lands the live value is read
     // once and remembered.
     private Grog.Core.Platform.TokenProtection? _tokenProtectionSnapshot;
     private Grog.Core.Platform.TokenProtectionReason? _tokenProtectionReasonSnapshot;
 
     /// <summary>The last-known token protection; the guide reads this rather than probing the keyring itself.</summary>
-    // Never probe from a getter (final check 09-06): the Accounts page is in the tree at startup, and the
+    // Never probe from a getter: the Accounts page is in the tree at startup, and the
     // first binding read would spawn the keyring helper on the dispatcher. Until the first off-thread
     // snapshot lands the card reads as the honest fallback; the ctor kicks that probe at once.
     internal Grog.Core.Platform.TokenProtection TokenProtectionSnapshot
@@ -499,10 +499,10 @@ public sealed partial class AccountsViewModel : ObservableObject
         {
             // The toggle is a user action: clear held keyring state so the re-save below can mint the key
             // (turning the opt-out OFF on a healthy keyring must produce GRGK1, not plaintext - Linux
-            // walk 2026-08-23 R3, same held-state root as R1).
+            // , same held-state root as R1).
             Grog.Core.Platform.OsKeyring.ResetAvailabilityCache();
             // The whole read -> flip -> re-save sequence runs on the thread pool, in the same order as before:
-            // every LoadAsync/SaveAsync is a token decrypt/encrypt through the keyring (UI-thread sweep 09-06 r2).
+            // every LoadAsync/SaveAsync is a token decrypt/encrypt through the keyring.
             var m = _manifest; var root = _backupRoot;
             var (skipped, protectionAfter) = await Task.Run(async () =>
             {
@@ -529,7 +529,7 @@ public sealed partial class AccountsViewModel : ObservableObject
                 return (skippedN, Grog.Core.Auth.FileTokenStore.Protection);
             });
             // An unreadable token (orphaned GRGK1, locked keyring) cannot be rewritten to the new policy:
-            // silence here left the card claiming a state the disk did not have (Linux walk 2026-08-23, B2).
+            // silence here left the card claiming a state the disk did not have.
             if (skipped > 0)
                 Log($"Token storage changed, but {skipped} stored sign-in(s) could not be read and were left as-is - log out and back in to rewrite them", isError: true);
             // The OFF log must not claim encryption the machine cannot deliver: with the marker gone but
@@ -544,7 +544,7 @@ public sealed partial class AccountsViewModel : ObservableObject
             Log($"Couldn't change token storage: {Grog.Core.Api.GogError.Describe(ex)}", isError: true);
         }
         OnPropertyChanged(nameof(PlainTextTokenEnabled));
-        // Snapshot first so the card and the guide detail read the post-flip answer (UI-thread sweep 09-06 r2).
+        // Snapshot first so the card and the guide detail read the post-flip answer.
         await RefreshTokenProtectionSnapshotAsync();
         RaiseTokenSafety();
         _root.Guide?.RaiseDetail();
@@ -552,12 +552,12 @@ public sealed partial class AccountsViewModel : ObservableObject
 
     /// <summary>Re-derives the SIGN-IN SECURITY card. Must run after ANY event that can change the
     /// protection answer mid-session -- a login save minting the keyring key is the one the card missed
-    /// (Linux walk 2026-08-23, W2-b: card kept claiming "no keyring reachable" until restart).</summary>
+    /// (card kept claiming "no keyring reachable" until restart).</summary>
     internal void RaiseTokenSafety()
     {
         RaiseTokenSafetyProperties();
         // The answer may have just changed (a mint, a reset): re-probe off the dispatcher and raise again if
-        // it did (UI-thread sweep 09-06 r2).
+        // it did.
         _ = RefreshTokenProtectionSnapshotAsync();
     }
 
@@ -593,10 +593,10 @@ public sealed partial class AccountsViewModel : ObservableObject
         // Same contract as ConnectCore: a user-initiated sign-in gets a FRESH chance at the keyring,
         // clearing any held no-key/refusal so the save can mint. Non-first rows' "Log In" routes here
         // (the first account routes to Connect via BacksInteractiveSession), and this reset was missing -
-        // a held startup readout blocked the mint (Linux walk 2026-08-23 R1).
+        // a held startup readout blocked the mint.
         Grog.Core.Platform.OsKeyring.ResetAvailabilityCache();
-        _ = RefreshTokenProtectionSnapshotAsync();   // (UI-thread sweep 09-06 r2) the card follows the fresh keyring answer
-        // (UI-thread sweep 09-06) config-dir resolve and the stale temp-token cleanup off the dispatcher; the
+        _ = RefreshTokenProtectionSnapshotAsync();   // the card follows the fresh keyring answer
+        // config-dir resolve and the stale temp-token cleanup off the dispatcher; the
         // rest of this method already runs inside RunBusy's Task.Run.
         var root = _backupRoot;
         var (paths, tempPath) = await Task.Run(() =>
@@ -631,14 +631,14 @@ public sealed partial class AccountsViewModel : ObservableObject
                     // in here: adopt the fresh token for the existing row instead of treating it as a
                     // duplicate no-op. LooksReadable, not File.Exists -- an orphaned GRGK1 whose key left
                     // the keyring EXISTS but cannot decrypt, and judging that "already connected" discarded
-                    // a real GOG login (Linux walk 2026-08-23, B1).
+                    // a real GOG login.
                     var ownPath = acctSvc.TokenPathFor(already.Id);
                     if (!Grog.Core.Auth.FileTokenStore.LooksReadable(ownPath))
                     {
                         // Covers the tokens.json slot (Id "") too; _auth lazily reloads it on next use.
                         System.IO.File.Copy(tempPath, ownPath, overwrite: true);
                         Grog.Core.Auth.FileTokenStore.ForgetReadable();
-                        var nowConnected = _root.AnyAccountConnected();   // probed here on the worker, not inside the post (UI-thread sweep 09-06 r2)
+                        var nowConnected = _root.AnyAccountConnected();   // probed here on the worker, not inside the post
                         Dispatcher.UIThread.Post(() =>
                         {
                             _root.IsConnected = nowConnected;
@@ -667,7 +667,7 @@ public sealed partial class AccountsViewModel : ObservableObject
                 Dispatcher.UIThread.Post(() => _library.BeginCatalog($"Merging {user.Username}'s library…"));
                 // Core tags the merge with the NEW account's id so files attribute to it and leaves the
                 // reconcile to us (this scan sees ONE library; a delisted sweep would flag the other accounts'
-                // games). The art hook rides on ConfigureScan. (S2.2)
+                // games). The art hook rides on ConfigureScan.
                 var mergeHost = new MainWindowViewModel.AppRunHost(_root, LogCategory.Scan)
                 {
                     ScanDress = (svc, _) => svc.Progress += p => Dispatcher.UIThread.Post(() =>
@@ -690,7 +690,7 @@ public sealed partial class AccountsViewModel : ObservableObject
     public sealed record AccountDot(Avalonia.Media.IBrush Brush, string Tip);
     public System.Collections.ObjectModel.ObservableCollection<AccountDot> RailAccountDots { get; } = new();
     // Rail-dot token readability, refreshed on the thread pool at most every 5 s; the 1 Hz pass reads the
-    // remembered answer and never does the file/keyring probe itself (UI-thread sweep 09-06 r2). Written only
+    // remembered answer and never does the file/keyring probe itself. Written only
     // on the UI thread (the pool result is posted back), so the reads need no lock.
     private readonly Dictionary<string, bool> _railTokenReadable = new();
     private long _railTokenProbedAt = long.MinValue / 2;
@@ -756,9 +756,9 @@ public sealed partial class AccountsViewModel : ObservableObject
     {
         if (_manifest is null) return new List<string>();
         // RebuildRows runs on every scan progress flush and every manifest refresh: no backup-root probe
-        // (ResolveNoProbe) and no token re-read per call (review 09-06).
+        // (ResolveNoProbe) and no token re-read per call.
         // The answer is the rail dots' remembered probe (refreshed off-thread every 5 s and on every account
-        // event); no token file is opened here (final check 09-06). Before the first probe lands the fallback
+        // event); no token file is opened here. Before the first probe lands the fallback
         // is the cached predicate, which only touches disk when nothing is remembered for that path.
         var svc = new Grog.Core.Auth.AccountService(_manifest, _configPaths ??= Grog.Core.Storage.GrogPaths.ResolveNoProbe(_backupRoot));
         return svc.Accounts

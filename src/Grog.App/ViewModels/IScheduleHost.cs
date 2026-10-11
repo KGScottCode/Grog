@@ -12,7 +12,7 @@ internal interface IScheduleHost
     /// <summary>The persisted schedule, or null until services and the manifest are ready.</summary>
     Grog.Core.Scheduling.BackupSchedule? Schedule { get; }
     /// <summary>The manifest's mutate gate, for schedule writes that touch a collection (custom days);
-    /// null when no manifest is bound. (manifest gate 09-08)</summary>
+    /// null when no manifest is bound. </summary>
     Grog.Core.Manifest.ManifestGate? ManifestGate { get; }
 
     bool Busy { get; }

@@ -13,7 +13,7 @@ public sealed class QueuedDownload
     public string FileKey { get; set; } = "";
     public string? TargetRootId { get; set; }
     /// <summary>False when the last placement found no online device with room for this file. The file
-    /// KEEPS ITS POSITION in the queue (inform, never choose -- owner, 09-11); the engine skips it and the
+    /// KEEPS ITS POSITION in the queue; the engine skips it and the
     /// Activity pane paints it WON'T FIT. Re-decided by every Place / Replan / ReplanWholeQueue. Defaults
     /// true so a queue persisted before this field existed loads as it did.</summary>
     public bool Fits { get; set; } = true;
@@ -77,7 +77,7 @@ public sealed class DownloadQueue
     /// <summary>A point-in-time copy of the queue, safe to enumerate on any thread.</summary>
     public List<QueuedDownload> Snapshot() { lock (_gate) return new List<QueuedDownload>(_items); }
 
-    /// <summary>(09-22) The queued files marked won't-fit, in queue order.</summary>
+    /// <summary>The queued files marked won't-fit, in queue order.</summary>
     public List<QueuedDownload> WontFit() { lock (_gate) return _items.Where(q => !q.Fits).ToList(); }
     /// <summary>Any queued file marked won't-fit.</summary>
     public bool AnyWontFit { get { lock (_gate) return _items.Any(q => !q.Fits); } }
@@ -97,7 +97,7 @@ public sealed class DownloadQueue
         {
             if (Find(gogId, fileKey) is { } have)
             {
-                // Already queued: the placement is the newest fact. Before 09-05 a re-plan (every Resume) left
+                // Already queued: the placement is the newest fact. Before a re-plan (every Resume) left
                 // the FIRST plan's target on the record while the engine used the new one.
                 if (targetRootId is not null) have.TargetRootId = targetRootId;
                 have.Fits = fits;

@@ -10,7 +10,7 @@ namespace Grog.Core.Format;
 /// <summary>
 /// THE on-disk naming rules. A slug names a game's folder and a safe file name is the only guard between an
 /// untrusted server filename and the write path; both decide where bytes land, so a second copy that drifts
-/// silently re-homes a library. Three slugifiers and two sanitizers existed before 09-02.
+/// silently re-homes a library. Three slugifiers and two sanitizers existed before.
 /// </summary>
 public static class Naming
 {

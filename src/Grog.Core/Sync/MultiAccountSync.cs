@@ -95,7 +95,7 @@ public sealed class MultiAccountSync
         // account is not entitled to it, so the account leaves that game's owner lists. Skipped or failed
         // accounts narrow NOTHING: their entitlements are unknown today, not absent.
         bool changed = false;
-        using (_manifest.Gate.Enter())   // the run's whole-library writes, under the manifest gate (09-08)
+        using (_manifest.Gate.Enter())   // the run's whole-library writes, under the manifest gate
         {
         foreach (var p in passes)
             if (p.Result is { } pr)

@@ -265,7 +265,7 @@ public static class TestRunner
         int skip = results.Count(r => r.Outcome == Outcome.Skip);
         Console.WriteLine("---------------------------------------------------------------------------");
         // Skips by reason, so a tally that differs between two machines (no network, no GOG session, no
-        // ground-truth folder) explains itself without opening the class lines (owner ask 09-06).
+        // ground-truth folder) explains itself without opening the class lines.
         if (skip > 0)
         {
             Console.WriteLine("Skipped:");

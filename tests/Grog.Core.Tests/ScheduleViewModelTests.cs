@@ -11,7 +11,7 @@ using Grog.Core.Scheduling;
 using Grog.Core.Tests.Framework;
 
 /// <summary>
-/// The scheduler behind IScheduleHost (split 2026-09-02): a fake window supplies the schedule, the facts and
+/// The scheduler behind IScheduleHost: a fake window supplies the schedule, the facts and
 /// counters for the actions. Timers are never armed here (StartScheduleTimer is not called), so nothing
 /// needs a dispatcher. AppSettings.Save lands in the test-run temp dir (Program.cs sets GROG_CONFIG_DIR).
 /// </summary>
@@ -229,7 +229,7 @@ public sealed class ScheduleViewModelTests
         Assert.Equal(1, h.Started, "the slot advanced: no retry pops a login");
     }
 
-    // 1296 (owner 10-01, reverses 1275): a schedule LIFTS the user's pause; the host no longer refuses a paused queue.
+    // 1296: a schedule LIFTS the user's pause; the host no longer refuses a paused queue.
     // Grog's own pause for a missing drive is a passing refusal: the slot is kept and the next tick retries quietly.
     [Test] void ADisconnectedDriveRefusalKeepsTheSlotAndRetriesNextTick()
     {

@@ -15,7 +15,7 @@ using Grog.App.Runtime;
 namespace Grog.App.ViewModels;
 
 /// <summary>
-/// The Settings page's view model (S3.4, 09-08): the accent theme, the launch checks and Grog's own update
+/// The Settings page's view model: the accent theme, the launch checks and Grog's own update
 /// row, the transfer settings (workers, auto pick, speed cap), old-version and cloud-save retention,
 /// desktop notifications, the close action and tray pill, Fresh Library, and the extras layout with its
 /// policy summary and folder preview (the Policy partial). The content scope, platforms, languages and view
@@ -35,7 +35,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
     }
 
     /// <summary>The "Where extras are stored" card: staged shape + storage, committed together by its own
-    /// Apply (09-11). The page owns ONE property here, not the card's state -- that is the whole point of it
+    /// Apply. The page owns ONE property here, not the card's state -- that is the whole point of it
     /// being a separate class.</summary>
     public ExtrasPlacementEditor ExtrasCard { get; }
 
@@ -63,7 +63,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
     /// <summary>The language summary or the scope moved on the Library: the one-line policy readout follows.</summary>
     internal void RaisePolicySummaryText() => OnPropertyChanged(nameof(PolicySummaryText));
 
-    // Bindings evaluate before the store is open (owner-hit 09-08, NRE in CloudKeepAll at window creation):
+    // Bindings evaluate before the store is open (NRE in CloudKeepAll at window creation):
     // until then the defaults answer, and OnServicesReady raises every transfer property once loaded.
     private static readonly Grog.Core.Manifest.TransferSettings _xferDefaults = new();
     /// <summary>Transfer settings live in the manifest (S2.3): worker count, cap, cloud retention. The shell's
@@ -112,7 +112,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
     private void OpenGrogRelease() { if (GrogUpdate is { } u) _root.OpenUrl(u.Url); }
 
     /// <summary>The row's reply line, shown ONLY after a MANUAL check answers "you're current" --
-    /// the static description is gone (owner call 08-30), but a pressed button still owes a reply.</summary>
+    /// the static description is gone, but a pressed button still owes a reply.</summary>
     public string GrogUpdateRowDesc => ShowGrogUpdateRowDesc
         ? $"You're on the latest version (v{VersionString})." : "";
     public bool ShowGrogUpdateRowDesc => _grogUpdateChecked && !HasGrogUpdate;
@@ -131,7 +131,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
             GrogUpdate = upd;
             Log($"Grog v{upd.Version} is available (you are on v{VersionString}).");
         }
-        else Log($"Checked for a newer Grog: none found (you are on v{VersionString}).");   // (09-19) Check Now answers either way, in the log too
+        else Log($"Checked for a newer Grog: none found (you are on v{VersionString}).");   // Check Now answers either way, in the log too
         OnPropertyChanged(nameof(GrogUpdateRowDesc)); OnPropertyChanged(nameof(ShowGrogUpdateRowDesc));
         OnPropertyChanged(nameof(GrogUpdateText)); OnPropertyChanged(nameof(GrogUpdateButtonText));
         OnPropertyChanged(nameof(HasGrogUpdate));
@@ -255,7 +255,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
     public bool KeepOldVersions
     {
         // The manifest owns the fact (it travels with the backup, so the CLI honours it); the app setting is
-        // only the pre-09-02 home, kept in step so a downgrade still reads something sensible.
+        // only the pre- home, kept in step so a downgrade still reads something sensible.
         get => _manifest?.Current.KeepOldVersions ?? _settings.KeepOldVersions;
         set
         {
@@ -268,7 +268,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
         }
     }
 
-    /// <summary>One-way migration of the pre-09-02 app setting into the manifest, on every load (idempotent).</summary>
+    /// <summary>One-way migration of the pre- app setting into the manifest, on every load (idempotent).</summary>
     private void MigrateKeepOldVersions()
     {
         if (_manifest is not null && _settings.KeepOldVersions && !_manifest.Current.KeepOldVersions)
@@ -365,7 +365,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
     }
 
     // ---- Tray vocabulary: macOS has no "system tray" - the icon lives in the MENU BAR, and the Dock
-    // is a different thing entirely. Same feature, honest per-platform words (owner call, mac walk).
+    // is a different thing entirely. Same feature, honest per-platform words.
     public string TrayPillLabel => OperatingSystem.IsMacOS() ? "Keep Running in Menu Bar" : "Keep Running in Tray";
     public string TrayPillTip => OperatingSystem.IsMacOS()
         ? "Grog keeps running with a menu-bar icon; closing or minimizing hides the window to it."
@@ -493,8 +493,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
         FreshTypedConfirm = "";
         try { _root.CancelDownloads(); } catch { }   // stop the run + clear engine state before the wipe
         _root.StopSizing();
-        try { await _root.Storage.StopMoveForResetAsync(); } catch { }   // a running move would stamp records the wipe is about to drop (QA 09-30 B13)
-        int n = _manifest.Read(m => Grog.Core.Sync.LibraryUntrack.RemoveAllItems(m));   // (manifest gate 09-08)
+        try { await _root.Storage.StopMoveForResetAsync(); } catch { }   // a running move would stamp records the wipe is about to drop
+        int n = _manifest.Read(m => Grog.Core.Sync.LibraryUntrack.RemoveAllItems(m));   // 
 
         _library.ClearSelection();
         // Hidden ids name games that no longer exist; a stale id would silently re-hide a title the
@@ -504,7 +504,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
         // the last scan's error/account lines, and the last run's failure (a run against games that no
         // longer exist). Content chips, mature filter and legacy-movies stay: they are VIEW preferences,
         // and the confirm text says so. Back to the never-scanned state too, or the bar reads "Library
-        // Backed Up" over an empty grid (0 items = 0 gap; CatalogScanned was this session's). Owner-hit 09-01.
+        // Backed Up" over an empty grid (0 items = 0 gap; CatalogScanned was this session's). Owner-hit.
         _library.ResetScanRecord();
         _root.Overview.ClearRunJournalFailure();
         _settings.SaveSoon();
@@ -519,7 +519,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
     // ---- Extras folder layout (Settings "Where Extras are stored" card) ----
     // The null-manifest fallback must agree with LibraryManifest.ExtrasLayout's initializer (WithGame).
     /// <summary>The COMMITTED extras shape, for the policy summary and the "what is in effect" readouts.
-    /// Read-only since 09-11: writing it used to commit on every pill click and kick a migration, which is
+    /// Read-only since: writing it used to commit on every pill click and kick a migration, which is
     /// exactly the behaviour the staged card replaced. The card writes through ExtrasPlacementRun.</summary>
     public Grog.Core.Models.ExtrasPlacement ExtrasLayoutValue
         => _manifest?.Current.ExtrasLayout ?? Grog.Core.Models.ExtrasPlacement.WithGame;

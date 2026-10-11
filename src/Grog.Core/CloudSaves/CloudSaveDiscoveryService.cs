@@ -30,7 +30,7 @@ public sealed class CloudSaveDiscoveryService
     {
         var containers = await _cloud.ListContainersAsync(ct);
         // The reconcile writes CloudByAccount + the legacy Cloud* fields: under the store's gate when the
-        // caller passes one (the fetch above stays outside it). (manifest gate 09-08)
+        // caller passes one (the fetch above stays outside it).
         List<CloudSaveRow> rows; List<long> unmatched;
         if (gate is not null)
         {

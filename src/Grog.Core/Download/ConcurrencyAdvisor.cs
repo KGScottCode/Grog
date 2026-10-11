@@ -7,7 +7,7 @@ using System.Linq;
 namespace Grog.Core.Download;
 
 /// <summary>
-/// "Auto" simultaneous downloads (owner call 09-01). A file costs roughly a fixed handshake (the resolve
+/// "Auto" simultaneous downloads. A file costs roughly a fixed handshake (the resolve
 /// + GET round-trips, ~1-2s) plus bytes/bandwidth, so extra workers only pay while the handshake share
 /// is large; once big files saturate the pipe they just split it and invite 429s. The pick therefore
 /// reads WHAT IS ABOUT TO RUN -- the median size of the queue's head -- rather than probing throughput

@@ -67,7 +67,7 @@ public class DownloadQueuePersistenceTests
         Assert.Equal("SECONDARY", q.Items[0].TargetRootId, "placement carried for resume");
     }
 
-    /// <summary>(09-13) A won't-fit flag survives save/load, and a queue written before the field existed loads
+    /// <summary>A won't-fit flag survives save/load, and a queue written before the field existed loads
     /// as fitting, so the red rows are exactly the ones the last plan flagged and nothing older turns red.</summary>
     [Test] void FitsRoundTripsAndDefaultsTrue()
     {
@@ -82,7 +82,7 @@ public class DownloadQueuePersistenceTests
         Assert.True(legacy.Items[0].Fits, "a pre-field entry loads as fitting");
     }
 
-    /// <summary>(09-13) SetPlacement never appends: a re-plan that runs from a snapshot must not resurrect a file
+    /// <summary>SetPlacement never appends: a re-plan that runs from a snapshot must not resurrect a file
     /// that completed or was cancelled in between.</summary>
     [Test] void SetPlacementDoesNotResurrectAnAbsentEntry()
     {

@@ -151,7 +151,7 @@ public partial class MainWindow
 
     /// <summary>Shrink the resident footprint after a hide: collect, compact the LOH once, and on Windows
     /// hand freed pages back via SetProcessWorkingSetSize(-1,-1). Best-effort, never load-bearing.</summary>
-    // (UI-thread sweep 09-06 r2) the blocking full GC + LOH compaction used to run on the dispatcher; a
+    // the blocking full GC + LOH compaction used to run on the dispatcher; a
     // worker does it now (the GC is process-wide either way, and the window is hidden, so nothing waits).
     private void TrimWorkingSetSoon(int delayMs = 750)
     {

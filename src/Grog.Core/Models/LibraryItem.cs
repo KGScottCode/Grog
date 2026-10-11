@@ -19,7 +19,7 @@ public sealed class LibraryItem
     /// see <see cref="NoPurchaseRecord"/> for the difference between "not asked yet" and "asked, not there".</summary>
     public DateTimeOffset? DateAcquired { get; set; }
 
-    /// <summary>(Purchase dates 09-09) A COMPLETE walk of GOG's order history did not mention this product,
+    /// <summary>A COMPLETE walk of GOG's order history did not mention this product,
     /// so it has no acquisition date and asking again cannot change that. Measured: 53 of one reference
     /// library, and the causes are structural rather than transient -- Connect imports, DLC bundled under a
     /// base game, pre-order grants. This is the flag that lets the top-up pass go quiet: without it every
@@ -50,8 +50,8 @@ public sealed class LibraryItem
     /// PreservationService -- scoped status is derived at read time and view filtering is HiddenPolicy.</summary>
     public BackupStatus Status { get; set; } = BackupStatus.Unknown;
 
-    /// <summary>(New items 09-09) NEW to this library. Set when a scan ADDS an item that was not in the
-    /// manifest before -- never on the very first scan of an empty library, which is the baseline (09-19).
+    /// <summary>NEW to this library. Set when a scan ADDS an item that was not in the
+    /// manifest before -- never on the very first scan of an empty library, which is the baseline.
     /// Cleared when the item becomes fully backed up in scope, or by an explicit "Clear New".
     /// Item level only; a new file on an owned item is Not Backed Up, not New. A manifest without the
     /// field reads as false, which is exactly right: an existing library is not new.</summary>

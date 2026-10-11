@@ -40,7 +40,7 @@ public sealed class ImportPlan
     public List<string> OrphanFolders { get; } = new();          // scanned but no installer found
     public int FoldersScanned { get; set; }
     public int AdoptedFiles { get; set; }                        // filled in by ApplyAsync
-    /// <summary>(09-19) The records ApplyAsync re-pointed, so the run can verify exactly those.</summary>
+    /// <summary>The records ApplyAsync re-pointed, so the run can verify exactly those.</summary>
     public List<(long GogId, string FileKey)> AdoptedKeys { get; } = new();
 
     public int MatchedFileCount => Matched.Sum(m => m.Files.Count);
@@ -73,7 +73,7 @@ public sealed class ImportPlanner
         => InstallerExts.Contains(Path.GetExtension(path).ToLowerInvariant());
 
     /// <summary>A folder "is a game folder" if it directly contains at least one installer-looking file, or
-    /// carries Grog's own <c>Extras</c> subfolder (09-17: a game whose only backed-up files are extras has no
+    /// carries Grog's own <c>Extras</c> subfolder (a game whose only backed-up files are extras has no
     /// installer at its top level, so re-adding a drive never scanned it and 4 extras-only games stayed
     /// un-adopted; the depth cap stopped the walk exactly there).</summary>
     private static bool LooksLikeGameFolder(string dir)
@@ -81,7 +81,7 @@ public sealed class ImportPlanner
         try
         {
             if (Directory.EnumerateFiles(dir).Any(IsInstallerFile)) return true;
-            // (09-19, walk pass 3) A BACKUP ROOT has a top-level Extras folder too, once a separate extras tree
+            // A BACKUP ROOT has a top-level Extras folder too, once a separate extras tree
             // has ever been applied (FolderPruner never removes it). The root then read as ONE game folder:
             // "no library match", nothing under Games was scanned, 0 adopted. A root is not a game.
             if (Directory.Exists(Path.Combine(dir, "Games"))) return false;
@@ -113,7 +113,7 @@ public sealed class ImportPlanner
     }
 
     /// <summary>Folders Grog itself makes that never hold a CURRENT file: the archive of superseded builds and
-    /// the partial-download folder. Import walked into both (sweep 2 #11): an old build sits within the size
+    /// the partial-download folder. Import walked into both: an old build sits within the size
     /// tolerance of the new one and was adopted as the current file, and a .part as a finished download.</summary>
     internal static bool IsGrogInternalFolder(string name)
         => string.Equals(name, Grog.Core.Download.DownloadEngine.OldVersionsFolder, StringComparison.OrdinalIgnoreCase)
@@ -358,7 +358,7 @@ public sealed class ImportPlanner
             {
                 if (usedKeys.Contains(e.FileKey)) continue;
                 // A NAME the record itself carries is authoritative: the CDN file name, or the leaf of the path
-                // the record last held (a forgotten drive re-added, 09-17: the record still says
+                // the record last held (the record still says
                 // "Extras/pst_avatars.zip"). GOG's ExpectedSizeBytes is rounded (tiny extras report 1 MB, a
                 // 2.7 GB part reported 2.68 GB), so a size-only test dropped 5 of 44 files on re-add.
                 bool nameMatch = (!string.IsNullOrEmpty(e.ResolvedFileName)
@@ -396,10 +396,10 @@ public sealed class ImportPlanner
         // Keyed by (game, FileKey), never FileKey alone: FileKey is GOG's download path and GOG serves one
         // extra under several products (Ultima Underworld I and II share Ultima_Underworld_1_2_QRC.zip, same
         // key). A manifest-wide first-wins map adopted the FIRST game's entry twice and left the second game's
-        // record Missing (owner-hit 09-04: 6 of 142 re-adopted files stayed "gone from disk").
+        // record Missing (6 of 142 re-adopted files stayed "gone from disk").
         // Still duplicate-tolerant within a game (GOG omits manualUrl on some pairs).
         int adopted = 0;
-        using (_manifest.Gate.Enter())   // (manifest gate 09-08) the whole apply is in-memory; the save follows outside
+        using (_manifest.Gate.Enter())   // the whole apply is in-memory; the save follows outside
         {
             _manifest.Gate.AssertHeld();
             var entryByKey = new Dictionary<(long GogId, string FileKey), (LibraryItem i, GameFile f)>();
@@ -414,7 +414,7 @@ public sealed class ImportPlanner
                     ct.ThrowIfCancellationRequested();
                     if (!entryByKey.TryGetValue((folder.GogId, fm.FileKey), out var pair)) continue;
                     var entry = pair.f;
-                    // (09-15 review) A record that ALREADY holds bytes on this root is not an adoption: re-adding a
+                    // A record that ALREADY holds bytes on this root is not an adoption: re-adding a
                     // detached drive's folder must not demote Verified to Present or erase Sync's Outdated /
                     // Verify's Corrupt signal (invariant: those two own their signals).
                     if (RootId is not null && entry.RootId == RootId && Sync.BackupScope.HoldsBytes(entry)) continue;

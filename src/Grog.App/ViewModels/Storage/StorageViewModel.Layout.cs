@@ -25,21 +25,21 @@ namespace Grog.App.ViewModels;
 // and resolving a stopped move (put the files back, or accept them where they landed).
 public sealed partial class StorageViewModel
 {
-    /// <summary>(UI-thread sweep 09-06 r2) one layout offer at a time: the ExtrasLayoutValue setter also
+    /// <summary>one layout offer at a time: the ExtrasLayoutValue setter also
     /// schedules CheckLayoutMigration, and two concurrent offers overwrote each other's plan.</summary>
     private bool _layoutOfferBusy, _migrateCheckBusy;
 
     internal async Task OfferLayoutReorg()
     {
         if (_session.Manifest is null || string.IsNullOrEmpty(_session.BackupRoot)) return;
-        if (_layoutOfferBusy) return;   // (UI-thread sweep 09-06 r2)
+        if (_layoutOfferBusy) return;   // 
         _layoutOfferBusy = true;
         try
         {
-            // (S2.2) Core plans off the dispatcher (BackupLayout probes every root on disk; the planner is pure).
+            // Core plans off the dispatcher (BackupLayout probes every root on disk; the planner is pure).
             var manifest = _session.Manifest; var root = _session.BackupRoot; var layoutAtStart = _root.Settings.ExtrasLayoutValue;
             var plan = await Grog.Core.Runs.LayoutMigrationRun.ForLayoutChangeAsync(manifest, root, _session.Cts?.Token ?? default);
-            // (UI-thread sweep 09-06 r2) the plan is for the layout that was current when we started.
+            // the plan is for the layout that was current when we started.
             if (!ReferenceEquals(_session.Manifest, manifest) || _session.BackupRoot != root || _root.Settings.ExtrasLayoutValue != layoutAtStart) return;
             if (plan is null) return;   // nothing on disk is in the wrong place
             if (plan.HasUnavailableDrives) { BlockMoveForDrives(plan.UnavailableDrives); return; }
@@ -55,12 +55,12 @@ public sealed partial class StorageViewModel
     }
 
     /// <summary>The plan behind the open migrate prompt: the one-time flat-layout offer found on load, or a
-    /// layout the user just switched. The pane runs plan.Job. (S2.2)</summary>
+    /// layout the user just switched. The pane runs plan.Job. </summary>
     private Grog.Core.Runs.LayoutMigrationPlan? _layoutPlan;
     /// <summary>A running move is being stopped because a newer decision replaces it: no stop-choice dialog.</summary>
     private Grog.Core.Volumes.ReorgJob? _supersededJob;
 
-    /// <summary>Hand the extras card's plan to the same prompt and pane the layout offer uses (09-11).
+    /// <summary>Hand the extras card's plan to the same prompt and pane the layout offer uses.
     /// The card decides WHAT moves; running moves stays here, where the journal, the pause/cancel pane and
     /// the resume path already live. A plan that needs an offline drive blocks instead of half-running.</summary>
     internal void OfferExtrasPlacementPlan(Grog.Core.Runs.LayoutMigrationPlan plan)
@@ -74,7 +74,7 @@ public sealed partial class StorageViewModel
         ShowMigratePrompt = true;
     }
     /// <summary>The open prompt's plan came from the extras card: it is re-made at the click, because the prompt can
-    /// sit open while a move lands more files (walk 09-20: the prompt said 114 of what was by then 279).</summary>
+    /// sit open while a move lands more files (the prompt said 114 of what was by then 279).</summary>
     private bool _layoutPlanIsExtras;
 
     // ---- Layout migration (flat -> Games/Extras/Cloud Saves) ----
@@ -92,7 +92,7 @@ public sealed partial class StorageViewModel
     internal async void CheckLayoutMigration()
     {
         if (_session.Manifest is null || string.IsNullOrEmpty(_session.BackupRoot)) return;
-        // Its own flag (final check 09-06): sharing OfferLayoutReorg's dropped the flat-layout prompt on every
+        // Its own flag: sharing OfferLayoutReorg's dropped the flat-layout prompt on every
         // layout change from Settings, since the offer always held the flag first. The two prompts are
         // different plans (layout change vs old flat layout) and were both shown before the sweep.
         if (_migrateCheckBusy || ShowMigratePrompt) return;
@@ -101,7 +101,7 @@ public sealed partial class StorageViewModel
         {
             if (_session.Manifest.Current.Settings.TryGetValue(SuppressLayoutPromptKey, out var v) && v == "1") return;
             var manifest = _session.Manifest; var root = _session.BackupRoot;
-            // (S2.2) Core plans off the dispatcher: the journal read (an interrupted reorganize OWNS the misplaced
+            // Core plans off the dispatcher: the journal read (an interrupted reorganize OWNS the misplaced
             // files, so no second offer), the layout's root probes, and one File.Exists per planned move (only
             // what is ACTUALLY on disk is offered).
             var plan = await Grog.Core.Runs.LayoutMigrationRun.PlanAsync(manifest, root, _session.Cts?.Token ?? default);
@@ -121,13 +121,13 @@ public sealed partial class StorageViewModel
     private void PersistMigrateDontAskAgain()
     {
         if (!MigrateDontAskAgain || _session.Manifest is null) return;
-        _session.Manifest.Mutate(m => m.Settings[SuppressLayoutPromptKey] = "1");   // (manifest gate 09-08)
+        _session.Manifest.Mutate(m => m.Settings[SuppressLayoutPromptKey] = "1");   // 
         _session.Manifest.SaveSoon();   // a suppress flag
 
     }
 
     // AllowConcurrentExecutions: an async command is DISABLED while its last run is still awaited, and that run is
-    // the whole move. A second "Reorganize Now" asked while a move was running showed a dead button (walk 09-20).
+    // the whole move. A second "Reorganize Now" asked while a move was running showed a dead button.
     [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task MigrateNow()
     {
@@ -137,7 +137,7 @@ public sealed partial class StorageViewModel
         _layoutPlan = null;
         if (plan is null) return;
 
-        // (owner 09-20) THE LATEST DECISION WINS. A move still running was planned for a setting that has just been
+        // THE LATEST DECISION WINS. A move still running was planned for a setting that has just been
         // replaced: the file being copied right now is abandoned (its source is untouched until a copy is verified,
         // so it simply stays where it was), the files still waiting are dropped, and the plan is made again against
         // where everything actually is now. No "what about the files already moved?" question: the new plan answers it.
@@ -164,11 +164,11 @@ public sealed partial class StorageViewModel
             if (plan is null || plan.IsEmpty) { _root.Log("Nothing is out of place after stopping the move.", category: LogCategory.Move); return; }
             if (plan.HasUnavailableDrives) { BlockMoveForDrives(plan.UnavailableDrives); return; }
         }
-        // (UI-thread sweep 09-06) Resolve (config-dir probe) runs off the dispatcher.
+        // Resolve (config-dir probe) runs off the dispatcher.
         var manifest = _session.Manifest; var root = _session.BackupRoot;
         var configDir = await Task.Run(() => Grog.Core.Storage.GrogPaths.Resolve(root).ConfigDir);
         if (BlockIfDrivesUnavailable(plan.Job)) return;
-        // (S2.2) The pane drives plan.Job; Core's LayoutMigrationRun journals, runs and saves it.
+        // The pane drives plan.Job; Core's LayoutMigrationRun journals, runs and saves it.
         await RunReorgWithPaneAsync(plan.Job, configDir,
             execute: (progress, control) => Grog.Core.Runs.LayoutMigrationRun.RunAsync(manifest, root, plan,
                 new MainWindowViewModel.AppRunHost(_root, LogCategory.Move), progress, CancellationToken.None, control, configDir));
@@ -193,7 +193,7 @@ public sealed partial class StorageViewModel
         if (_session.Manifest is null || string.IsNullOrEmpty(_session.BackupRoot)) return;
         try
         {
-            // (UI-thread sweep 09-06) journal read + config-dir probe off the dispatcher (this runs at startup).
+            // journal read + config-dir probe off the dispatcher (this runs at startup).
             var root = _session.BackupRoot;
             var pending = await Task.Run(() =>
                 new Grog.Core.Volumes.ReorgJournalStore(Grog.Core.Storage.GrogPaths.Resolve(root).ConfigDir).Load());
@@ -215,7 +215,7 @@ public sealed partial class StorageViewModel
     {
         ShowReorgResumePrompt = false;
         if (_session.Manifest is null || string.IsNullOrEmpty(_session.BackupRoot)) return;
-        // (UI-thread sweep 09-06) journal read + config-dir probe off the dispatcher; the slot is taken inside RunReorgWithPaneAsync.
+        // journal read + config-dir probe off the dispatcher; the slot is taken inside RunReorgWithPaneAsync.
         var root = _session.BackupRoot;
         var manifest = _session.Manifest; var pendingWrites = _session.PendingWrites;
         var (pending, configDir, dropped) = await Task.Run(() =>
@@ -226,7 +226,7 @@ public sealed partial class StorageViewModel
             if (job is not null)
             {
                 var layout = new Grog.Core.Volumes.BackupLayout(manifest.Current, root);
-                // Drives may have come back under another letter since the plan was written (QA 09-30 B3), and may have
+                // Drives may have come back under another letter since the plan was written, and may have
                 // filled since: paths first, then the same room rule a new move applies.
                 int rebased = Grog.Core.Volumes.ReorgPlanner.Rebase(job, manifest.Current, layout);
                 if (rebased > 0) new Grog.Core.Volumes.ReorgJournalStore(dir).Save(job);
@@ -240,13 +240,13 @@ public sealed partial class StorageViewModel
         await RunReorgWithPaneAsync(pending, configDir);
     }
 
-    /// <summary>The room re-check before a resume, startup and in-app alike (QA 09-30 B12): what no longer fits
+    /// <summary>The room re-check before a resume, startup and in-app alike: what no longer fits
     /// leaves the plan and is said once.</summary>
     internal int DropWhatNoLongerFitsFor(Grog.Core.Volumes.ReorgJob job)
     {
         if (_session.Manifest is not { } manifest) return 0;
         var layout = new Grog.Core.Volumes.BackupLayout(manifest.Current, _session.BackupRoot);
-        Grog.Core.Volumes.ReorgPlanner.Rebase(job, manifest.Current, layout);   // a drive re-lettered while paused (QA 09-30 B3)
+        Grog.Core.Volumes.ReorgPlanner.Rebase(job, manifest.Current, layout);   // a drive re-lettered while paused
         if (job.Pending().FirstOrDefault(x => x.ToRootId is not null)?.ToRootId is not { } target) return 0;
         return Grog.Core.Volumes.ReorgPlanner.DropWhatNoLongerFits(job, MoveRoomFor(manifest, _session.PendingWrites, layout, target));
     }
@@ -289,7 +289,7 @@ public sealed partial class StorageViewModel
     private async Task OpenStopChoiceCore(Grog.Core.Volumes.ReorgJob? preloaded)
     {
         if (string.IsNullOrEmpty(_session.BackupRoot)) return;
-        var job = preloaded ?? await LoadStoppedJobAsync();   // (UI-thread sweep 09-06) journal read off the dispatcher
+        var job = preloaded ?? await LoadStoppedJobAsync();   // journal read off the dispatcher
         if (job is null) return;
 
         int moved = job.Moves.Count(m => m.State == Grog.Core.Volumes.ReorgMoveState.Done);
@@ -340,7 +340,7 @@ public sealed partial class StorageViewModel
     private string RootLabelForJob(Grog.Core.Volumes.ReorgJob job)
         => LabelOfRoot(job.Moves.FirstOrDefault()?.FromRootId);
 
-    /// <summary>The slot word for the active cards' route readouts: "Primary" / "Secondary" (owner 10-01: the role,
+    /// <summary>The slot word for the active cards' route readouts: "Primary" / "Secondary" (the role,
     /// never a folder name or path, so the text always fits), the drive's label only for a drive in neither slot.</summary>
     internal string SlotNameOf(string? rootId)
     {
@@ -375,7 +375,7 @@ public sealed partial class StorageViewModel
             : System.IO.Path.GetDirectoryName(abs) ?? "";
     }
 
-    // (UI-thread sweep 09-06) the stopped-job journal is read/deleted off the dispatcher; the config dir is
+    // the stopped-job journal is read/deleted off the dispatcher; the config dir is
     // captured on the UI thread (the active job's, else resolved -- with its disk probe -- in the Task.Run).
     private Task<Grog.Core.Volumes.ReorgJob?> LoadStoppedJobAsync()
     {
@@ -409,7 +409,7 @@ public sealed partial class StorageViewModel
     private async Task RevertStoppedMoveCore(Grog.Core.Volumes.ReorgJob? preloaded)
     {
         ShowMoveStopChoice = false;
-        // (UI-thread sweep 09-06) journal read + config dir off the dispatcher, BEFORE the slot as before.
+        // journal read + config dir off the dispatcher, BEFORE the slot as before.
         var configDir = await StoppedJobConfigDirAsync();
         var job = preloaded ?? await LoadStoppedJobAsync();
         if (job is null || _session.Manifest is null) return;
@@ -468,7 +468,7 @@ public sealed partial class StorageViewModel
     private async Task ConfirmAcceptOrphans()
     {
         ShowOrphanConfirm = false;
-        await DiscardStoppedJobAsync();   // (UI-thread sweep 09-06)
+        await DiscardStoppedJobAsync();   // 
         ClearReorgSurfaces();
         // Deliberately NOT touching each file's downloaded state: guessing would make health and verify lie.
         // Import re-adopts wanted files; per-file "mark as not downloaded" is the manual escape hatch.

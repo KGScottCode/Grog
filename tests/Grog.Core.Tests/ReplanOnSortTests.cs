@@ -13,11 +13,11 @@ using Grog.Core.Volumes;
 
 namespace Grog.Core.Tests;
 
-/// <summary>(Re-plan on sort 09-10) Placement is ORDER-DEPENDENT: the planner walks the queue in order and
+/// <summary>Placement is ORDER-DEPENDENT: the planner walks the queue in order and
 /// consumes each device's free space greedily, so a different order produces a different set of won't-fit
 /// files. Re-sorting the queue therefore invalidates the fit decision.
 ///
-/// The owner hit this with a size-ascending sort: Resident Evil HD REMASTER (Part 1 of 6) is a genuine 1 MB
+/// The this with a size-ascending sort: Resident Evil HD REMASTER (Part 1 of 6) is a genuine 1 MB
 /// file, so it sorted to the very head of the queue, took the pill, and sat at "0 B / 1.00 MB / 0%" forever
 /// while 13 MB/s flowed behind it. Its GAME did not fit (games are placed whole), so every part including
 /// the 1 MB one was dropped at <see cref="BackupQueueBuilder.Place"/> and never handed to the engine.
@@ -103,7 +103,7 @@ public sealed class ReplanOnSortTests
         Assert.Equal("big-setup", Held(engine), "it is in the engine and will actually download");
     }
 
-    /// <summary>(QA 09-18) A task the engine cancelled while it was ACTIVE stays in its list as Canceled. That
+    /// <summary>A task the engine cancelled while it was ACTIVE stays in its list as Canceled. That
     /// entry is not a membership: once the file fits again the whole-queue pass must hand it back to the engine,
     /// or the flag says Fits while nothing downloads it.</summary>
     [Test]
@@ -122,7 +122,7 @@ public sealed class ReplanOnSortTests
         Assert.Equal("big-setup", Held(engine), "and it is back in the engine as a live task");
     }
 
-    /// <summary>(09-13) No engine: the records are still rewritten, so an idle sort or an idle Storage tick
+    /// <summary>No engine: the records are still rewritten, so an idle sort or an idle Storage tick
     /// leaves the red rows, the banner and "Remove them" reading one fact.</summary>
     [Test]
     public void ReplanWholeQueue_without_an_engine_still_rewrites_the_flags()
@@ -136,7 +136,7 @@ public sealed class ReplanOnSortTests
         Assert.Equal("p", snap.First(q => q.FileKey == "small-setup").TargetRootId, "and carries its target");
     }
 
-    /// <summary>(09-16) The plan reports what is STILL FREE per device once every fitting file has its room: the
+    /// <summary>The plan reports what is STILL FREE per device once every fitting file has its room: the
     /// divider's "still free" figure and the room the row menus test against. Priced like the planner: a
     /// resumable partial is already out of the drive's free figure, so it is not charged again.</summary>
     [Test]
@@ -150,7 +150,7 @@ public sealed class ReplanOnSortTests
         Assert.Equal(44L, r.FreeAfter.First(d => d.RootId == "p").FreeBytes, "50 free - (10 - 4 already on disk); the flagged file reserves nothing");
     }
 
-    /// <summary>(09-16) With no engine, "changed" is the flags that flipped: a second idle pass over the same
+    /// <summary>With no engine, "changed" is the flags that flipped: a second idle pass over the same
     /// order reports 0, not one per fitting file (the log said "14 file(s) changed" on every drag).</summary>
     [Test]
     public void ReplanWholeQueue_without_an_engine_counts_only_flag_flips()
@@ -162,7 +162,7 @@ public sealed class ReplanOnSortTests
         Assert.Equal(0, BackupQueueBuilder.ReplanWholeQueue(Store(m), devices, engine: null), "same order: nothing changed");
     }
 
-    /// <summary>(09-16) A fit is a per-device test, so the leftover is reported per device, never summed.</summary>
+    /// <summary>A fit is a per-device test, so the leftover is reported per device, never summed.</summary>
     [Test]
     public void ReplanWholeQueueDetailed_keeps_room_per_device()
     {
@@ -177,7 +177,7 @@ public sealed class ReplanOnSortTests
         Assert.Equal(60L, r.FreeAfter.First(d => d.RootId == "s").FreeBytes, "s untouched");
     }
 
-    /// <summary>(09-13) Replan (the in-run pass) hands back the tasks that stopped fitting so the caller can cancel
+    /// <summary>Replan (the in-run pass) hands back the tasks that stopped fitting so the caller can cancel
     /// them off the gate. Before, the record said won't-fit while the engine kept the task Pending, and "Remove
     /// them" removed the record but the file downloaded anyway.</summary>
     [Test]
@@ -197,7 +197,7 @@ public sealed class ReplanOnSortTests
         Assert.Equal("", Held(engine), "and the caller's cancel takes it out of the engine");
     }
 
-    /// <summary>(09-13) A file that left the queue between the snapshot and the record write (settled, or the
+    /// <summary>A file that left the queue between the snapshot and the record write (settled, or the
     /// row's x) stays gone. Enqueue would have appended it back as a phantom row the engine never holds.</summary>
     [Test]
     public void A_replan_never_resurrects_an_entry_that_left_the_queue()
@@ -267,7 +267,7 @@ public sealed class ReplanOnSortTests
         Assert.Equal("small-setup", Held(engine));
     }
 
-    /// <summary>THE DEADLOCK, pinned (owner-hit 09-10: "Installers first" hard-locked the app, End Task).
+    /// <summary>THE DEADLOCK, pinned ("Installers first" hard-locked the app, End Task).
     /// Engine calls raise TaskChanged SYNCHRONOUSLY, and RunSettler.SettlePass takes the settler lock and THEN
     /// the manifest gate. So an engine call made while holding the gate deadlocks against any worker already
     /// inside SettlePass. This asserts the gate is not held for any event this raises -- the property that
@@ -293,7 +293,7 @@ public sealed class ReplanOnSortTests
         Assert.False(heldDuringAnEvent, "an engine event fired while the manifest gate was held: deadlock shape");
     }
 
-    /// <summary>THE FREEZE, pinned (owner-hit 09-10, TWICE, on "Installers first" -- End Task both times).
+    /// <summary>THE FREEZE, pinned (TWICE, on "Installers first" -- End Task both times).
     /// Every engine event runs a full RunSettler pass over the whole snapshot AND a full queue-pane rebuild,
     /// so cancelling N files one at a time is O(N * queue): at ~120 files against a ~1100-file queue it is a
     /// multi-minute freeze that is indistinguishable from a hang. The event count per re-plan must be a small
@@ -332,7 +332,7 @@ public sealed class ReplanOnSortTests
     [Test]
     public void An_empty_queue_is_a_no_op()
         => Assert.Equal(0, BackupQueueBuilder.ReplanWholeQueue(Store(Lib()), new[] { new DeviceSpace("p", 1000, true) }, Engine()));
-    // ---- 09-11: the Fits flag on the persisted entry (inform, never choose) ----
+    // ----: the Fits flag on the persisted entry (inform, never choose) ----
 
     /// <summary>The queue entry itself says whether the file fits, so the Activity pane can paint WON'T FIT
     /// on the row without asking the engine. Re-decided by ReplanWholeQueue, in BOTH directions.</summary>
@@ -390,7 +390,7 @@ public sealed class ReplanOnSortTests
         Assert.Equal("s1,s2", string.Join(",", q.Snapshot().Select(x => x.FileKey)), "survivors, same order");
         Assert.Equal(0, q.RemoveWontFit().Count, "idempotent");
     }
-    /// <summary>(walk 09-19) A 6.1 GB file died at FAT32's 4 GiB ceiling and left a 4 GiB .part: "0 B still free", and
+    /// <summary>A 6.1 GB file died at FAT32's 4 GiB ceiling and left a 4 GiB.part: "0 B still free", and
     /// two 1-3 MB files behind it could not land. A partial on a volume that can never hold its file is released,
     /// the record follows the disk, and the room it frees is planned in the SAME pass.</summary>
     [Test]
@@ -449,7 +449,7 @@ public sealed class ReplanOnSortTests
         finally { try { System.IO.Directory.Delete(root, true); } catch { } }
     }
 
-    /// <summary>(QA 09-19) Two whole-queue passes can each decide to hand over the same newly fitting file (each
+    /// <summary>Two whole-queue passes can each decide to hand over the same newly fitting file (each
     /// snapshots what the engine knows before either enqueues). The engine keeps one live task per file.</summary>
     [Test]
     public void The_engine_keeps_one_live_task_per_file()
@@ -462,7 +462,7 @@ public sealed class ReplanOnSortTests
         Assert.Equal(1, engine.Snapshot.Count(t => t.State == DownloadTaskState.Pending));
     }
 
-    /// <summary>(QA 09-19) A queue entry whose game left the library is pruned by the drain instead of riding along
+    /// <summary>A queue entry whose game left the library is pruned by the drain instead of riding along
     /// with a stale flag forever.</summary>
     [Test]
     public void A_phantom_queue_entry_leaves_on_the_next_drain()
@@ -475,7 +475,7 @@ public sealed class ReplanOnSortTests
         Assert.Equal("small-setup", string.Join(",", m.Downloads.Snapshot().Select(q => q.FileKey)));
     }
 
-    // 1283 (QA 09-30 A1): the whole-queue walk applies Build's rule: a file whose home drive (old build) is unplugged
+    // 1283: the whole-queue walk applies Build's rule: a file whose home drive (old build) is unplugged
     // is not handed to the engine on another root. It stays queued, flag untouched, waiting for its drive.
     [Test]
     public void Whole_queue_replan_leaves_a_file_whose_home_drive_is_offline_out_of_the_engine()
@@ -492,7 +492,7 @@ public sealed class ReplanOnSortTests
         Assert.True(m.Downloads.Contains(2, "small-setup"), "still queued");
     }
 
-    // 1283 (QA 09-30 A9): an unchecked transfer whose recorded partial already sits on the target volume is charged
+    // 1283: an unchecked transfer whose recorded partial already sits on the target volume is charged
     // only what is still to come; those bytes are already out of the drive's free figure.
     [Test]
     public void In_flight_reservation_does_not_double_charge_a_partial_already_on_the_volume()
@@ -506,7 +506,7 @@ public sealed class ReplanOnSortTests
         Assert.Equal(10_000_000_000 - 1_000_000_000, BackupQueueBuilder.ReserveInFlight(devices, new[] { t }, "p")[0].FreeBytes, "partial elsewhere: the whole file is still to come");
     }
 
-    // 1283 (QA 09-30 B6): a file whose .part is being carried between drives is not taken by a worker until released.
+    // 1283: a file whose.part is being carried between drives is not taken by a worker until released.
     [Test]
     public void A_held_file_is_skipped_by_the_workers_until_released()
     {

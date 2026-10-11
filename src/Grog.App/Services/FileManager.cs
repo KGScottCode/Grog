@@ -16,7 +16,7 @@ public static class FileManager
                 RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? ("explorer.exe", $"\"{path}\"")
               : RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? ("open", $"\"{path}\"")
               : ("xdg-open", $"\"{path}\"");
-            // Off the dispatcher: ShellExecute on a slow or network path can hold the caller (final check 09-06).
+            // Off the dispatcher: ShellExecute on a slow or network path can hold the caller.
             System.Threading.Tasks.Task.Run(() =>
             {
                 try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(cmd, args) { UseShellExecute = true }); }

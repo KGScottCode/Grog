@@ -136,7 +136,7 @@ public sealed class GogAuthService : IAuthService
     /// <summary>GOG REFUSED the refresh token (a 4xx from the token endpoint). Everything else -- no network, DNS,
     /// a timeout, a 5xx -- says nothing about the token, and reading it as "expired" popped a login window for
     /// a laptop that was merely offline, and marked a good account signed out on the non-interactive path
-    /// (sweep 2 #23). Those propagate; the session is kept and the next call tries again.</summary>
+    /// . Those propagate; the session is kept and the next call tries again.</summary>
     internal static bool IsRejection(HttpRequestException ex)
         => ex.StatusCode is { } c && (int)c >= 400 && (int)c < 500;
 

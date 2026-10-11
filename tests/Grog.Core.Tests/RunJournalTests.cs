@@ -225,7 +225,7 @@ public class RunJournalTests
         Assert.Equal("disk full", o!.Value.Reason, "the failure reason is read past the open writer");
     }
 
-    // 1283 (QA 09-30 C5): the journal counts failed FILES: two strikes on one file are one, and a file that fails then
+    // 1283: the journal counts failed FILES: two strikes on one file are one, and a file that fails then
     // lands is none.
     [Test]
     public void Failed_counts_files_not_strikes()

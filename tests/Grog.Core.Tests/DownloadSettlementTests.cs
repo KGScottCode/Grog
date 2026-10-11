@@ -34,7 +34,7 @@ public sealed class DownloadSettlementTests
     [Test]
     public void A_late_failure_on_a_landed_file_strikes_nothing()
     {
-        // (09-26) A duplicate attempt failing after the file landed: no strike, partial flag dropped, queue untouched.
+        // A duplicate attempt failing after the file landed: no strike, partial flag dropped, queue untouched.
         var (m, f, t) = Rig(DownloadTaskState.Failed); f.State = FileState.Verified;
         var (o, changed) = DownloadSettlement.Settle(m, t, f);
         Assert.Equal(DownloadSettlement.Outcome.NotFinished, o, "outcome");
@@ -77,7 +77,7 @@ public sealed class DownloadSettlementTests
         Assert.Equal(1, m.Downloads.Snapshot().Count, "queued again");
     }
 
-    /// <summary>(QA 09-19) The DRIVE refused the bytes: no strike however often it happens (three full-disk runs
+    /// <summary>The DRIVE refused the bytes: no strike however often it happens (three full-disk runs
     /// condemned intact files as Corrupt), the file stays queued with its partial, flagged won't-fit.</summary>
     [Test]
     public void A_disk_full_failure_takes_no_strike_and_flags_the_row_wont_fit()
@@ -95,7 +95,7 @@ public sealed class DownloadSettlementTests
         Assert.False(DownloadEngine.IsDiskFull(new System.IO.IOException("sharing violation", unchecked((int)0x80070020))));
     }
 
-    /// <summary>(walk 09-19) Try Again on a file that merely FAILED keeps its resumable partial: clearing the record
+    /// <summary>Try Again on a file that merely FAILED keeps its resumable partial: clearing the record
     /// left a 4 GiB .part on the drive that nothing owned.</summary>
     [Test]
     public void RequeueFresh_keeps_the_partial_of_a_file_that_was_not_condemned()
@@ -106,7 +106,7 @@ public sealed class DownloadSettlementTests
         Assert.Equal(0, f.FailedAttempts);
     }
 
-    /// <summary>(QA 09-19) The .part name no longer depends on the drive's path (a stick re-plugged under another
+    /// <summary>The.part name no longer depends on the drive's path (a stick re-plugged under another
     /// letter orphaned its partial); a root-keyed name from an older build is still found; and the sweep spares
     /// what a record owns while taking what nothing does.</summary>
     [Test]

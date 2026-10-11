@@ -143,7 +143,7 @@ public class DeviceGridTypeFilterTests
     {
         // BuildGridRows clears the grid before every rebuild (one per landed file during a run). The user's
         // "Show: Game only" must come back on the new rows, or it resets to "All types" two seconds after
-        // being picked and "Move all" carries what was filtered out (QA 09-18).
+        // being picked and "Move all" carries what was filtered out.
         var grid = GridWithMixedTypes();
         Hide(grid, "Soundtracks");
         grid.Clear();

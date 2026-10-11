@@ -16,7 +16,7 @@ using Grog.Core.Tests.Framework;
 using Grog.Core.Verify;
 using Grog.Core.Volumes;
 
-/// <summary>The one import sequence (S2.1, 09-08): register, defer on an empty library, run the deferred
+/// <summary>The one import sequence: register, defer on an empty library, run the deferred
 /// imports after a scan, adopt on a populated one.</summary>
 [NewBatch]
 [Trait("import")]
@@ -104,7 +104,7 @@ public class ImportRunTests
 
         var results = await ImportRun.RunPendingAsync(rig.Store, rig.Host, CancellationToken.None);
 
-        // (First-run adopt 09-10) The DEFAULT primary is pending too now, so the run considers both roots.
+        // The DEFAULT primary is pending too now, so the run considers both roots.
         // This test is about the NOMINATED one; pick it by id rather than assuming it is alone.
         var r = results.Single(x => x.Root.Id == deferred.Root.Id);
         Assert.Equal(ImportRunStatus.Adopted, r.Status, "adopted");
@@ -173,7 +173,7 @@ public class ImportRunTests
         Assert.True(rig.Host.Logged.Any(l => l.Contains("not reachable")), "said so");
     }
 
-    /// <summary>(First-run adopt 09-10) THE DEFAULT PRIMARY OWES AN IMPORT. It is the one root the user is
+    /// <summary>THE DEFAULT PRIMARY OWES AN IMPORT. It is the one root the user is
     /// never asked about, so it used to be the one root never walked: a library already sitting in the
     /// default path before Grog's first run read as entirely Not Backed Up and would be re-downloaded.</summary>
     [Test]
@@ -189,7 +189,7 @@ public class ImportRunTests
         Assert.Equal(1, PendingImports.Runnable(rig.Store.Current).Count, "runnable once the scan lands");
     }
 
-    // (09-19, owner) Adoption is a name + size match; the bytes are verified straight after, like a download.
+    // Adoption is a name + size match; the bytes are verified straight after, like a download.
     [Test]
     async Task AdoptedFiles_AreVerifiedAtOnce_GoodBytesVerified_BadBytesCorrupt()
     {
@@ -209,7 +209,7 @@ public class ImportRunTests
         Assert.True(rig.Host.Logged.Any(l => l.Contains("Verified adopted files") && l.Contains("1 verified") && l.Contains("1 corrupt")), "and the log says so");
     }
 
-    /// <summary>(09-15 review) Re-adding a DETACHED drive's folder with "Scan and Add" reattaches it and must not
+    /// <summary>Re-adding a DETACHED drive's folder with "Scan and Add" reattaches it and must not
     /// re-adopt the records already on it: Verified stays Verified, Outdated keeps Sync's signal.</summary>
     [Test]
     async Task ReAddingADetachedRoot_ReattachesIt_AndDoesNotRestampItsRecords()
@@ -233,7 +233,7 @@ public class ImportRunTests
         Assert.Equal(FileState.Verified, f.State, "a record already holding bytes here is not re-adopted");
         Assert.Equal(1, rig.Store.Current.Items.Sum(i => i.Files.Count), "no duplicate records");
     }
-    /// <summary>(1284) A storage back under another path (a re-lettered stick): "Scan and Add" on the new folder
+    /// <summary>A storage back under another path (a re-lettered stick): "Scan and Add" on the new folder
     /// recognises it by its files and re-points the SAME root there; no second root, nothing re-adopted, the old
     /// path forgotten. The folder itself carries nothing of Grog's.</summary>
     [Test]

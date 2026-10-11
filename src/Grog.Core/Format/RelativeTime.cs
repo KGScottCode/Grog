@@ -5,7 +5,7 @@ using System;
 namespace Grog.Core.Format;
 
 /// <summary>
-/// THE relative-time vocabulary. Four call sites each grew their own before 09-02 (the status lede,
+/// THE relative-time vocabulary. Four call sites each grew their own before (the status lede,
 /// the Health tiles, the Cloud Saves rows and the behind-row age) and drifted: "5m ago" beside
 /// "5 min ago" beside "5 minutes". One unit table, three phrasings.
 /// </summary>

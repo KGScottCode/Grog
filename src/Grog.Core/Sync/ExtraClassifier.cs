@@ -62,7 +62,7 @@ public static class ExtraClassifier
 
     /// <summary>THE short display label for a bucket: what the legend, the filter chips, the per-row type
     /// chip and the details descriptor all show. "Manuals, Guides &amp; Docs" is the classifier's name;
-    /// "Manuals" is what fits on a chip. Four copies of this map had drifted apart before 09-02 (the
+    /// "Manuals" is what fits on a chip. Four copies of this map had drifted apart before (the
     /// details pane still said "Level editors" where the legend said "Other").</summary>
     public static string ShortLabel(string bucket) => bucket switch
     {

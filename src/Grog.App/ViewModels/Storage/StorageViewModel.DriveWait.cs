@@ -12,7 +12,7 @@ using Grog.Core.Volumes;
 namespace Grog.App.ViewModels;
 
 /// <summary>
-/// (09-25, owner) Storage that went away mid-download: EVERYTHING stops. A missing drive is a broken state the user
+/// Storage that went away mid-download: EVERYTHING stops. A missing drive is a broken state the user
 /// addresses before Grog continues; planning around a drive that may never come back is more than the app should guess.
 ///   - The run pauses (the app's one Pause). Files headed to the drive take no strike, are not moved, and are not
 ///     marked "no room" (Core: DriveWaits, DownloadSettlement.DriveOffline).
@@ -24,7 +24,7 @@ namespace Grog.App.ViewModels;
 public sealed partial class StorageViewModel
 {
     private string? _driveGoneRootId;        // the dialog's drive; null = no dialog
-    // The drives Grog paused for. Reconnecting continues only THAT pause, once every one of them is back (review 09-25).
+    // The drives Grog paused for. Reconnecting continues only THAT pause, once every one of them is back.
     private readonly HashSet<string> _pausedForDrives = new(StringComparer.Ordinal);
     internal void ForgetDrivePause() => _pausedForDrives.Clear();
     /// <summary>Stop emptied the queue: nothing waits for a drive any more, so the pause and its dialog go too.</summary>
@@ -41,7 +41,7 @@ public sealed partial class StorageViewModel
         var m = _session.Manifest?.Current;
         var r = m?.Roots.FirstOrDefault(x => x.Id == id);
         if (r is null) return "Storage";
-        // "Small" (Secondary): the name the owner gave it, quoted, then the slot it fills (walk 5.6).
+        // "Small" (Secondary): the name the owner gave it, quoted, then the slot it fills.
         var slot = SlotNameOf(id);
         if (string.IsNullOrWhiteSpace(r.Label)) return slot.Length > 0 ? slot : "Storage";
         return slot.Length > 0 && slot != r.Label ? $"\"{r.Label}\" ({slot})" : $"\"{r.Label}\"";
@@ -99,7 +99,7 @@ public sealed partial class StorageViewModel
         => DriveWaits.Contains(id) || (_session.LiveEngine?.OfflineRoots.Contains(id) ?? false);
 
     /// <summary>Every watch tick, not only on a presence change: a flap shorter than the 2 s poll leaves the online
-    /// signature unchanged (review 09-25). Called on the watch's worker thread with its fresh probe.</summary>
+    /// signature unchanged. Called on the watch's worker thread with its fresh probe.</summary>
     private void CheckWaitedDrivesBack(Dictionary<string, bool> now)
     {
         var engineOff = _session.LiveEngine?.OfflineRoots ?? (IReadOnlyCollection<string>)Array.Empty<string>();

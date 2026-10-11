@@ -162,7 +162,7 @@ public sealed partial class LibraryViewModel
 
     public ObservableCollection<DetailFileRow> DetailFiles { get; } = new();
     public ObservableCollection<DetailFileRow> DetailGameFiles { get; } = new();
-    /// <summary>(09-25) One row per platform this game HAS installers for when none of them is in scope (the badge only).</summary>
+    /// <summary>One row per platform this game HAS installers for when none of them is in scope (the badge only).</summary>
     public ObservableCollection<DetailFileRow> DetailOutOfScopeOs { get; } = new();
     public bool HasOutOfScopeInstallers => DetailOutOfScopeOs.Count > 0;
     public ObservableCollection<DetailFileRow> DetailExtraFiles { get; } = new();
@@ -234,10 +234,10 @@ public sealed partial class LibraryViewModel
             foreach (var f in it.OldVersionFiles.Where(BackupScope.IsWithdrawnOnDisk))
                 DetailOutOfScopeOnDisk.Add(new DetailFileRow(f) { GogId = it.GogId, OutOfScope = true });
         }
-        // (owner 09-25) A game whose installers are ALL outside the scope still lists its extras: say why the
+        // A game whose installers are ALL outside the scope still lists its extras: say why the
         // installers are missing, name the platforms they exist for, and point at the setting.
         DetailOutOfScopeOs.Clear();
-        // Only when installers are in scope at all, and only platforms the scope leaves out (review 09-25: a game
+        // Only when installers are in scope at all, and only platforms the scope leaves out (a game
         // whose installers were excluded by LANGUAGE listed in-scope platforms as "out of scope").
         if (DetailGameFiles.Count == 0 && _includeGames)
         {
@@ -321,7 +321,7 @@ public sealed partial class LibraryViewModel
     /// <summary>No art (or art switched off) means no band at all, rather than an empty gradient block.</summary>
     public bool HasDetailArt => DetailLogoBitmap is not null;
 
-    // (UI-thread sweep 09-06) The decode used to run inline in this getter (File.Exists + OpenRead + decode on
+    // The decode used to run inline in this getter (File.Exists + OpenRead + decode on
     // the backup drive, on every selection change). Now: the getter answers from a per-GogId cache and, when
     // the cache is for another game or the last probe missed, kicks a worker probe that posts back to the UI
     // thread and raises the property. A miss never raises (null was already the answer), so probe -> raise ->

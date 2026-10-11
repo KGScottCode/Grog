@@ -42,10 +42,10 @@ public partial class MainWindowViewModel
     {
         if (_servicesReady) return;
         // Config paths only (%APPDATA%); ResolveConfigDir creates the folder, so even this resolve is disk work
-        // and runs on the pool (UI-thread sweep 09-06 r2).
+        // and runs on the pool.
         await Session.OpenStoreAsync();   // (S1.1) paths, store, load, legacy account migration live in the session
         var paths = Session.ConfigPaths!;
-        await Task.Run(Storage.PreseedDriveSamples);   // warm the drive samples off-thread before the UI builds storage rows (UI-thread sweep 09-06)
+        await Task.Run(Storage.PreseedDriveSamples);   // warm the drive samples off-thread before the UI builds storage rows
         // The interactive (WebView) session binds to the first registered account's token file; with no
         // accounts yet it writes to a scratch file that Connect moves into place once the username is known.
         RebindInteractiveSession(paths);
@@ -54,7 +54,7 @@ public partial class MainWindowViewModel
         bool sessionTokenReadable;
         try { sessionTokenReadable = await _tokenStore.LoadAsync() is not null; }
         catch { sessionTokenReadable = false; }
-        // Token probes off the dispatcher (UI-thread sweep 09-06 r2): the secondary-account check and the
+        // Token probes off the dispatcher: the secondary-account check and the
         // "does the bound session's file exist" answer used by the log line below.
         var interactivePath = _interactiveTokenPath;
         var (anyConnected, interactiveExists) = await Task.Run(() =>
@@ -64,10 +64,10 @@ public partial class MainWindowViewModel
         Library.AdoptManifestScope();   // scope lives in the manifest; seed it from legacy AppSettings once
         _servicesReady = true;
         Log("startup: services ready");
-        // UI-thread watchdog: stalls land in the Activity log with the slow pass named (diagnostic, 09-04).
+        // UI-thread watchdog: stalls land in the Activity log with the slow pass named.
         Services.UiWatch.Start(msg => Log(msg, isError: true, category: LogCategory.General));
         Grog.Core.Manifest.ManifestGate.SlowWait = ms => Services.UiWatch.Note("waiting for the manifest gate", ms);
-        // THE UI THREAD RUNS ONLY UI (owner 09-25): Core's heavy entry points report a call from it, once per entry point.
+        // THE UI THREAD RUNS ONLY UI: Core's heavy entry points report a call from it, once per entry point.
         Grog.Core.UiThreadGuard.IsUiThread = () => Avalonia.Threading.Dispatcher.UIThread.CheckAccess();
         Grog.Core.UiThreadGuard.Violation = what => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             Log($"UI thread ran {what}. It must run off the UI thread; please report this line.", isError: true, category: LogCategory.General));
@@ -75,7 +75,7 @@ public partial class MainWindowViewModel
         // Build the folder list at startup: Overview is home and set directly on CurrentView, so Navigate
         // never runs to build it and the list would stay empty until the user navigated.
         Storage.RefreshBackupLocations();
-        await Accounts.RefreshAccountsAsync();   // rows are built after the off-thread token probe (UI-thread sweep 09-06 r2)
+        await Accounts.RefreshAccountsAsync();   // rows are built after the off-thread token probe
         RaiseState();
         Schedule.StartScheduleTimer();   // begin honoring the automatic-backup schedule (if enabled)
         Settings.OnServicesReady();   // manifest-backed settings: migrate the legacy app values in, re-raise the bindings
@@ -108,7 +108,7 @@ public partial class MainWindowViewModel
         catch
         {
             // The tokens.json session is dead, but a signed-in sibling still carries the app. The per-account
-            // File.Exists runs on the pool before the post; config dir only (UI-thread sweep 09-06 r2).
+            // File.Exists runs on the pool before the post; config dir only.
             var m = _manifest; var root = _backupRoot;
             bool sibling;
             try
@@ -139,12 +139,12 @@ public partial class MainWindowViewModel
         await EnsureServicesAsync();
         // THE one intended GrogPaths.Resolve(root) with the legacy-state probe, plus the BackupLayout ctor
         // (ensures primary + scaffolds) and the primary-hint Directory.Exists: all disk, all on the pool, applied
-        // on the UI thread after the await (UI-thread sweep 09-06 r2).
+        // on the UI thread after the await.
         var m = _manifest;
         // The one manifest STRUCTURE change a layout can make (first run: add the primary root) happens here,
         // on the UI thread, so no worker-built layout ever adds to Roots under the UI's enumeration.
         bool primaryAdded = m.Read(cur => cur.Roots.Count == 0 || cur.PrimaryRootId is null);   // the only case EnsurePrimary changes anything
-        m.Mutate(cur => Grog.Core.Volumes.BackupLayout.EnsurePrimary(cur, Grog.Core.Storage.GrogPaths.ResolveNoProbe(root).BackupRoot));   // (manifest gate 09-08)
+        m.Mutate(cur => Grog.Core.Volumes.BackupLayout.EnsurePrimary(cur, Grog.Core.Storage.GrogPaths.ResolveNoProbe(root).BackupRoot));   // 
 
         var bound = await Task.Run(() =>
         {
@@ -176,12 +176,12 @@ public partial class MainWindowViewModel
         }
         if (primaryAdded) await _manifest.SaveAsync();   // the manifest is otherwise unchanged; the launch reconcile saves the rest
         // The manifest is already in memory (OpenStoreAsync): build the rows from it, no re-parse of the file.
-        await Task.Run(Storage.PreseedDriveSamples);   // the chosen root is new to the sample cache; probe it off-thread (UI-thread sweep 09-06)
+        await Task.Run(Storage.PreseedDriveSamples);   // the chosen root is new to the sample cache; probe it off-thread
         RefreshFromManifest();
         Log(Library.TotalCount > 0 ? "" : "No library yet. Scan to see what you own.");
         _ = RepairMisnamedFilesAsync();       // 1060-1083 display-name saves: rename in place, background, converges to 0
         OnPropertyChanged(nameof(CurrentRootText));
-        await Accounts.RefreshAccountsAsync();   // (UI-thread sweep 09-06 r2)
+        await Accounts.RefreshAccountsAsync();   // 
         // Rebuild the folder rows now that the root exists: EnsureServicesAsync built them with an empty
         // _backupRoot, so every row carries StatusKnown=false until rebuilt here (RaiseDashboard does it).
         RaiseDashboard();
@@ -235,13 +235,13 @@ public partial class MainWindowViewModel
         try
         {
             var api = _api; var m = _manifest; var root = _backupRoot;
-            // The BackupLayout ctor (disk) is built inside the pool task, not before it (UI-thread sweep 09-06 r2).
+            // The BackupLayout ctor (disk) is built inside the pool task, not before it.
             int n = await Task.Run(() =>
             {
                 var layout = new Grog.Core.Volumes.BackupLayout(m.Current, root);
                 return Grog.Core.Download.MisnamedFileRepair.RepairAsync(m.Current, layout,
                     async (f, ct) => (await api.ResolveDownloadAsync(f.FileKey, ct)).FileName,
-                    msg => Log(msg, category: LogCategory.Verify), gate: m.Gate);   // (manifest gate 09-08)
+                    msg => Log(msg, category: LogCategory.Verify), gate: m.Gate);   // 
             });
 
             if (n > 0)
@@ -267,9 +267,9 @@ public partial class MainWindowViewModel
             var m = _manifest; var root = _backupRoot;
             // The presence/size pass is a synchronous stat loop with nothing that yields; run it on the thread
             // pool so first paint is not starved. The BackupLayout ctor (disk) is built there too, not on the
-            // dispatcher before the hop (UI-thread sweep 09-06 r2). The reconcile below touches
+            // dispatcher before the hop. The reconcile below touches
             // ObservableCollections and runs back on the UI thread after the stat pass.
-            // (S2.2) Core's VerifyRun, silent host: the startup line below is the only thing this pass says.
+            // Core's VerifyRun, silent host: the startup line below is the only thing this pass says.
             var r = (await Task.Run(() => Grog.Core.Runs.VerifyRun.RunAsync(m, root, Grog.Core.Runs.VerifyRequest.LibrarySizeOnly(),
                 new Grog.Core.Runs.NullBackupHost(), CancellationToken.None))).Verify;
             await ReconcileAndRefresh();
@@ -287,12 +287,12 @@ public partial class MainWindowViewModel
 
     /// <summary>The one recompute-and-notify path: every state-changing mutation ends here -- rebuild rows +
     /// domain-derived stats, then fire grouped notifications.</summary>
-    /// <summary>(09-19) THE "is this game hidden" test for every list outside the Library grid: the Library's own
+    /// <summary>THE "is this game hidden" test for every list outside the Library grid: the Library's own
     /// HiddenPolicy (mature toggle + per-game picks), by id.</summary>
     internal bool IsHiddenGameId(long gogId)
         => Library?.ItemById(gogId) is { } item && Library.Hidden.IsHidden(item);
 
-    /// <summary>(09-19) A hide/unhide or the mature toggle changed: every surface that names games follows at once
+    /// <summary>A hide/unhide or the mature toggle changed: every surface that names games follows at once
     /// -- Storage lists, Other storage, Cloud Saves, the Downloading/Moving rows, Files &amp; issues, the rail.</summary>
     internal void RefreshHiddenSurfaces()
     {
@@ -337,7 +337,7 @@ public partial class MainWindowViewModel
     private async Task Sync()
     {
         if (Busy) return;
-        if (!await ConfirmManualRescanAsync()) return;   // (New items 09-09) manual scan: ask about standing flags
+        if (!await ConfirmManualRescanAsync()) return;   // manual scan: ask about standing flags
         Library.NoteScanStarting();
         await RunBusy("Syncing library…", async () =>
         {
@@ -378,7 +378,7 @@ public partial class MainWindowViewModel
     /// <summary>The connect scrim's Cancel: closes the in-flight native login dialog, which resolves the
     /// broker as canceled and lets the normal "Sign-in was canceled" path clear the scrim. If no dialog
     /// is live (wedged before it opened, or it died with the compositor), drop the scrim directly --
-    /// the button must ALWAYS free the user (Linux walk 2026-08-23, N2).</summary>
+    /// the button must ALWAYS free the user.</summary>
     [RelayCommand]
     private void CancelConnect()
     {
@@ -433,14 +433,14 @@ public partial class MainWindowViewModel
                 // on disk (EnsureAuthenticated wrote it), so a mismatch DISCARDS it and says who to use
                 // instead; it never silently adopts. Symmetric with Add-account's duplicate check.
                 var expected = _manifest is null ? null
-                    : new Grog.Core.Auth.AccountService(_manifest, Grog.Core.Storage.GrogPaths.ResolveNoProbe(_backupRoot))   // (UI-thread sweep 09-06 r2)
+                    : new Grog.Core.Auth.AccountService(_manifest, Grog.Core.Storage.GrogPaths.ResolveNoProbe(_backupRoot))   // 
                         .Accounts.FirstOrDefault();
                 if (expected is not null && expected.Username.Length > 0
                     && !string.Equals(expected.Username, user.Username, StringComparison.OrdinalIgnoreCase))
                 {
                     await _auth.SignOutAsync();   // wipe the mismatched token from this session's file
                     var expectedName = expected.Username;
-                    var stillConnected = AnyAccountConnected();   // probed on this worker, not inside the UI invoke (UI-thread sweep 09-06 r2)
+                    var stillConnected = AnyAccountConnected();   // probed on this worker, not inside the UI invoke
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
                         IsConnected = stillConnected;
@@ -455,7 +455,7 @@ public partial class MainWindowViewModel
 
                 // A valid IN-MEMORY session skips the login AND the save, so an orphaned token file
                 // (keyring key lost while the app ran) would survive this "successful" connect and the
-                // next restart is a silent logout (Linux walk 2026-08-23, B1 primary-slot variant).
+                // next restart is a silent logout.
                 if (!Grog.Core.Auth.FileTokenStore.LooksReadable(_interactiveTokenPath))
                 {
                     await _auth.PersistSessionAsync();
@@ -508,7 +508,7 @@ public partial class MainWindowViewModel
         // was refreshed in the last few minutes -- avoids a redundant scan before download.
         if (!skipCatalogRefresh && !SyncedRecently)
         {
-            // (New items 09-09) Only a run a person started asks; the scheduled path passes unattended and
+            // Only a run a person started asks; the scheduled path passes unattended and
             // scans straight through, clearing nothing.
             if (!unattended && !await ConfirmManualRescanAsync()) return;
             Library.NoteScanStarting();
@@ -527,12 +527,12 @@ public partial class MainWindowViewModel
                 Dispatcher.UIThread.Post(() => { Library.RebuildRows(); Library.NoteScanResult(r, userAsked: false); Library.EndCatalog(completed: Library.LastScanStoredAnything); });
             });
             // Storage added before this scan owes an import. Between the phases, never alongside phase 2: the
-            // import and the run both plan placement and save the manifest (review 09-06). Unattended = no modal.
+            // import and the run both plan placement and save the manifest. Unattended = no modal.
             await Storage.RunPendingImportsAsync(interactive: !unattended);
         }
         // Phase 2: download all gaps.
         await DownloadFiltered(updatesOnly: false, ignoreContentChips: ignoreContentChips, unattended: unattended);
-        // (09-26) Refused because a run was already live: this backup did nothing, so it records nothing
+        // Refused because a run was already live: this backup did nothing, so it records nothing
         // (no "Backup is current", no last-backup stamp for the overdue check).
         if (_downloadRefused)
         {
@@ -548,14 +548,14 @@ public partial class MainWindowViewModel
         if (!DownloadPaused && !_stopRequested)
         {
             // The run's own outcome, the same one its journal carries: the App counted only 3-strike files, so one
-            // network strike read "Completed" here beside "partial" in the journal (QA 09-30 C4).
+            // network strike read "Completed" here beside "partial" in the journal.
             var outcome = _runErrored ? Grog.Core.Scheduling.ScheduleRunOutcome.Failed
                         : _lastRunOutcome is { } ro && ro != Grog.Core.Scheduling.ScheduleRunOutcome.Canceled ? ro
                         : _runFailed > 0 ? Grog.Core.Scheduling.ScheduleRunOutcome.Partial
                         :                  Grog.Core.Scheduling.ScheduleRunOutcome.Completed;
             Schedule.RecordRunOutcome(outcome);
             Overview.MarkLastRunDirty();   // the run's journal is finished: read its outcome once
-            // (09-22) The journal's summary can still be catching up when that first read lands (the Health card
+            // The journal's summary can still be catching up when that first read lands (the Health card
             // said "3 files failed" over a run that failed 6): read it again once it has settled.
             _ = Task.Delay(4000).ContinueWith(_ => Dispatcher.UIThread.Post(() => { Overview.MarkLastRunDirty(); Overview.RaiseHealth(); }));
             // The FIRST unattended run that finished is the one nobody watched: pin its account.
@@ -569,7 +569,7 @@ public partial class MainWindowViewModel
     private bool _runErrored;
     private Grog.Core.Scheduling.ScheduleRunOutcome? _lastRunOutcome;
 
-    /// <summary>(09-26) The last DownloadFiltered did not start because a run was already live.</summary>
+    /// <summary>The last DownloadFiltered did not start because a run was already live.</summary>
     private bool _downloadRefused;
     /// <summary>Why the last DownloadFiltered was refused, worded for the "Scheduled backup waits" line.</summary>
     private string? _downloadRefusedReason;

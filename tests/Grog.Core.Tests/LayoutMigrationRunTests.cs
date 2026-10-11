@@ -113,7 +113,7 @@ public class LayoutMigrationRunTests
         try
         {
             AddFile(e, 1, "alpha", "Alpha", "alpha/setup.exe", "aaaa");
-            // An interrupted reorganize OWNS the misplaced files: the resume prompt handles them (owner-hit 08-30).
+            // An interrupted reorganize OWNS the misplaced files: the resume prompt handles them.
             var pending = new ReorgJob { Reason = ReorgReason.Layout };
             pending.Moves.Add(new ReorgMove { GogId = 1, FileKey = "alpha/setup.exe", FromRel = "alpha/setup.exe", ToRel = "Games/alpha/setup.exe", State = ReorgMoveState.Pending });
             Directory.CreateDirectory(e.ConfigDir);
