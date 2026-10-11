@@ -285,6 +285,7 @@ public sealed partial class LibraryViewModel : ObservableObject
             _gameById[g.GogId] = g;
         }
         _root.DownloadPaused = _manifest.Current.Downloads.Paused;   // keep the bindable flag in step with the fact
+        _root.NotePausedAtStartup(_manifest.Current.Downloads.Paused);
         _root.RecomputeActivity();   // derive every row's activity from the persisted queues (the single source)
         ApplyFilter();
         if (selectedId is { } id && SelectedRow?.GogId != id)

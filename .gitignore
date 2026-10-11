@@ -39,3 +39,7 @@ node_modules/
 
 # FUSE ghosts: a mounted-folder editor rewriting a file in place leaves .fuse_hidden* remnants (09-02)
 .fuse_hidden*
+
+# Dev-only tools (kept locally, not part of the public repo)
+tools/container-build/
+tools/fake-second-account.py

@@ -336,8 +336,20 @@ public partial class MainWindowViewModel
 
     /// <summary>Mirror the queue's Paused fact onto the bindable flag + persist it. One place sets both,
     /// so they can't drift.</summary>
+    /// <summary>The queue came back paused from the last session (a quit mid-run pauses it, or it was paused when
+    /// Grog closed). Overview says so instead of "paused by you" until the next Pause or Resume (Mac walk 10-10).</summary>
+    internal bool PausedSinceLastClose { get; private set; }
+    private bool _startupPauseSeen;
+    internal void NotePausedAtStartup(bool paused)
+    {
+        if (_startupPauseSeen) return;
+        _startupPauseSeen = true;
+        PausedSinceLastClose = paused;
+    }
+
     private void SetDownloadPaused(bool paused)
     {
+        PausedSinceLastClose = false;
         if (_manifest is not null)
         {
             _manifest.Mutate(m => m.Downloads.Paused = paused);   // (manifest gate 09-08)

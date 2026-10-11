@@ -11,6 +11,19 @@ which? **Apple menu > About This Mac**: "Chip: Apple M…" is Apple Silicon.
 
 **2. Install.** Open the `.dmg` and drag **Grog** onto **Applications**.
 
+No admin rights on this Mac (macOS asks for an administrator's password)? Cancel, and install Grog into
+the Applications folder in your home folder instead. In Terminal:
+
+```sh
+mkdir -p ~/Applications
+cp -R /Volumes/Grog/Grog.app ~/Applications/
+xattr -dr com.apple.quarantine ~/Applications/Grog.app
+open ~/Applications/Grog.app
+```
+
+That copy opens without step 3. Find it later with Spotlight or Launchpad, or right-click its Dock icon
+and choose **Options > Keep in Dock**.
+
 **3. Allow it to open.** Open Grog once and let macOS refuse ("damaged" or "cannot be opened"). Then
 open **System Settings > Privacy & Security**, scroll down to the message about Grog, click
 **Open Anyway** and confirm.
@@ -61,9 +74,6 @@ Backed-up games on your drives are never touched; delete those folders yourself 
 ```sh
 xattr -dr com.apple.quarantine /Applications/Grog.app
 ```
-
-**Can't drag to Applications** (no admin rights): drag Grog to the **Applications** folder in your
-home folder instead, and use that path above.
 
 **Signed out right after signing in**: your login keychain is locked. Unlock it, or log out of macOS and
 back in.

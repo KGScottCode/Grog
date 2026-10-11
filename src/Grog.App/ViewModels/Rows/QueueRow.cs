@@ -134,7 +134,8 @@ public sealed partial class QueueRow : ObservableObject, IDropTargetRow
     /// rule as PlacementPlanner.StillNeeds: the real size once known, less what is already on the drive.</summary>
     internal long RemainingBytes => Math.Max(0, (Task.BytesTotal ?? Task.File.PlanSizeBytes ?? 0) - Task.BytesReceived);
 
-    internal long? KnownSizeBytes => (Task.BytesTotal ?? Task.File.ExpectedSizeBytes) is { } s and > 0 ? s : null;
+    // The real size once known (the transfer's own total, else the sizer's CDN figure), GOG's rounded label before that.
+    internal long? KnownSizeBytes => (Task.BytesTotal ?? Task.File.PlanSizeBytes) is { } s and > 0 ? s : null;
     /// <summary>Never prints "0 B" for a real file whose size GOG didn't give us; says so instead.</summary>
     public string SizeText => KnownSizeBytes is { } s ? ByteFormat.Size(s) : "Size unknown";
     /// <summary>The planner found no device with room for this file. It keeps its position in the queue
@@ -168,7 +169,7 @@ public sealed partial class QueueRow : ObservableObject, IDropTargetRow
     /// <summary>The engine's percent once the total is known; before the CDN answers a resume request the
     /// expected size stands in, so a 476-of-486 MB partial never reads "0%" (owner-hit 09-04).</summary>
     public double Percent => Task.BytesTotal is { } t && t > 0 ? Task.PercentComplete
-        : Task.File.ExpectedSizeBytes is { } e && e > 0 ? Math.Min(100.0, 100.0 * Task.BytesReceived / e) : 0;
+        : Task.File.PlanSizeBytes is { } e && e > 0 ? Math.Min(100.0, 100.0 * Task.BytesReceived / e) : 0;
     /// <summary>The row has partial progress worth a bar (e.g. a paused file that was mid-download) -- used
     /// so a waiting/paused row keeps its progress bar instead of dropping to a bare line.</summary>
     public bool HasProgress => Task.PercentComplete > 0.01;

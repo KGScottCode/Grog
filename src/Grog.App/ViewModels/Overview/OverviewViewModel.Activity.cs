@@ -196,7 +196,7 @@ public sealed partial class OverviewViewModel
             // Reverse ran the names Z-A under "Extras first" (09-13; the pitfall the old Storage sort named).
             QueueSortKey.Kind => snap.OrderBy(x => (F(x)?.Kind == FileKind.Extra) == _queueSortState.Asc ? 1 : 0)
                                      .ThenBy(x => F(x)?.Name ?? "", StringComparer.OrdinalIgnoreCase),
-            QueueSortKey.Size => snap.OrderBy(x => F(x)?.ExpectedSizeBytes ?? 0L),
+            QueueSortKey.Size => snap.OrderBy(x => F(x)?.PlanSizeBytes ?? 0L),
             _ => snap,
         };
         var list = ordered.ToList();

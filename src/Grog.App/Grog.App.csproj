@@ -13,7 +13,7 @@
          not edited by hand; hand-bumping it failed twice, silently, and left the number stale for days
          while it was believed accurate. No reset is needed before tagging: a global -p:Version from
          release.yml wins over anything the project sets, so a tagged build takes the tag verbatim. -->
-    <VersionPrefix>0.1.0</VersionPrefix>
+    <VersionPrefix>0.1.1</VersionPrefix>
     <!-- Continuity offset. The hand-bumped counter reached 1133 at commit 538, so 595 makes the stamped
          number pick up exactly where it stopped instead of jumping backwards. Monotonic from here; never
          edit it again. -->

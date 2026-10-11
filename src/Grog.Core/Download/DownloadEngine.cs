@@ -74,7 +74,11 @@ public sealed class DownloadEngine
     /// confirmed or ruled out from it (owner, walk pass 4). One line per file that had a .part; none otherwise.</summary>
     public Action<string>? PartialNotice { get; set; }
     private void NotePartial(DownloadTask t, string what)
-        => PartialNotice?.Invoke($"{t.GameTitle} - {t.File.ResolvedFileName ?? t.File.Name}: {what}");
+        => PartialNotice?.Invoke($"{t.GameTitle} - {t.File.ResolvedFileName ?? PartialLabel(t.File)}: {what}");
+    /// <summary>Before the real file name is known, GOG's label is often the game title for every platform's installer:
+    /// say which one (Mac walk 10-10: two "Wanderlust: Transsiberian resumed at" lines read as one file going backwards).</summary>
+    private static string PartialLabel(Models.GameFile f)
+        => string.IsNullOrEmpty(f.Os) ? f.Name : $"{f.Name} ({Models.PlatformNames.Label(f.Os)})";
 
     /// <summary>Per-device write timing; when a device reads slow, at most ONE in-flight file targets it while
     /// other devices keep the full worker pool. Shared across runs by the host so the lesson survives a

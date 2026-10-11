@@ -478,7 +478,8 @@ public sealed partial class OverviewViewModel : ObservableObject
             if (RunLedeIsScan || !_root.DownloadPaused || !RunActive) return "";
             if (_root.PausedAfterFinish) return "\u2014 finished the files in progress";
             if (_root.Storage.PausedForDriveLabel is { } drive) return $"\u2014 waiting for {drive} to be reconnected";   // (09-25)
-            return _root.QueueNeedsAccount ? "\u2014 waiting for you to connect an account" : "\u2014 paused by you";
+            if (_root.QueueNeedsAccount) return "\u2014 waiting for you to connect an account";
+            return _root.PausedSinceLastClose ? "\u2014 paused when Grog last closed" : "\u2014 paused by you";
         }
     }
 

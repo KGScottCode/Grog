@@ -232,11 +232,21 @@ public static class DriveResolver
     {
         try
         {
+            // The UI thread never scans the mount table (For on Unix): it reads the cached answer for the volume, or
+            // "no known limit" while a worker fills it (Mac walk 10-10: one startup ask still scanned on the UI thread).
+            if (!OperatingSystem.IsWindows() && UiThreadGuard.IsUiThread?.Invoke() == true)
+            {
+                if (MountRootCached(path) is { } uiRoot)
+                    lock (_maxFileCache) if (_maxFileCache.TryGetValue(uiRoot, out var uiHit)) return uiHit.Max;
+                if (_maxFilePending.TryAdd(path, 0))
+                    _ = System.Threading.Tasks.Task.Run(() => { try { MaxFileBytes(path); } finally { _maxFilePending.TryRemove(path, out _); } });
+                return long.MaxValue;
+            }
             var d = For(path);
             if (d is null) return long.MaxValue;
             // Cached per volume for a minute: planners ask on every pass (1 Hz from the Storage page during a run),
             // and IsReady/DriveFormat on a busy USB stick is the stall Probe's own cache exists to avoid.
-            var key = d.Name;
+            var key = d.RootDirectory.FullName;
             long now = Environment.TickCount64;
             lock (_maxFileCache)
                 if (_maxFileCache.TryGetValue(key, out var hit))
@@ -286,9 +296,17 @@ public static class DriveResolver
     {
         try
         {
+            // UI thread: cached answer by mount root, else the stand-in while a worker asks (no mount-table scan here).
+            if (!OperatingSystem.IsWindows() && UiThreadGuard.IsUiThread?.Invoke() == true)
+            {
+                if (MountRootCached(path) is { } uiRoot)
+                    lock (_clusterCache) if (_clusterCache.TryGetValue(uiRoot, out var uiHit)) return uiHit;
+                _ = System.Threading.Tasks.Task.Run(() => { try { ClusterBytes(path); } catch { } });
+                return DefaultClusterBytes;
+            }
             var d = For(path);
             if (d is null) return DefaultClusterBytes;
-            var key = d.Name;
+            var key = d.RootDirectory.FullName;
             lock (_clusterCache) if (_clusterCache.TryGetValue(key, out var hit)) return hit;
             if (UiThreadGuard.IsUiThread?.Invoke() == true)
             {

@@ -184,7 +184,7 @@ public sealed partial class OverviewViewModel
     /// its remaining while bytes still flow. That mismatch (session meter climbing, remaining clamped)
     /// is what made the footer's denominator creep at download speed (owner-caught 08-31).</summary>
     private static long EffectiveRowTotal(Grog.Core.Download.DownloadTask t)
-        => Math.Max(Math.Max(t.BytesTotal ?? 0, t.File.ExpectedSizeBytes ?? 0), t.BytesReceived);
+        => Math.Max(Math.Max(t.BytesTotal ?? 0, t.File.PlanSizeBytes ?? 0), t.BytesReceived);
     private static long StillNeedsOf(Grog.Core.Download.DownloadTask t) => Grog.Core.Volumes.PlacementPlanner.StillNeeds(t.File);
     /// <summary>Bytes of files COMPLETED this run, at their learned sizes (companion to _runFilesDone).</summary>
     /// <summary>Tasks whose completion the settle callback has already folded into <see cref="_runBytesSettled"/>.</summary>
