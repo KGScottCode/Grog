@@ -48,10 +48,10 @@ public class PurchaseDatesTests
         """);
         Assert.Equal(4, page.TotalPages, "total pages");
         var order = Assert.Single(page.Orders);
-        Assert.Equal(Epoch(1788870014), order.Date, "date is epoch seconds");
-        Assert.Equal("141857263d2b", order.PublicId, "publicId");
+        Assert.Equal(Epoch(1700000000), order.Date, "date is epoch seconds");
+        Assert.Equal("0a1b2c3d4e5f", order.PublicId, "publicId");
         Assert.Equal(2, order.Products.Count, "products");
-        Assert.Equal(1472210676L, order.Products[0].Id, "string id parsed to long");
+        Assert.Equal(1000000001L, order.Products[0].Id, "string id parsed to long");
         Assert.True(order.Products[1].IsRefunded, "isRefunded carried");
     }
 
