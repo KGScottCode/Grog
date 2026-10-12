@@ -26,39 +26,22 @@ using Grog.Core.Format;
 
 namespace Grog.App.ViewModels;
 
-/// <summary>
-/// The window's composition root and shell: builds the session and the page view models
-/// (Storage, Library, Overview, Accounts, Settings, plus Guide, Schedule and the cloud-saves VM), owns
-/// navigation and the rail, Busy / RunBusy and the log, the primary-action bar state machine, the connect /
-/// sign-in orchestration and the download run (the partials). Holds no backup logic of its own -- it drives
-/// the same Grog.Core runs the CLI uses.
-/// </summary>
 public partial class MainWindowViewModel : ObservableObject
 {
-    /// <summary>The application state that is not a view: manifest store, GOG client and session,
-    /// settings, root, live engine, cancellation. Page view models receive this; the partials below reach it
-    /// through the forwarding members that keep their existing names while the split proceeds.</summary>
     public Runtime.GrogSession Session { get; }
 
-    /// <summary>The Storage page's view model (S3.1): locations, roots, import, layout moves, device grids.</summary>
     public StorageViewModel Storage { get; }
 
-    /// <summary>The Library page's view model (S3.2): rows, filters, selection, detail pane, scope, scan panel.</summary>
     public LibraryViewModel Library { get; }
 
-    /// <summary>The Overview page's view model (S3.3): health, lede, issues, run readouts, queue pane, log, toast.</summary>
     public OverviewViewModel Overview { get; }
 
-    /// <summary>The Accounts page's view model (S3.4): account cards, add / log out / remove, sign-in security, rail dots.</summary>
     public AccountsViewModel Accounts { get; }
 
-    /// <summary>The Settings page's view model (S3.4): theme, launch checks, transfer, retention, notifications,
-    /// close action, fresh library, extras layout and the backup policy preview.</summary>
     public SettingsViewModel Settings { get; }
 
     // ---- Forwarders onto the session (S1.1: same names as the fields they replaced, so no call site moved).
     private string _backupRoot { get => Session.BackupRoot; set => Session.BackupRoot = value; }
-    /// <summary>The backup root, for the sub-view-models that need to construct a layout.</summary>
     internal string BackupRootPath => _backupRoot;
     private string _configDir { get => Session.ConfigDir; set => Session.ConfigDir = value; }
     private Grog.Core.Storage.GrogPaths? _configPaths { get => Session.ConfigPaths; set => Session.ConfigPaths = value; }
@@ -88,9 +71,6 @@ public partial class MainWindowViewModel : ObservableObject
         false;
 #endif
 
-    /// <summary>DEV ONLY: simulate a fresh install (forget the root, empty the manifest) while leaving the
-    /// token file untouched so the account stays connected, then re-run the first-run path.
-    /// Compile-gated: a release binary must not carry a manifest-wiping command behind a visibility binding.</summary>
     [RelayCommand]
     private async Task DevResetFirstRun()
     {
@@ -142,9 +122,6 @@ public partial class MainWindowViewModel : ObservableObject
 
     public bool HasLocation => !string.IsNullOrEmpty(_backupRoot);
 
-    /// <summary>The backup root changed at runtime (first-run auto-apply / DEV reset / bind / re-point): notify
-    /// the computed HasLocation family on both the shell and the storage VM so bindings re-evaluate instead of
-    /// staying stale-false from before a root existed.</summary>
     internal void RaiseRootPathChanged()
     {
         OnPropertyChanged(nameof(HasLocation));
@@ -152,8 +129,6 @@ public partial class MainWindowViewModel : ObservableObject
         Storage.RaiseLocationState();
     }
 
-    /// <summary>Exactly one center panel, from (phase x tab). Location must come first everywhere (the
-    /// token + manifest live under it); local tabs do not require an account.</summary>
     public CenterView Center
     {
         get
@@ -165,11 +140,8 @@ public partial class MainWindowViewModel : ObservableObject
                 View.Overview     => CenterView.Health,
                 View.Settings   => CenterView.Settings,
                 View.About      => CenterView.About,
-                // Every page renders signed out: only ACTIONS need an account, and those gate individually.
                 View.CloudSaves => CenterView.CloudSaves,
-                // Accounts always shows the real page; its dashed invitation slot is the sign-in control.
                 View.Accounts   => CenterView.Accounts,
-                // Connected but no library yet: Library scaffolding with an empty grid + "scan to populate" hint.
                 _               => CenterView.Library,
             };
         }
@@ -178,13 +150,9 @@ public partial class MainWindowViewModel : ObservableObject
     // Per-panel gates -- each reads the single Center value, so two can never show at once.
     public bool ShowLocationPrompt  => Center == CenterView.LocationPrompt;
 
-    /// <summary>The account gate: a small dialog raised by an ACTION that needs an account. It routes to
-    /// Accounts rather than signing in here -- one home for that control.</summary>
     [ObservableProperty] private bool _showAccountGate;
     [ObservableProperty] private string _accountGateWhat = "";
 
-    /// <summary>True when the action can proceed. When it cannot, raises the gate and returns false, so a
-    /// caller reads as: <c>if (!RequireAccount("scan your library")) return;</c></summary>
     internal bool RequireAccount(string what)
     {
         if (IsConnected) return true;
@@ -205,15 +173,12 @@ public partial class MainWindowViewModel : ObservableObject
     public bool ShowCloudContent    => Center == CenterView.CloudSaves;
     public bool ShowAccountsContent => Center == CenterView.Accounts;
     public bool ShowBackupLocations => Center == CenterView.BackupLocations;
-    /// <summary>The top page-title bar. Hidden on Library (its own toolbar) AND on Local Folders, where the
-    /// left panel carries its own "Local Folders" card header -- so the title isn't shown twice.</summary>
     public bool ShowPageHeader => !IsLibraryNav && !ShowBackupLocations;
     public bool ShowHealthView      => Center == CenterView.Health;
     public bool ShowSettingsView    => Center == CenterView.Settings;
     public bool ShowAboutView       => Center == CenterView.About;
     public bool ShowPrimaryCta      => Center == CenterView.Library;   // hero's Sync button
 
-    /// <summary>Raise everything derived from app state; call when a fact or the tab changes.</summary>
     private void RaiseState()
     {
         Guide.Refresh();   // every fact that can move the guide already routes through here
@@ -233,9 +198,6 @@ public partial class MainWindowViewModel : ObservableObject
         RaiseBarState();
     }
 
-    /// <summary>Rail footer account line: a COUNT, never a username. The rail is in every screenshot a
-    /// user posts to an issue or a forum, and a GOG username is the one piece of identifying data on it.
-    /// The Accounts page names them; the rail only says how many.</summary>
     public string AccountFootText
     {
         get
@@ -249,24 +211,16 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     // Account-icon dot: reads the same IsConnected the setup flow uses, so it cannot disagree with the buttons.
-    /// <summary>Green only when the session works against the GOG API, not when a token file exists.</summary>
     public IBrush AccountStatusBrush => IsConnected ? Palette.SuccessGreen : Palette.InkMuted;
-    /// <summary>Tooltip on the same rail row, so it withholds the username for the same reason.</summary>
     public string AccountStatusText
         => IsConnected ? "Connected to GOG"
          : (_manifest?.Current.Accounts.Count ?? 0) == 0 ? "No GOG account connected yet"
          : "Not connected to GOG";
-    /// <summary>Rail footer second line. THREE states, not two: "signed out" on a machine
-    /// that has never had an account reads as though something was lost, which is the first thing a new
-    /// user sees. No account is a starting point; signed out is a session
-    /// that ended. The count is the same one AccountFootText reads, so the two lines cannot disagree.</summary>
     public string AccountRailSub
         => IsConnected ? "connected"
          : (_manifest?.Current.Accounts.Count ?? 0) == 0 ? "no account"
          : "signed out";
 
-    /// <summary>The rail's account trio: count line, dot brush and tip. Raised by the Accounts VM after every
-    /// account event and by the connect path.</summary>
     internal void RaiseAccountStatus()
     {
         OnPropertyChanged(nameof(AccountFootText));
@@ -280,23 +234,10 @@ public partial class MainWindowViewModel : ObservableObject
     {
         Library.InvalidatePendingFileCount();   // one queue-builder walk per pass at most
         Accounts.RebuildRailAccountDots();
-        // RaiseHealth runs ONCE, via RaiseState at the end of this method (it used to run here as well:
-        // two full library walks, two run-journal reads and six bound-collection clears per refresh,
-        // at 1 Hz during a download).
         OnPropertyChanged(nameof(HasAnyBackedUp));   // bound (Storage inventory gate), was never raised
-        // (S3.2 / S3.3) the library counts and the Overview's coverage / rollup readouts are the pages' own;
-        // each raises its set.
         Library.RaiseDashboardReadouts();
         Overview.RaiseDashboardReadouts();
-        // Language + platform options depend on the manifest and the scope, never on download progress: they are
-        // rebuilt at the end of RebuildRows (every manifest/scope refresh), not on every 1 Hz pass.
-        // Storage rows are rendered on Overview and Drives (and the rail dots everywhere), so they refresh on
-        // EVERY dashboard pass; the old IsLibraryNav gate excluded exactly the pages that show them, which is
-        // how Clear left a phantom "queued here" segment until the next navigation.
-        // RaiseState -> RaiseHealth below re-tallies the library anyway, so the storage pass skips its own.
         Storage.RefreshBackupLocations(dashboardPass: true);
-        // NOT RebuildInventory here: it replaces every grid row (selection, expand state, type filter go with
-        // them) and this runs at 1 Hz during a run. The grids rebuild per landed/moved file and per command.
         OnPropertyChanged(nameof(PrimaryEnabled));
         OnPropertyChanged(nameof(ShowPrimaryCta));
         OnPropertyChanged(nameof(ShowDashboard));
@@ -304,8 +245,6 @@ public partial class MainWindowViewModel : ObservableObject
         RaiseState();
     }
 
-    // ---- The children's small surface back onto the shell (S3.2 / S3.3): single-name raises for the root-owned
-    //      readouts a page's own state moves. ----
     internal void RaisePrimaryEnabled() => OnPropertyChanged(nameof(PrimaryEnabled));
     internal void RaiseBarPrimaryLabel() => OnPropertyChanged(nameof(BarPrimaryLabel));
     internal void RaiseShowCompositionLine() => OnPropertyChanged(nameof(ShowCompositionLine));
@@ -319,13 +258,11 @@ public partial class MainWindowViewModel : ObservableObject
 
     partial void OnIsConnectedChanged(bool value)
     {
-        // Marshal: RunBusy flips IsConnected on a background thread, and this handler touches Avalonia objects.
         if (!Dispatcher.UIThread.CheckAccess()) { Dispatcher.UIThread.Post(() => OnIsConnectedChanged(value)); return; }
         RaiseDashboard();
         OnPropertyChanged(nameof(AccountStatusBrush));
         OnPropertyChanged(nameof(AccountStatusText));
         OnPropertyChanged(nameof(AccountRailSub));   // 
-        // The queue chip and Resume/Connect swap key off IsConnected too.
         OnPropertyChanged(nameof(QueueNeedsAccount));
         Overview?.RefreshQueueRowFacts();   // each row's NEEDS SIGN-IN follows the same fact
         OnPropertyChanged(nameof(ShowRailActivity)); OnPropertyChanged(nameof(RailActivityBrush)); OnPropertyChanged(nameof(RailActivityTip));
@@ -337,11 +274,9 @@ public partial class MainWindowViewModel : ObservableObject
         if (value && ShowAccountsView) { Accounts.RefreshAccounts(); _ = Accounts.EnsurePrimaryRegisteredAsync(); }
     }
 
-    /// <summary>The reason the last manifest save failed, or null while saves land (the Overview banner).</summary>
     [ObservableProperty] private string? _libraryNotSavedReason;
     public bool LibraryNotSaved => LibraryNotSavedReason is not null;
     public string LibraryNotSavedLine => $"Your library could not be saved: {LibraryNotSavedReason}";
-    /// <summary>Fire-and-forget manifest save with a failure surfaced (log once, Overview banner).</summary>
     internal void SaveInBackground(string what) => Runtime.ManifestSaves.Default.SaveInBackground(_manifest, what);
 
     partial void OnBusyChanged(bool value) { OnPropertyChanged(nameof(PrimaryEnabled)); Storage.RaiseInventory(); RaiseBarState(); if (!value) ResumeIfArmed(); }
@@ -397,24 +332,14 @@ public partial class MainWindowViewModel : ObservableObject
             OnPropertyChanged(nameof(LibraryNotSaved)); OnPropertyChanged(nameof(LibraryNotSavedLine));
         });
         AppSettings.Log = m => Log(m, isError: true);
-        // (S3.1) the Storage page's view model, built once the session exists. Every child's property changes
-        // are re-raised under the same names here: the window's code-behind listens on the root, and the
-        // shell's own readouts that read a child (rail badge, bar state) follow the child's raises.
         Storage = new StorageViewModel(this, Session);
-        // Re-raise a child's change on the root ONLY for names the root still declares: with the
-        // forwarders gone, an unfiltered re-raise woke every root binding on every child change for nothing
-        // (RaiseDashboard 18 -> 29 ms at 1,500 games in the stress run).
         var rootNames = new HashSet<string>(GetType().GetProperties().Select(p => p.Name));
         void Reraise(object? _, System.ComponentModel.PropertyChangedEventArgs e) { if (e.PropertyName is { } n && rootNames.Contains(n)) OnPropertyChanged(n); }
         Storage.PropertyChanged += Reraise;
-        // (S3.2 / S3.3) the Library and Overview page view models, in that order; children reach each other
-        // through this root, never in their ctors.
         Library = new LibraryViewModel(this, Session);
         Library.PropertyChanged += Reraise;
         Overview = new OverviewViewModel(this, Session);
         Overview.PropertyChanged += Reraise;
-        // (S3.4) the Accounts and Settings page view models; the same re-raise keeps the window's code-behind
-        // handlers (owner column, tray flag) and the rail listening on the root.
         Accounts = new AccountsViewModel(this, Session);
         Accounts.PropertyChanged += Reraise;
         Settings = new SettingsViewModel(this, Session);
@@ -425,9 +350,6 @@ public partial class MainWindowViewModel : ObservableObject
         Guide = new GuideViewModel(this);
         Schedule = new ScheduleViewModel(this);
         Guide.Changed += OnGuideChanged;
-        // The tray follows the close-action pill: the icon exists exactly
-        // when "close keeps Grog running in the tray" is chosen, so sync the stored flag on every load --
-        // it also migrates profiles from the era of the separate tray toggle.
         var trayWanted = _settings.CloseAction == CloseWindowAction.MinimizeToTray && TraySupport.IsLikelySupported();
         if (_settings.MinimizeToTray != trayWanted)
         {
@@ -441,26 +363,16 @@ public partial class MainWindowViewModel : ObservableObject
     // --- rail navigation ---
     public enum View { Library, Updates, Missing, Drives, CloudSaves, Overview, Accounts, Settings, About }
 
-    /// <summary>The app's setup lifecycle, derived purely from facts (location, account, library).
-    /// Everything the UI shows is a function of this + the current tab, so states cannot conflict.</summary>
     public enum SetupPhase { NoLocation, NoAccount, NoLibrary, Cataloged }
 
-    /// <summary>Exactly one fills the main pane at any time, computed from (SetupPhase x tab).</summary>
     public enum CenterView { LocationPrompt, Library, CloudSaves, Health, Accounts, BackupLocations, Settings, About }
-    // OVERVIEW IS HOME: the app opens on the verdict ("is my backup okay?"), not the catalog.
     [ObservableProperty] private View _currentView = View.Overview;
 
-    /// <summary>Set while the extras card's leave prompt is answering: the same Navigate call comes back
-    /// through here and must not be caught by the guard a second time.</summary>
     private bool _bypassLeaveGuard;
 
-    /// <summary>The leave prompt's "destination" when what triggered it was the window's X, not a page change.
-    /// Answering it raises <see cref="CloseAfterLeave"/> instead of navigating.</summary>
     internal const string CloseTarget = "__close__";
-    /// <summary>The window re-issues its Close when this fires (the staged card has been applied or discarded).</summary>
     public event Action? CloseAfterLeave;
 
-    /// <summary>Leave the page without re-asking. Only the leave prompt calls this.</summary>
     internal void NavigateLeaving(string? view)
     {
         if (view == CloseTarget) { CloseAfterLeave?.Invoke(); return; }
@@ -469,8 +381,6 @@ public partial class MainWindowViewModel : ObservableObject
         finally { _bypassLeaveGuard = false; }
     }
 
-    /// <summary>The won't-fit banner's amber action: go to Storage and open the second-storage folder
-    /// picker in one click, so "more room" is one step, not a page hunt.</summary>
     [RelayCommand]
     private async Task AddSecondaryStorageFromBanner()
     {
@@ -478,7 +388,6 @@ public partial class MainWindowViewModel : ObservableObject
         if (Storage.CanAddSecondary) await Storage.AddLocationCommand.ExecuteAsync(null);
     }
 
-    /// <summary>The rail's "Other storage · N" sub-entry: the Storage page, scrolled to that section, expanded.</summary>
     [RelayCommand]
     private void NavigateToOtherStorage()
     {
@@ -490,8 +399,6 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     internal void Navigate(string? view)
     {
-        // The extras card is the one place on Settings where choices are staged rather than applied on
-        // click, so it is the one place a page change would silently throw work away. Ask instead.
         if (!_bypassLeaveGuard && Center == CenterView.Settings && view != "Settings"
             && Settings.ExtrasCard.HasPending)
         {
@@ -518,8 +425,6 @@ public partial class MainWindowViewModel : ObservableObject
             case "Updates": Library.QuickFilter = "updates"; break;
             case "Missing": Library.QuickFilter = "missing"; break;
             case "Gone": Library.QuickFilter = "gone"; break;
-            // NO auto-discovery on activation: looking at a tab must never query GOG. The page renders what
-            // the manifest knows; discovery runs in the library scan or the explicit Check-for-new-saves button.
             case "CloudSaves": CloudVm.RefreshFromManifest(); Library.QuickFilter = ""; break;
             case "Drives":
                 Storage.RefreshBackupLocations();
@@ -531,8 +436,6 @@ public partial class MainWindowViewModel : ObservableObject
             default: Storage.RefreshBackupLocations(); Library.QuickFilter = ""; break;
         }
         Library.ApplyFilter();
-        // Navigation is a RENDER, not an Action: never re-derive here -- RecomputeActivity on this path
-        // races the background download thread.
         RaiseNav();
         RaiseState();   // Center-derived content (ShowSettingsView / ShowBackupLocations) must refresh too
     }
@@ -542,11 +445,9 @@ public partial class MainWindowViewModel : ObservableObject
     // ---- Cloud saves screen (logic lives in CloudSavesViewModel) ----
     public CloudSavesViewModel CloudVm { get; }
 
-    // Binding shims: the Cloud Saves view binds these names on the shell; forwarding keeps the XAML unchanged.
     public System.Collections.ObjectModel.ObservableCollection<CloudGameRow> CloudGames => CloudVm.CloudGames;
     public System.Collections.ObjectModel.ObservableCollection<object> CloudItems => CloudVm.CloudItems;
     public string CloudStatus => CloudVm.CloudStatus;
-    /// <summary>Empty status = no line at all: a StackPanel spends Spacing on a zero-height child.</summary>
     public bool HasCloudStatus => CloudStatus.Length > 0;
     public Avalonia.Media.IBrush CloudStatusBrush => CloudVm.CloudStatusBrush;
     public double CloudStatusFontSize => CloudVm.CloudStatusFontSize;
@@ -557,8 +458,6 @@ public partial class MainWindowViewModel : ObservableObject
     public System.Windows.Input.ICommand SaveAsCommand => CloudVm.SaveAsCommand;
     public System.Windows.Input.ICommand ChangeCloudFolderCommand => CloudVm.ChangeCloudFolderCommand;
     public System.Windows.Input.ICommand ResetCloudFolderCommand => CloudVm.ResetCloudFolderCommand;
-    /// <summary>Relayed through the account GATE: the page renders signed out, so its one action must say
-    /// why it cannot run rather than failing quietly.</summary>
     public System.Windows.Input.ICommand CheckForNewSavesCommand => CheckCloudSavesCommand;
 
     [RelayCommand]
@@ -591,8 +490,6 @@ public partial class MainWindowViewModel : ObservableObject
     public System.Windows.Input.ICommand CancelDeleteLocalSaveCommand => CloudVm.CancelDeleteLocalSaveCommand;
     public System.Windows.Input.ICommand DeleteLocalSaveCommand => CloudVm.DeleteLocalSaveCommand;
 
-    /// <summary>Open the OS folder picker seeded at <paramref name="seed"/>. Returns the chosen local
-    /// path or null. Shared by sub-VMs that need a folder (cloud-save archive + Save As).</summary>
     internal async Task<string?> PickFolderAsync(string title, string? seed)
     {
         var top = OwnerWindowResolver?.Invoke();

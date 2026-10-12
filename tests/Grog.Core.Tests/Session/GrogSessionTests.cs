@@ -15,12 +15,9 @@ using Grog.Core.Models;
 using Grog.Core.Storage;
 using Grog.Core.Tests.Framework;
 
-/// <summary>The App's session layer, driven with a temp profile and no window: the first tests
-/// of App-level behaviour that never needed Avalonia. Operations join in S2.</summary>
 [Trait("session")]
 public class GrogSessionTests
 {
-    /// <summary>A throwaway profile: GROG_CONFIG_DIR points at it for the test's life.</summary>
     private sealed class Profile : IDisposable
     {
         public string Dir { get; } = Directory.CreateTempSubdirectory("grog-session-").FullName;
@@ -92,7 +89,7 @@ public class GrogSessionTests
         Assert.True(s.InteractiveTokenPath.EndsWith("tokens-connect.tmp.json"), "no accounts: a scratch file until Connect learns the name");
         Assert.True(s.Api is not null && s.Auth is not null && s.TokenStore is not null, "clients built on it");
 
-        s.Manifest.Mutate(m => m.Accounts.Add(new GrogAccount { Id = "acct-1", Username = "kevin" }));
+        s.Manifest.Mutate(m => m.Accounts.Add(new GrogAccount { Id = "acct-1", Username = "acct" }));
         s.RebindInteractiveSession(new NonInteractiveLoginProvider());
         var expected = new AccountService(s.Manifest, p.Paths).TokenPathFor("acct-1");
         Assert.Equal(expected, s.InteractiveTokenPath, "with an account, its own token file backs the session");

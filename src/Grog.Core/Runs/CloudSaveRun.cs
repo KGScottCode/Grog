@@ -15,18 +15,13 @@ using Grog.Core.Volumes;
 
 namespace Grog.Core.Runs;
 
-/// <summary>Which (game, account) archives a cloud-save run touches.</summary>
 public enum CloudSaveSelectionKind { All = 0, Games = 1, Account = 2, Entry = 3 }
 
-/// <summary>What to back up: every known cloud save, a set of games (every account that has saves for
-/// them), or one account's games. Entries come from the manifest's per-account cloud facts
-/// (<c>LibraryItem.CloudByAccount</c>), so a game GOG's discovery never confirmed is not a target.</summary>
 public sealed record CloudSaveSelection(CloudSaveSelectionKind Kind, IReadOnlyList<long> GameIds, string? AccountId)
 {
     public static CloudSaveSelection All { get; } = new(CloudSaveSelectionKind.All, Array.Empty<long>(), null);
     public static CloudSaveSelection ForGames(IEnumerable<long> gogIds) => new(CloudSaveSelectionKind.Games, gogIds.Distinct().ToList(), null);
     public static CloudSaveSelection ForAccount(string accountId) => new(CloudSaveSelectionKind.Account, Array.Empty<long>(), accountId);
-    /// <summary>One (game, account) archive: the App's per-row Download. </summary>
     public static CloudSaveSelection ForEntry(long gogId, string accountId) => new(CloudSaveSelectionKind.Entry, new[] { gogId }, accountId);
 
     internal bool Includes(LibraryItem item, CloudAccountSave entry) => Kind switch
@@ -38,9 +33,6 @@ public sealed record CloudSaveSelection(CloudSaveSelectionKind Kind, IReadOnlyLi
     };
 }
 
-/// <summary>One (game, account) archive after a download. <see cref="FilesWritten"/> = 0 with no
-/// <see cref="Error"/> means GOG refused the request (the App's "FAILED ... 0 files"); the entry is not
-/// marked backed up. <see cref="Skipped"/> = already up to date, nothing fetched.</summary>
 public sealed record CloudSaveEntryResult(
     long GogId, string Title, string AccountId,
     int FilesWritten, int FilesExpected, string? LocalSaveDir, int Pruned, bool Skipped, string? Error)
@@ -58,7 +50,6 @@ public sealed record CloudSaveRunResult(IReadOnlyList<CloudSaveEntryResult> Entr
     public int Pruned => Entries.Sum(e => e.Pruned);
 }
 
-/// <summary>One (game, account) archive after retention: how many older local saves went, how many remain.</summary>
 public sealed record CloudSavePruneEntry(long GogId, string Title, string AccountId, int Deleted, int Remaining, string GameDir);
 
 public sealed record CloudSavePruneResult(IReadOnlyList<CloudSavePruneEntry> Entries, int KeepPerGame)
@@ -67,17 +58,6 @@ public sealed record CloudSavePruneResult(IReadOnlyList<CloudSavePruneEntry> Ent
     public int Touched => Entries.Count(e => e.Deleted > 0);
 }
 
-/// <summary>
-/// THE cloud-save backup sequence, shared by the App's Cloud Saves page (Download / Download All) and
-/// <c>grogcli cloudsaves --all</c>: for each selected (game, account) resolve the game's clientId once, write
-/// a dated local save into that ACCOUNT's archive folder (co-saved games never mix), apply retention, and record
-/// the bookkeeping -- per-account entry first, legacy single-slot fields mirrored -- ONLY when files were
-/// actually written. Retention alone is <see cref="PruneAsync"/>. The App's CloudSavesViewModel and the
-/// CLI's Cloudsaves verb each carried a copy until (the CLI's recorded a listing as a backup).
-///
-/// <para>Sessions: per-account chains (<see cref="AccountSessions"/>, non-interactive, can never pop a login)
-/// when accounts are registered, the legacy tokens.json session otherwise -- the App's CloudServiceFor rule.</para>
-/// </summary>
 public sealed class CloudSaveRun
 {
     private readonly IManifestStore _store;
@@ -87,10 +67,8 @@ public sealed class CloudSaveRun
     private readonly string _backupRoot;
     private readonly IBackupHost _host;
 
-    /// <summary>Test seam: the clock LastBackup is stamped with.</summary>
     public Func<DateTimeOffset> Now { get; init; } = () => DateTimeOffset.Now;
 
-    /// <summary>Test seam / override: the cloud service for one account. Default = the App's CloudServiceFor rule.</summary>
     public Func<string, CloudSaveService> ServiceFor { get; init; }
 
     public CloudSaveRun(IManifestStore store, HttpClient http, IAuthService legacyAuth, AccountSessions? sessions,
@@ -103,9 +81,6 @@ public sealed class CloudSaveRun
                 : new CloudSaveService(_http, _legacyAuth);
     }
 
-    /// <summary>The App's row rule (CloudGameRow.IsUpToDate): up to date only with a COMPLETE backup of the
-    /// CURRENT cloud state -- every file captured and no server-side change since (change timestamp when GOG
-    /// supplies one, else the size + file-count fingerprint). Uncertainty reads as "update available".</summary>
     public static bool IsUpToDate(CloudAccountSave e)
     {
         if (e.LocalSaveCount <= 0) return false;
@@ -114,8 +89,6 @@ public sealed class CloudSaveRun
         return e.BackedUpSize == e.SizeBytes && e.BackedUpFiles == e.Files;
     }
 
-    /// <summary>The (game, account) pairs a selection names, in title order then registration order --
-    /// the rows the App's page shows. Read under the gate (SeedLegacy migrates pre-account manifests first).</summary>
     public IReadOnlyList<(LibraryItem Item, CloudAccountSave Entry)> Targets(CloudSaveSelection selection)
     {
         using (_store.Gate.Enter())   // 
@@ -130,10 +103,6 @@ public sealed class CloudSaveRun
         }
     }
 
-    /// <summary>Back up every selected (game, account). <paramref name="skipUpToDate"/> is the App's Download All
-    /// rule (only what is new or changed); a single-game Download passes false. <paramref name="keepPerGame"/>
-    /// &lt;= 0 keeps every local save. Cancellable between games; the entry in flight finishes or is discarded
-    /// by the service (an empty dated folder is never left behind).</summary>
     public async Task<CloudSaveRunResult> DownloadAsync(CloudSaveSelection selection, int keepPerGame, CancellationToken ct,
                                                         bool skipUpToDate = true)
     {
@@ -148,7 +117,7 @@ public sealed class CloudSaveRun
             }
         if (targets.Count == 0) return new CloudSaveRunResult(results, false);
 
-        // One layout per run: it probes every root on disk (outside the gate); the per-game dir is derived from it.
+        // One layout per run
         var layout = await Task.Run(() => new BackupLayout(_store.Current, _backupRoot), ct);
         bool canceled = false;
         int n = 0;
@@ -178,7 +147,6 @@ public sealed class CloudSaveRun
         return new CloudSaveRunResult(results, canceled || ct.IsCancellationRequested);
     }
 
-    /// <summary>One (game, account): the App's DownloadLocalSaveForAsync, verbatim in effect.</summary>
     private async Task<CloudSaveEntryResult> DownloadOneAsync(LibraryItem item, CloudAccountSave entry, BackupLayout layout,
                                                               int keepPerGame, CancellationToken ct)
     {
@@ -200,21 +168,15 @@ public sealed class CloudSaveRun
             return new CloudSaveEntryResult(item.GogId, item.Title, accountId, 0, 0, null, 0, false,
                 "Couldn't resolve the game's cloud client id (no build metadata).");
 
-        // Resolve the local save dir the SAME way every other cloud path does (IsNullOrEmpty, not ??) so an
-        // empty-slug game doesn't write under "" while bookkeeping/history look under Title.
         var slug = !string.IsNullOrEmpty(item.Slug) ? item.Slug : item.Title;
         var gameDir = GameDir(layout, accountId, slug);
         var (dir, written, expected) = await cloud.DownloadLocalSaveAsync(new CloudGame(item.GogId, item.Title, slug, clientId), gameDir, ct);
         if (written <= 0)
             return new CloudSaveEntryResult(item.GogId, item.Title, accountId, 0, expected, null, 0, false, null);
 
-        // Retention: enforce the cap AFTER the new local save lands (future-facing, never off a settings flip).
-        // keep <= 0 keeps everything; recompute the count from disk so it reflects reality. Disk work outside the gate.
         int pruned = 0; int? countOnDisk = null;
         try
         {
-            // Only a COMPLETE capture may push an older one out: a partial (GOG refused some files) must never
-            // cost the user the last whole snapshot they have.
             if (written >= expected) pruned = LocalSaveArchive.PruneToKeep(gameDir, keepPerGame);
             countOnDisk = LocalSaveArchive.List(gameDir).Count;
         }
@@ -225,8 +187,6 @@ public sealed class CloudSaveRun
         {
             entry.LastBackup = now;
             entry.LocalSaveCount += 1;
-            // Record the fingerprint of what we ACTUALLY captured: a partial run (written < expected) records the
-            // smaller count, so the entry stays "update available" until a complete local save lands.
             entry.BackedUpFiles = written;
             if (written >= expected)
             {
@@ -240,9 +200,6 @@ public sealed class CloudSaveRun
         return new CloudSaveEntryResult(item.GogId, item.Title, accountId, written, expected, dir, pruned, false, null);
     }
 
-    /// <summary>Retention only: keep the newest <paramref name="keepPerGame"/> local saves of every (game,
-    /// account) archive and delete the rest, then re-derive each touched entry's bookkeeping from what is
-    /// left on disk (an emptied history honestly reads "not backed up"). keep &lt;= 0 is a no-op.</summary>
     public async Task<CloudSavePruneResult> PruneAsync(int keepPerGame, CancellationToken ct)
     {
         var entries = new List<CloudSavePruneEntry>();
@@ -269,8 +226,6 @@ public sealed class CloudSaveRun
             }
             if (deleted > 0)
             {
-                // Per-account entry first, mirror second (the reconciler's single write path); RecordLocalSaves
-                // owns the empty-history reset. Same re-derive the App's DeleteLocalSave does.
                 using (_store.Gate.Enter())   // 
                     CloudSaveReconciler.RecordLocalSaves(item, entry.AccountId, remaining.Count,
                         remaining.Count > 0 ? remaining[0].StampUtc : (DateTimeOffset?)null);
@@ -283,14 +238,12 @@ public sealed class CloudSaveRun
         return new CloudSavePruneResult(entries, keepPerGame);
     }
 
-    /// <summary>THIS ACCOUNT's folder first, game inside it -- per-account, so co-saved games never mix.</summary>
     private string GameDir(BackupLayout layout, string accountId, string slug)
     {
         var cloudBase = layout.ResolveCloudBaseDir(out _) ?? Path.Combine(_backupRoot, "Cloud Saves");
         return CloudSaveReconciler.GameArchiveDir(_store.Current, cloudBase, accountId, slug);
     }
 
-    /// <summary>The App's log prefix: named only when more than one account is registered.</summary>
     private string AccountPrefix(string accountId)
     {
         var m = _store.Current;

@@ -77,8 +77,6 @@ public sealed class DownloadSettlementTests
         Assert.Equal(1, m.Downloads.Snapshot().Count, "queued again");
     }
 
-    /// <summary>The DRIVE refused the bytes: no strike however often it happens (three full-disk runs
-    /// condemned intact files as Corrupt), the file stays queued with its partial, flagged won't-fit.</summary>
     [Test]
     public void A_disk_full_failure_takes_no_strike_and_flags_the_row_wont_fit()
     {
@@ -95,8 +93,6 @@ public sealed class DownloadSettlementTests
         Assert.False(DownloadEngine.IsDiskFull(new System.IO.IOException("sharing violation", unchecked((int)0x80070020))));
     }
 
-    /// <summary>Try Again on a file that merely FAILED keeps its resumable partial: clearing the record
-    /// left a 4 GiB .part on the drive that nothing owned.</summary>
     [Test]
     public void RequeueFresh_keeps_the_partial_of_a_file_that_was_not_condemned()
     {
@@ -106,9 +102,6 @@ public sealed class DownloadSettlementTests
         Assert.Equal(0, f.FailedAttempts);
     }
 
-    /// <summary>The.part name no longer depends on the drive's path (a stick re-plugged under another
-    /// letter orphaned its partial); a root-keyed name from an older build is still found; and the sweep spares
-    /// what a record owns while taking what nothing does.</summary>
     [Test]
     public void Part_names_survive_a_path_change_and_the_sweep_is_owner_aware()
     {

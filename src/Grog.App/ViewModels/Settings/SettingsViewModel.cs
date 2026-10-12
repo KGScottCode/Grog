@@ -14,14 +14,6 @@ using Grog.App.Runtime;
 
 namespace Grog.App.ViewModels;
 
-/// <summary>
-/// The Settings page's view model: the accent theme, the launch checks and Grog's own update
-/// row, the transfer settings (workers, auto pick, speed cap), old-version and cloud-save retention,
-/// desktop notifications, the close action and tray pill, Fresh Library, and the extras layout with its
-/// policy summary and folder preview (the Policy partial). The content scope, platforms, languages and view
-/// toggles the page also shows are the Library's and bind it directly. The download run the transfer
-/// settings feed (DownloadFiltered, the engine host) stays on the shell and reads <c>Xfer</c> here.
-/// </summary>
 public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlacementHost
 {
     private readonly MainWindowViewModel _root;
@@ -34,9 +26,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
         ExtrasCard = new ExtrasPlacementEditor(this);
     }
 
-    /// <summary>The "Where extras are stored" card: staged shape + storage, committed together by its own
-    /// Apply. The page owns ONE property here, not the card's state -- that is the whole point of it
-    /// being a separate class.</summary>
     public ExtrasPlacementEditor ExtrasCard { get; }
 
     // ---- Session / sibling shorthands (same names as the root's, so the moved code reads unchanged) ----
@@ -48,8 +37,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
     private static string VersionString => MainWindowViewModel.VersionString;
     private void Log(string message, bool isError = false, LogCategory category = LogCategory.General) => _root.Log(message, isError, category);
 
-    /// <summary>The manifest is open (EnsureServicesAsync): migrate the pre-manifest app settings in and
-    /// re-raise every manifest-backed binding the page evaluated before the store existed.</summary>
     internal void OnServicesReady()
     {
         MigrateKeepOldVersions(); OnPropertyChanged(nameof(KeepOldVersions));
@@ -60,20 +47,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
         RaisePolicyState();        // same for the other manifest-backed setting (ExtrasInsideGame / "How to organize extras")
     }
 
-    /// <summary>The language summary or the scope moved on the Library: the one-line policy readout follows.</summary>
     internal void RaisePolicySummaryText() => OnPropertyChanged(nameof(PolicySummaryText));
 
     // Bindings evaluate before the store is open (NRE in CloudKeepAll at window creation):
     // until then the defaults answer, and OnServicesReady raises every transfer property once loaded.
     private static readonly Grog.Core.Manifest.TransferSettings _xferDefaults = new();
-    /// <summary>Transfer settings live in the manifest (S2.3): worker count, cap, cloud retention. The shell's
-    /// download run reads this when it builds the engine.</summary>
     internal Grog.Core.Manifest.TransferSettings Xfer => _manifest?.Current.Transfer ?? _xferDefaults;
     private Grog.Core.Manifest.TransferSettings _xfer => Xfer;
     private void SaveTransferSettings() => _manifest?.SaveSoon();   // settings fields: debounced across slider drags
 
-    /// <summary>One-way, once: the App's transfer settings move into the manifest so the CLI honours them (S2.3).
-    /// A profile that already carries the flag keeps whatever the manifest says.</summary>
     private void MigrateTransferSettings()
     {
         if (_manifest is null || _settings.TransferSettingsMigrated) return;
@@ -94,33 +76,25 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
         set { _settings.CheckForUpdatesOnLaunch = value; _settings.SaveSoon(); OnPropertyChanged(); }
     }
 
-    /// <summary>Grog's own tier-1 update check ("finds, never downloads", like the GOG row above it).</summary>
     public bool SettingCheckGrogUpdates
     {
         get => _settings.CheckGrogUpdatesOnLaunch;
         set { _settings.CheckGrogUpdatesOnLaunch = value; _settings.SaveSoon(); OnPropertyChanged(); }
     }
 
-    /// <summary>Set once when the startup check finds a newer release; null is "nothing to say".</summary>
     public Grog.Core.Update.GrogUpdateCheck.Available? GrogUpdate { get; private set; }
     public bool HasGrogUpdate => GrogUpdate is not null;
     public string GrogUpdateText => GrogUpdate is { } u ? $"v{u.Version} available" : "";
-    /// <summary>Version and action in one control; a separate text block did not fit the row at 1366.</summary>
     public string GrogUpdateButtonText => GrogUpdate is { } u ? $"View v{u.Version}" : "";
 
     [RelayCommand]
     private void OpenGrogRelease() { if (GrogUpdate is { } u) _root.OpenUrl(u.Url); }
 
-    /// <summary>The row's reply line, shown ONLY after a MANUAL check answers "you're current" --
-    /// the static description is gone, but a pressed button still owes a reply.</summary>
     public string GrogUpdateRowDesc => ShowGrogUpdateRowDesc
         ? $"You're on the latest version (v{VersionString})." : "";
     public bool ShowGrogUpdateRowDesc => _grogUpdateChecked && !HasGrogUpdate;
     private bool _grogUpdateChecked;
 
-    /// <summary>The row's Check Now: same request as startup, but explicit -- so it answers either way,
-    /// where the startup check stays silent on "nothing new". Works with the startup toggle OFF; the
-    /// toggle governs the automatic check only.</summary>
     [RelayCommand]
     private async Task CheckGrogUpdatesNow()
     {
@@ -137,8 +111,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
         OnPropertyChanged(nameof(HasGrogUpdate));
     }
 
-    /// <summary>Render-harness seam: the update-found row state only exists after a live GitHub answer, and
-    /// conditional states are exactly what a readability pass must render.</summary>
     internal void SeedGrogUpdate(string version, string url)
     {
         GrogUpdate = new Grog.Core.Update.GrogUpdateCheck.Available(version, url);
@@ -157,8 +129,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
         }
     }
 
-    /// <summary>Auto checkbox on the same row. On: the advisor drives the engine (live on a running job)
-    /// and the number box shows its current pick, grayed. Off: the saved number, always obeyed.</summary>
     public bool SettingAutoConcurrency
     {
         get => _xfer.AutoConcurrency;
@@ -176,8 +146,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
         }
     }
 
-    /// <summary>What the number box shows: the auto pick while Auto is on, else the saved number. Writes
-    /// only land when Auto is off (the box is disabled otherwise, so this is belt and braces).</summary>
     public int ConcurrencyDisplay
     {
         get => _xfer.AutoConcurrency ? _autoPick : _xfer.MaxConcurrentDownloads;
@@ -217,8 +185,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
         if (_liveEngine is { } e) e.BytesPerSecondLimit = EffectiveBytesPerSecondLimit;
     }
 
-    /// <summary>Asks GitHub whether a newer Grog exists and, if so, surfaces a quiet line: the Settings row
-    /// grows a View button and the Activity log gets one entry. Finds, never downloads.</summary>
     internal async Task CheckGrogUpdateAsync()
     {
         var found = await Grog.Core.Update.GrogUpdateCheck.CheckAsync(_apiHttp, VersionString);
@@ -234,9 +200,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
 
     // ---- Auto simultaneous downloads: advisor pick from the queue head, pushed live to the engine ----
     private int _autoPick = 2;
-    /// <summary>Re-read the queue head and push the advisor's pick to the engine when it changed. Called at
-    /// run start and after every transition pass (UI thread); no-op when Auto is off. <paramref name="force"/>
-    /// pushes even an unchanged pick (turning Auto on mid-run must override the manual number).</summary>
     internal void ApplyAutoConcurrency(DownloadEngine engine, bool force = false)
     {
         if (!_xfer.AutoConcurrency) return;
@@ -250,8 +213,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
         OnPropertyChanged(nameof(ConcurrencyDisplay));
     }
 
-    /// <summary>Opt-in retention: keep the build an update replaces, under "Old Versions/". NOT scope -- GOG
-    /// offers no old versions, so it stays out of completeness; Folders still counts it as a content type.</summary>
     public bool KeepOldVersions
     {
         // The manifest owns the fact (it travels with the backup, so the CLI honours it); the app setting is
@@ -268,7 +229,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
         }
     }
 
-    /// <summary>One-way migration of the pre- app setting into the manifest, on every load (idempotent).</summary>
     private void MigrateKeepOldVersions()
     {
         if (_manifest is not null && _settings.KeepOldVersions && !_manifest.Current.KeepOldVersions)
@@ -281,8 +241,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
     public bool CloudKeepLatest => _xfer.KeepCloudSaves == 1;
     public bool CloudKeepCount  => _xfer.KeepCloudSaves >= 2;
 
-    /// <summary>The N shown/edited by the "Last N" stepper. Defaults to 5 when the mode isn't count, so picking
-    /// "Last N" starts at a sensible value; editing it also switches the mode to count.</summary>
     public int CloudKeepCountValue
     {
         get => _xfer.KeepCloudSaves >= 2 ? _xfer.KeepCloudSaves : 5;
@@ -318,7 +276,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
         OnPropertyChanged(nameof(CloudKeepCountValue));
     }
 
-    /// <summary>Show desktop (OS) notifications when a background backup finishes or fails.</summary>
     public bool DesktopNotifications
     {
         get => _settings.DesktopNotifications;
@@ -334,11 +291,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
         }
     }
 
-    /// <summary>Master gate for the two event toggles below -- the UI dims + disables them when notifications
-    /// are off, so it's clear the choices only apply while the master switch is on.</summary>
     public bool NotificationsEnabled => DesktopNotifications;
 
-    /// <summary>Notify when a queued operation finishes cleanly (no failed files). Persisted.</summary>
     public bool NotifyOnComplete
     {
         get => _settings.NotifyOnComplete;
@@ -351,7 +305,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
         }
     }
 
-    /// <summary>Notify when a run finishes with one or more failed files. Persisted.</summary>
     public bool NotifyOnErrors
     {
         get => _settings.NotifyOnErrors;
@@ -370,11 +323,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
     public string TrayPillTip => OperatingSystem.IsMacOS()
         ? "Grog keeps running with a menu-bar icon; closing or minimizing hides the window to it."
         : "Grog keeps running with a system-tray icon; closing or minimizing hides the window to it.";
-    /// <summary>The tray pill is only offered where the desktop actually has a tray.</summary>
     public bool TrayAvailable => TraySupport.IsLikelySupported();
 
-    /// <summary>Close/minimize to the system tray instead of quitting, keeping the in-app scheduler alive with
-    /// no visible window. Persisted; the window reads it to decide whether to hide or really close.</summary>
     public bool MinimizeToTray
     {
         get => _settings.MinimizeToTray;
@@ -388,8 +338,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
         }
     }
 
-    /// <summary>What the X button does. The dialog only ACTS on a click; only this decides, so a one-off
-    /// click can never silently rewrite a persistent preference.</summary>
     public CloseWindowAction CloseAction
     {
         get => _settings.CloseAction;
@@ -427,7 +375,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
     public bool ThemeIsDefault => _settings.Theme == GrogTheme.Default;
     public bool ThemeIsGog => _settings.Theme == GrogTheme.OdeToGog;
     public bool ThemeIsTavern => _settings.Theme == GrogTheme.Tavern;
-    /// <summary>Switch the theme: re-tints the whole UI live (no restart) and persists the choice.</summary>
     [RelayCommand]
     private void SetTheme(string? which)
     {
@@ -518,9 +465,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IExtrasPlaceme
 
     // ---- Extras folder layout (Settings "Where Extras are stored" card) ----
     // The null-manifest fallback must agree with LibraryManifest.ExtrasLayout's initializer (WithGame).
-    /// <summary>The COMMITTED extras shape, for the policy summary and the "what is in effect" readouts.
-    /// Read-only since: writing it used to commit on every pill click and kick a migration, which is
-    /// exactly the behaviour the staged card replaced. The card writes through ExtrasPlacementRun.</summary>
     public Grog.Core.Models.ExtrasPlacement ExtrasLayoutValue
         => _manifest?.Current.ExtrasLayout ?? Grog.Core.Models.ExtrasPlacement.WithGame;
 }

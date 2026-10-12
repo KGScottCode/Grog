@@ -11,7 +11,6 @@ using Grog.Core.Sync;
 using Grog.Core.Tests.Framework;
 using Grog.Core.Volumes;
 
-/// <summary>Cases are taken from a real 334-extra library, so GOG's actual quirks stay covered.</summary>
 [NewBatch]
 [Trait("classifier")]
 public class ExtraClassifierTests

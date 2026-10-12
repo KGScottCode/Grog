@@ -29,8 +29,6 @@ public sealed partial class StorageViewModel
     private Grog.Core.Verify.ImportPlan? _lastImportPlan;
     [ObservableProperty] private string _importSummary = "";
     [ObservableProperty] private bool _importCanAdopt;
-    /// <summary>The Add dialog's "Verify file integrity with GOG's checksums". On by default (it was
-    /// the behavior before the box existed); this session only.</summary>
     [ObservableProperty] private bool _importVerifyChecksums = true;
     // adopt behavior is chosen BEFORE scanning (mirrors the CLI --mode flag)
     [ObservableProperty] private Grog.Core.Verify.ImportMode _importMode = Grog.Core.Verify.ImportMode.Preview;
@@ -183,9 +181,6 @@ public sealed partial class StorageViewModel
 
     [RelayCommand] private void CloseImportPicker() => ShowImportPicker = false;
 
-    /// <summary>The App's side of an import that ran: the results rows and summary from the plan, the grid
-    /// refresh after adoption, and the results screen when something needs a human (unattended, the 03:00
-    /// run, it waits on the Storage page instead of sitting as a modal until morning). </summary>
     private async Task ShowImportOutcome(Grog.Core.Runs.ImportRunResult result, bool interactive)
     {
         if (result.Status == Grog.Core.Runs.ImportRunStatus.Failed) throw result.Error!;
@@ -202,8 +197,6 @@ public sealed partial class StorageViewModel
         }
     }
 
-    /// <summary>Run the imports that were deferred at add time, now that a scan has stored library items.
-    /// Core clears and saves each root as it runs (a failure is logged, not retried forever). </summary>
     internal async Task RunPendingImportsAsync(bool interactive)
     {
         if (_session.Manifest is null) return;

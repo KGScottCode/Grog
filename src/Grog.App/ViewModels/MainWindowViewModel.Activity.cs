@@ -25,24 +25,16 @@ using Grog.Core.Models;
 using Grog.Core.Sync;
 using Grog.Core.Verify;
 
-// Activity (session orchestration): the derived-activity map and the engine progress feed, run control
-// (Pause / Clear / Resume), the log file and Log(), per-file inventory actions, the activity slot. (The queue
-// pane, the log list and the toast moved to OverviewViewModel.Activity in S3.3.)
 public partial class MainWindowViewModel
 {
-    // The single derived-Activity map: every "what's happening" surface reads this, computed from the
-    // persisted queues + live engine. Sole writer of per-row activity, so navigation/restart cannot desync.
     private IReadOnlyDictionary<Grog.Core.Sync.FileRef, Grog.Core.Sync.FileActivity> _activityMap
         = new Dictionary<Grog.Core.Sync.FileRef, Grog.Core.Sync.FileActivity>();
-    /// <summary>The library's detail rows read the same map when they are rebuilt.</summary>
     internal IReadOnlyDictionary<Grog.Core.Sync.FileRef, Grog.Core.Sync.FileActivity> ActivityMap => _activityMap;
 
     private IEnumerable<Grog.Core.Volumes.ReorgMove> CurrentMoves()
         => Storage.ActiveReorgJob?.Moves ?? System.Linq.Enumerable.Empty<Grog.Core.Volumes.ReorgMove>();
     private bool MoveQueuePaused => Storage.ActiveReorgJob?.Paused ?? false;
 
-    /// <summary>Re-derive activity for every file and push it to every surface. Cheap and idempotent;
-    /// called at the end of each Action and on navigation. Reads facts, writes only derived display.</summary>
     internal void RecomputeActivity() => Services.UiWatch.Time("RecomputeActivity", RecomputeActivityCore);
     private void RecomputeActivityCore()
     {
@@ -50,8 +42,6 @@ public partial class MainWindowViewModel
         _activityMap = Grog.Core.Sync.ActivityMap.Derive(
             _manifest.Current.Downloads, _liveEngine?.Snapshot, CurrentMoves(), MoveQueuePaused);
 
-        // Only games with queue/move activity now, or last pass (must reset to Idle), can change their dot;
-        // update just those, not all ~600 rows -- every other game is Idle->Idle and SetActivity is a no-op.
         var activeGames = new HashSet<long>();
         foreach (var k in _activityMap.Keys) activeGames.Add(k.GogId);
         var toUpdate = new HashSet<long>(activeGames);
@@ -67,15 +57,10 @@ public partial class MainWindowViewModel
         Library.RaiseSectionDone();   // section "download all" buttons follow the files' queued/done state
 
         Overview.RebuildQueue();   // incremental; sort is applied on enqueue/click, not here
-        // While an engine is live the 1 Hz progress tick reseeds the rollup (O(in-flight) on a valid base, one
-        // full walk after a transition); a second full Rollups.Library here per transition was the same walk
-        // twice. Idle, this is the only path, so it still runs.
         if (_liveEngine is null) Library.RaiseLibraryProgress();
         Library.RefreshBackUpMenuCounts();   // keep the right-click submenu counts fresh as files finish/queue
     }
 
-    /// <summary>Handle one engine progress event -- the only place download progress touches the UI (both paths).
-    /// Byte updates are lightweight; a STATE transition settles the persisted queue and re-derives every surface.</summary>
     private long _lastDriveProbe;   // throttle for the in-flight folder-bar refresh below
     private string? _lastPillPhase;
 
@@ -83,11 +68,6 @@ public partial class MainWindowViewModel
         => Services.UiWatch.Time("OnDownloadProgress", () => OnDownloadProgressCore(engine, t, lastState));
     private void OnDownloadProgressCore(DownloadEngine engine, DownloadTask t, Dictionary<Guid, DownloadTaskState> lastState)
     {
-        // Persist the partial byte count (memory each tick; saved on pause/stop/complete) so bars stay
-        // accurate while paused and instant on resume.
-        // Only once Core has a .part for this file (it sets HasPartial on the first write): before that, BytesReceived
-        // is the resumed offset of a .part the engine may have just discarded, and writing it back revived a
-        // partial that no longer existed. HasPartial is Core's fact, never set here.
         if (t.State == DownloadTaskState.Active && t.BytesReceived > 0 && t.File.HasPartial && t.RoomChecked)
             t.File.PartialBytes = t.BytesReceived;
 
@@ -117,36 +97,13 @@ public partial class MainWindowViewModel
         }
         var dfr = Library.DetailFiles.FirstOrDefault(d => ReferenceEquals(d.File, t.File));
         if (dfr is not null && t.State == DownloadTaskState.Active) dfr.DownloadPercent = t.PercentComplete;
-        // EVERY active row, not just the event's task: with coalescing only the latest event arrives, and
-        // with simultaneous downloads > 1 the other in-flight rows must keep their readouts live too.
         foreach (var qr in Overview.ActiveRows) qr.Refresh();
-        // The pill's eyebrow carries the phase (DOWNLOADING -> WRITING TO DISK -> VERIFYING -> SAVING) and
-        // must follow every tick, not only a pill swap, or the phase never shows on the one row people watch.
         if (Overview.DownloadPill?.Task.FinishingPhase != _lastPillPhase) { _lastPillPhase = Overview.DownloadPill?.Task.FinishingPhase; Overview.RaisePillState(); }
 
         DownloadSpeedBytes = speedSum;
-        // Feed the throughput meter a monotonic run-cumulative byte count (done + in-flight partials).
-        // "Active" for the meter means THE RUN is moving, not that a task happens to be mid-flight on this
-        // tick. anyActive alone goes false in the gap between two files, and the meter treats that as idle:
-        // it clears its rolling window and zeroes the rate. With small files nearly every tick lands in such
-        // a gap, so the speed read "--" and the graph drew isolated spikes over a flat zero. Pausing still
-        // reads idle, so a pause never counts as active time in the average.
         bool runMoving = anyActive || (!DownloadPaused && !Overview.QueueIsEmpty);
-        // The meter's cumulative is THIS RUN's bytes: settled + in flight + finished-but-unsettled. It used to be
-        // the library tally plus in-flight, and at every file end the in-flight part dropped at once while the
-        // tally caught up a dashboard pass later: the count dipped (meter rebased) and then the whole file
-        // landed in one tick, drawn as a spike of file-size-over-tick that no link ever delivered.
-        // Settle moves a file's bytes from the unsettled term into _runBytesSettled in the same UI callback,
-        // so the sum is continuous across every file boundary.
         _meter.Sample(DateTime.UtcNow, _runBytesSettled + inFlightBytes + unsettledBytes, runMoving, transferring: anyActive);
-        // Plot the METER, not speedSum: speedSum is the instantaneous sum over tasks that are Active right
-        // now, so a run of small files (each finishing inside a tick) samples zero again and again and the
-        // graph flatlines while bytes are plainly moving. The meter reads a rolling window over cumulative
-        // bytes, so it survives file boundaries -- and it is what the SPEED readout above already shows.
         Overview.SampleSpeedGraph(_meter.CurrentBytesPerSec);   // ~1 Hz internally; cheap
-        // Folder bars during a LONG file: free space falls while a big installer is still in flight, so
-        // re-probe the drives every few seconds rather than only when a file settles. DriveInfo is a
-        // syscall, not a scan - 5 s keeps it invisible.
         var nowTicks = System.Environment.TickCount64;
         if (nowTicks - _lastDriveProbe >= 1000)
         {
@@ -159,11 +116,6 @@ public partial class MainWindowViewModel
         Overview.RaiseRunStats();
         Library.RaiseLibraryProgress(inflightFiles);   // O(in-flight): cached base + this tick's in-flight files
 
-        // State transitions = triggers. SCAN THE WHOLE SNAPSHOT, not just the task this call carries:
-        // TaskChanged events are coalesced, so intermediate tasks' events are
-        // dropped by design -- a per-t check here left every file completing inside a window UNSETTLED
-        // (stuck in the queue, manifest not updated; same day). The lastState dict makes each
-        // transition fire exactly once no matter which event triggered the pass.
         bool anyTransition = false;
         foreach (var x in snap)
         {
@@ -181,11 +133,6 @@ public partial class MainWindowViewModel
                 _meter.FileCompleted(x.Id, x.BytesReceived);
             }
 
-            // Settlement (record, journal, checkpoint, tallies, log line) is Core's RunSettler + the host now.
-            // The row's STATUS is re-derived only in RaiseCompletion, and above it ran for the event's task
-            // alone: a file that completed inside the same coalesced tick as another task's event left its game
-            // reading Partial with a full green bar and 5/5 beside it. Every transition
-            // refreshes its own game's row.
             if (x.State == DownloadTaskState.Completed && Library._gameById.TryGetValue(x.File.GameGogId, out var doneRow) && doneRow.Item is not null)
             {
                 doneRow.RowProgress = Grog.Core.Sync.Rollups.GameFilePercent(doneRow.Item, Library.EffectiveScope, inFlight);
@@ -197,12 +144,9 @@ public partial class MainWindowViewModel
         RecomputeActivity();   // re-derive dots + queue (incremental, cheap)
     }
 
-    // ---- Download run control (Pause / Stop / Resume) -- shared by the CTA and the Activity pane.
-    // Works for both download paths (bulk + per-file); Pause persists across a restart.
     [ObservableProperty] private bool _downloadRunning;   // a download is actively running (either path)
     [ObservableProperty] private bool _downloadPaused;    // paused by the user (persisted); shows Resume
 
-    // Show whenever there's queued work (even an idle-after-restart queue), so Stop/Resume stay reachable.
     public bool ShowDownloadControls => Overview.HasQueuedWork || DownloadRunning || DownloadPaused;
     public bool CanPauseDownload => Overview.HasQueuedWork && DownloadRunning && !DownloadPaused;
     partial void OnDownloadRunningChanged(bool value)
@@ -222,8 +166,6 @@ public partial class MainWindowViewModel
         RaiseBarState();
     }
 
-    /// <summary>The download queue's pause/resume button states as ONE set (queue rebuild + pause flip): the
-    /// shell's own pair here, the queue pane's trio on the Overview.</summary>
     internal void RaiseDownloadControls()
     {
         OnPropertyChanged(nameof(QueueNeedsAccount));
@@ -231,10 +173,6 @@ public partial class MainWindowViewModel
         Overview.RaiseDownloadControls();
     }
 
-    /// <summary>Pause the queue: flip its persisted Paused fact and stop the current transfer (partial kept).
-    /// Membership is untouched, so every surface derives "Paused" from the queue, on any screen or restart.</summary>
-    /// <summary>"Finish current files": the clean stop. The files transferring finish, nothing new starts,
-    /// no partial is made, and the queue ends Paused. Pause stays live as "stop right now". Core owns the state.</summary>
     internal readonly Grog.Core.Runs.RunDrain Drain = new();
     internal bool FinishingCurrent => Drain.Finishing;
     internal bool PausedAfterFinish => Drain.PausedAfterFinish;
@@ -263,8 +201,6 @@ public partial class MainWindowViewModel
     }
     internal void DrainEngineReady(DownloadEngine engine) => Drain.EngineReady(engine);
 
-    /// <summary>The files a paused queue has part-way down (a partial on disk) that still fit: what
-    /// "Finish current files" finishes from a pause. Read from the manifest, so it holds across a restart too.</summary>
     internal IReadOnlySet<(long, string)> PausedInProgress()
     {
         var set = new HashSet<(long, string)>();
@@ -281,12 +217,9 @@ public partial class MainWindowViewModel
             return set;
         });
     }
-    /// <summary>How many files a paused queue has part-way down; refreshed once per bar raise, read by the bar.</summary>
     private int _pausedInProgressCount;
     internal void RefreshPausedInProgress() => _pausedInProgressCount = DownloadPaused ? PausedInProgress().Count : 0;
 
-    /// <summary>Paused, then "Finish current files": resume ONLY the files in progress; the queue pauses again when
-    /// they land, exactly as a running "Finish current files" ends. "Keep downloading" opens the whole queue.</summary>
     [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task FinishPausedFiles()
     {
@@ -302,42 +235,26 @@ public partial class MainWindowViewModel
     }
     internal void BackupRunBegan() { Drain.RunBegan(); lock (_heldLogged) _heldLogged.Clear(); }
     private readonly HashSet<(long, string)> _heldLogged = new();
-    /// <summary>True the first time a file is held in this run (the log says it once).</summary>
     internal bool NoteHeldOnce(long gogId, string fileKey) { lock (_heldLogged) return _heldLogged.Add((gogId, fileKey)); }
     internal void BackupRunOver() => Drain.RunOver();
 
-    /// <summary>Pause the queue: flip its persisted Paused fact and stop the current transfer (partial kept).
-    /// Membership is untouched, so every surface derives "Paused" from the queue, on any screen or restart.</summary>
     [RelayCommand]
     internal void PauseDownloads()
     {
         if (_manifest is null || _manifest.Current.Downloads.IsEmpty) return;
-        // Already paused: nothing to stop, and a second "Downloads paused" line read as two pauses (a shutdown
-        // pause after the button, measured 12:04:39).
         if (DownloadPaused) return;
         _stopRequested = true;
         SetDownloadPaused(true);
         _cts?.Cancel(); _downloadCts?.Cancel();
-        // The coalescer stops sampling once paused, so the meter would hold the last live rate under PAUSED
-        // (speed, ETA, graph frozen at full tilt). One idle sample zeroes it.
         _meter.MarkIdle();
         DownloadSpeedBytes = 0;
         Log("Downloads paused. Partial files are kept -- Resume to continue where it left off.", category: LogCategory.Download);
         RecomputeActivity();
         Overview.RaiseRunStats();
-        // The settle coalescer's trailing pass is skipped once _stopRequested is set: raise the health tally and
-        // dashboard now so files that landed in the last second are counted. RaiseDashboard
-        // includes the storage rows.
         Overview.RaiseHealth(); RaiseDashboard();
-        // The in-run inventory coalescer skips its trailing rebuild too, so the files that landed in the last
-        // two seconds would be missing from the Storage grids.
         if (CurrentView == View.Drives) Storage.RebuildInventory();
     }
 
-    /// <summary>Mirror the queue's Paused fact onto the bindable flag + persist it. One place sets both,
-    /// so they can't drift.</summary>
-    /// <summary>The queue came back paused from the last session (a quit mid-run pauses it, or it was paused when
-    /// Grog closed). Overview says so instead of "paused by you" until the next Pause or Resume.</summary>
     internal bool PausedSinceLastClose { get; private set; }
     private bool _startupPauseSeen;
     internal void NotePausedAtStartup(bool paused)
@@ -362,20 +279,12 @@ public partial class MainWindowViewModel
         Overview.DownloadPill?.Refresh();
     }
 
-    /// <summary>Clearing throws away queue ORDER and any hand-picked selection, which can be minutes of
-    /// work to rebuild -- so the queue's Clear asks first. The bytes are never at risk (partials stay), and
-    /// the dialog says so rather than implying danger it does not have.</summary>
     [ObservableProperty] private bool _showClearQueueConfirm;
 
-    // ---- Out of space: files planned to land nowhere ----
-    // Counted at placement time, not from download failures: a file with no room is never attempted, so
-    // there is no failure to count. Both dialogs read from the same two numbers.
     private int _heldNoSpaceCount;
     private long _heldNoSpaceBytes;
 
-    /// <summary>End-of-run summary: some files fit, these did not.</summary>
     [ObservableProperty] private bool _showNoSpaceSummary;
-    /// <summary>Nothing fit at all -- shown INSTEAD of starting a run (the Resume-on-a-full-drive case).</summary>
     [ObservableProperty] private bool _showNoSpaceAtAll;
 
     public string NoSpaceCountText => $"{_heldNoSpaceCount}";
@@ -387,7 +296,6 @@ public partial class MainWindowViewModel
     [RelayCommand] private void DismissNoSpaceSummary() => ShowNoSpaceSummary = false;
     [RelayCommand] private void DismissNoSpaceAtAll() => ShowNoSpaceAtAll = false;
 
-    /// <summary>Both dialogs point at the one place that fixes this: add or free space on a folder.</summary>
     [RelayCommand]
     private void ManageFoldersFromNoSpace()
     {
@@ -396,7 +304,6 @@ public partial class MainWindowViewModel
         Navigate("Drives");   // the rail's Folders page; "Drives" is its navigation key
     }
 
-    /// <summary>Push the freshly-counted numbers at the dialogs before either is shown.</summary>
     private void RaiseNoSpaceText()
     {
         OnPropertyChanged(nameof(NoSpaceCountText));
@@ -414,17 +321,11 @@ public partial class MainWindowViewModel
         CancelDownloads();
     }
 
-    /// <summary>Stop: clear the download queue (the action) and stand the engine down. Partials stay on
-    /// disk (nothing is deleted).</summary>
     [RelayCommand]
     internal void CancelDownloads()
     {
-        // Capture BEFORE tearing the run down: once the queue is emptied and the engine dropped, nothing
-        // says a run was under way, and Stop on an already-idle app must not stamp an outcome.
         bool wasRunning = Overview.RunActive;
         _stopRequested = true;
-        // One batched cancel: a per-task loop raised two events PER FILE, each running a full settle pass and
-        // a full queue rebuild (2200 events, 1.2M snapshot rows walked).
         _liveEngine?.CancelRange(
             _liveEngine.Snapshot.Where(t => t.State is DownloadTaskState.Active or DownloadTaskState.Pending).ToList());
         while (_fileQueue.Count > 0) { _fileQueue.Dequeue(); }
@@ -437,13 +338,9 @@ public partial class MainWindowViewModel
         Storage.ForgetDriveWait();  // an empty queue waits for no drive: the disconnected card goes with it
         _cts?.Cancel(); _downloadCts?.Cancel();
         _liveEngine = null;
-        // The run is over: reset the session meter, or a surviving meter reads 100% (SessionBytes/
-        // (SessionBytes+0 remaining) = 1) and leaves a stale avg-speed readout under an idle card.
         ResetRunCounters();
         RecomputeActivity();
         Overview.RaiseRunStats();
-        // The storage rows carry "queued here" from the last in-flight rebuild; with the queue gone they
-        // must be rebuilt NOW, not on the next navigation.
         Overview.RaiseHealth(); RaiseDashboard();   // RaiseDashboard rebuilds the storage rows
         if (CurrentView == View.Drives) Storage.RebuildInventory();   // the coalescer's trailing rebuild is skipped after a stop
         Log("Download queue cleared. The current file was stopped; partial files stay on disk (nothing is deleted).", category: LogCategory.Download);
@@ -452,14 +349,9 @@ public partial class MainWindowViewModel
         Overview.RaiseHealth();   // every failed file just left the queue: the card counts them again
     }
 
-    /// <summary>Transient: true from Resume click until the run marks itself Running (or fails to start).
-    /// Holds the primary button on its Running look through that async gap.</summary>
     private bool _resuming;
 
-    /// <summary>Resume the paused download queue: clear the Paused fact and re-run the executor over the
-    /// remaining queued files (they resume from their on-disk partials via HTTP range).</summary>
     private bool _resumeWaiting; private int _resumeGen;
-    /// <summary>A Resume that found the app busy with a scan or verify: fired again once Busy drops.</summary>
     private bool _resumeWhenIdle;
     private void ResumeIfArmed()
     {
@@ -469,8 +361,6 @@ public partial class MainWindowViewModel
             Dispatcher.UIThread.Post(() => ResumeDownloadsCommand.Execute(null));   // off this Busy-changed stack
         else _resuming = false;
     }
-    // Concurrent: the command awaits the whole run it starts, so without this Resume greyed out (and the app's own
-    // resume after a move was refused by CanExecute) until that run ended, even after a Pause.
     [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task ResumeDownloads()
     {
@@ -480,9 +370,6 @@ public partial class MainWindowViewModel
         int gen = ++_resumeGen;
         _resuming = true;
         Drain.Reset();   // resumed: a finished-then-paused queue is running again
-        // The paused run may still be UNWINDING (flushing partials to a slow drive). Resume is offered the
-        // moment Pause is clicked, so wait that out here: started over a live run it was swallowed (Busy), and with
-        // the paused flag already cleared the old run's tail reported itself as a finished backup.
         try { for (int i = 0; i < 600 && DownloadRunning; i++) await Task.Delay(100); }
         finally { _resumeWaiting = false; }
         if (DownloadRunning)
@@ -506,14 +393,9 @@ public partial class MainWindowViewModel
         finally { if (gen == _resumeGen) _resuming = false; RaiseBarState(); }   // a later Resume owns the bridge now
     }
 
-    // ---- Activity log. Log() appends structured entries to LogEntries (newest first, capped). Health's
-    // issue COUNT derives from concrete backup state, not log lines, so info chatter never badges the rail.
-
+    
     private Grog.Core.Storage.LogFile? _logFile;
     private readonly object _logInit = new();
-    /// <summary>The on-disk log. Config dir is always available (it never waits on a backup root), so this
-    /// resolves lazily on first use and then stays put. Locked: Log() is called from scan and download
-    /// threads, and two concurrent first calls must not build two writers over one file.</summary>
     private Grog.Core.Storage.LogFile LogFileOnDisk
     {
         get
@@ -526,9 +408,6 @@ public partial class MainWindowViewModel
         }
     }
 
-    /// <summary>Account (name, alias) pairs for log masking, longest first. Rebuilt on the UI thread by
-    /// RefreshAccounts and read from any thread: an immutable array swap, so a background Log() never
-    /// enumerates the live manifest Accounts list while the UI mutates it.</summary>
     private volatile (string name, string alias)[] _maskPairs = System.Array.Empty<(string, string)>();
     internal void RebuildMaskPairs()
     {
@@ -546,8 +425,6 @@ public partial class MainWindowViewModel
 
     public string LogFolderPath => System.IO.Path.GetDirectoryName(LogFileOnDisk.Path) ?? "";
 
-    /// <summary>Replaces every registered account's Username/Login/Id in a log line with a stable
-    /// "Account_NN" (manifest order, 1-based), longest name first so "kevin2" never half-matches "kevin".</summary>
     internal string MaskAccountNames(string message)
     {
         var pairs = _maskPairs;
@@ -567,21 +444,12 @@ public partial class MainWindowViewModel
     {
         if (string.IsNullOrWhiteSpace(message)) return;
         var entry = new LogEntry(System.DateTimeOffset.Now, category, isError ? LogSeverity.Error : LogSeverity.Info, message);
-        // Persist BEFORE the UI hop: the in-memory list dies with the process, and an unattended 03:00 run is
-        // exactly the one nobody is watching. Best-effort and non-throwing by contract.
-        // The ON-DISK copy masks account names: grog.log ends up pasted into public issues,
-        // and the GOG username is the one identifying datum in it (same call as the rail scrub). The
-        // in-app Activity list keeps real names - it never leaves the machine on its own.
         LogFileOnDisk.Post(entry.Time, category.ToString(), isError, MaskAccountNames(message));   // writer thread: never disk IO on the dispatcher
-        // The in-app list (and the issues modal's RECENT ERRORS) lives on the Overview; a line logged before the
-        // page view models exist (ctor-time probes) still reaches the file above.
         void Add() => Overview?.AppendLog(entry, isError);
         if (Dispatcher.UIThread.CheckAccess()) Add();
         else Dispatcher.UIThread.Post(Add);
     }
 
-    /// <summary>Open grog.log itself in the machine's text handler; falls back to revealing the folder when
-    /// the log does not exist yet (fresh profile).</summary>
     [RelayCommand] private async Task OpenLogFile()
     {
         // File.Exists (and the lazy LogFile/config-dir resolve) off the dispatcher.
@@ -589,8 +457,6 @@ public partial class MainWindowViewModel
         Grog.App.Services.FileManager.Open(target);
     }
 
-    /// <summary>Shipped third-party license texts (glyph data, typefaces, MIT libraries). Rides beside the
-    /// executable; falls back to the app folder rather than a dead click if the copy is missing.</summary>
     [RelayCommand] private async Task OpenThirdPartyNotices()
     {
         var path = System.IO.Path.Combine(AppContext.BaseDirectory, "THIRD-PARTY-NOTICES.txt");
@@ -598,7 +464,6 @@ public partial class MainWindowViewModel
         Grog.App.Services.FileManager.Open(exists ? path : AppContext.BaseDirectory);
     }
 
-    /// <summary>The point-in-time GPL-3.0 text shipped with the app -- the copy the user is licensed under.</summary>
     [RelayCommand] private async Task OpenLicenseFile()
     {
         var path = System.IO.Path.Combine(AppContext.BaseDirectory, "LICENSE");
@@ -607,10 +472,6 @@ public partial class MainWindowViewModel
         else OpenUrl("https://www.gnu.org/licenses/gpl-3.0.html");   // build without the copy: the canonical text
     }
 
-    // ---- Folders inventory: per-file right-click actions (reveal, verify, re-fetch a single file).
-
-    /// <summary>Absolute path of an inventory row's file, or null when it isn't resolvable (offline root,
-    /// or a file with no recorded location yet).</summary>
     private static string? PathOf(Grog.Core.Volumes.BackupLayout layout, InventoryRow? row)
     {
         if (row is null) return null;
@@ -618,8 +479,6 @@ public partial class MainWindowViewModel
         catch { return null; }
     }
 
-    /// <summary>Resolve the paths of a set of rows off the dispatcher with ONE
-    /// BackupLayout (its ctor probes every root on disk). Empty when there is no manifest/root.</summary>
     private Task<System.Collections.Generic.List<string>> PathsOfAsync(System.Collections.Generic.IEnumerable<InventoryRow?> rows)
     {
         var manifest = _manifest; var root = _backupRoot;
@@ -635,7 +494,6 @@ public partial class MainWindowViewModel
     private async Task<string?> PathOfAsync(InventoryRow? row)
         => (await PathsOfAsync(new[] { row })).FirstOrDefault();
 
-    /// <summary>Reveal the file's folder. Selects the file itself on Windows, where explorer supports it.</summary>
     [RelayCommand]
     private async Task OpenContainingFolder(InventoryRow? row)
     {
@@ -662,8 +520,6 @@ public partial class MainWindowViewModel
         Grog.App.Services.FileManager.Open(System.IO.Path.GetDirectoryName(path));
     }
 
-    /// <summary>Reveal a GAME's folder. A game's files normally share one directory, but the extras-location
-    /// setting can split them, so this opens each DISTINCT directory rather than assuming one.</summary>
     [RelayCommand]
     private async Task OpenGameFolder(InventoryGroupRow? group)
     {
@@ -675,7 +531,6 @@ public partial class MainWindowViewModel
         foreach (var d in dirs) Grog.App.Services.FileManager.Open(d);
     }
 
-    /// <summary>Copy every resolved path in the game, newline separated.</summary>
     [RelayCommand]
     private async Task CopyGamePaths(InventoryGroupRow? group)
     {
@@ -690,8 +545,6 @@ public partial class MainWindowViewModel
         catch { /* clipboard can be held by another app */ }
     }
 
-    /// <summary>Re-fetch EVERY file of the game, present ones included. Can cost tens of gigabytes, so the
-    /// label carries the size; it only queues, and the run is visible and cancellable, so no modal confirm.</summary>
     [RelayCommand]
     private async Task RedownloadGame(InventoryGroupRow? group)
     {
@@ -715,7 +568,6 @@ public partial class MainWindowViewModel
         catch { /* clipboard can be held by another app */ }
     }
 
-    /// <summary>Re-check THIS file against disk (presence + size, and MD5 when we hold a checksum).</summary>
     [RelayCommand]
     private async Task VerifyInventoryFile(InventoryRow? row)
     {
@@ -723,8 +575,6 @@ public partial class MainWindowViewModel
         ShowToast($"Verifying {row.FileName}…", 0);
         await RunBusy("Verifying…", async () =>
         {
-            // Core's VerifyRun over the one file; the per-file verdict line stays this view's, so the
-            // run's own summary goes to a silent host.
             var r = (await Grog.Core.Runs.VerifyRun.RunAsync(_manifest, _backupRoot,
                 // FullRehash: the same words on the game row read the bytes, so this does too.
                 Grog.Core.Runs.VerifyRequest.ForFiles(new[] { (row.Item.GogId, row.File.FileKey) }, Grog.Core.Verify.VerifyMode.FullRehash)
@@ -736,8 +586,6 @@ public partial class MainWindowViewModel
         });
     }
 
-    /// <summary>Queue this one file for a clean re-fetch. Goes through ManualRetry so a file that had burned
-    /// its strikes isn't re-condemned on its very first attempt.</summary>
     [RelayCommand]
     private async Task RedownloadInventoryFile(InventoryRow? row)
     {
@@ -749,17 +597,8 @@ public partial class MainWindowViewModel
         Overview.RaiseHealth();
     }
 
-    /// <summary>Refuse a move because one or both drives it needs are offline/missing, and tell the user
-    /// which to reconnect. Nothing is started -- a partial move that silently omits stranded files is the
-    /// black hole we avoid.</summary>
-    /// <summary>A second launch was folded into this instance. Name WHERE this copy runs from: with a
-    /// portable copy and an installed one on the same machine the two windows are identical, so "already
-    /// running" alone would leave the user unsure which one they are looking at. The running instance
-    /// knows its own location, so nothing has to be passed between the processes.</summary>
     [ObservableProperty] private bool _showAlreadyRunning;
 
-    /// <summary>Composed here, not via StringFormat: a comma in a XAML format string is parsed as a
-    /// property-list separator (AVLN2000).</summary>
     public string AlreadyRunningText
     {
         get
@@ -779,15 +618,11 @@ public partial class MainWindowViewModel
     [RelayCommand]
     private void DismissAlreadyRunning() => ShowAlreadyRunning = false;
 
-    /// <summary>The shell's toast route: every partial and page raises through here, the Overview page owns
-    /// the toast surface. Kept on the root so a child never needs a sibling to say something.</summary>
     internal void ShowToast(string message, bool isError = true)
         => ShowToast(message, isError ? 2 : 0);
     internal void ShowToast(string message, int severity, ToastFix? fix = null)
         => Overview.ShowToast(message, severity, fix);
 
-    /// <summary>CrashGuard's UI-thread hook: a handled unhandled exception surfaces as a red toast and an
-    /// Activity error line, so the user knows something slipped and where the stack went.</summary>
     public void ReportUnhandled(string message)
     {
         try { Log(message, isError: true); ShowToast(message, 2); } catch { /* the crash path never throws */ }
@@ -797,8 +632,6 @@ public partial class MainWindowViewModel
     // Non-blocking: a move runs without the app-wide Busy lock, and pausing a move frees the slot.
     private readonly System.Threading.SemaphoreSlim _activityGate = new(1, 1);
 
-    /// <summary>Take the single activity slot without waiting. Returns false (and tells the user) when a
-    /// download or move holds it. Only call <see cref="EndActivitySlot"/> when this returned true.</summary>
     internal bool TryBeginActivitySlot(string couldNotStart)
     {
         if (_activityGate.Wait(0)) return true;
@@ -813,7 +646,5 @@ public partial class MainWindowViewModel
         Storage.StartDeferredMove();   // a move that waited for a scan or verify starts now (posted, never inline)
     }
 
-    /// <summary>Take the slot without waiting and without a message: the move pane defers (never refuses) when
-    /// it cannot have it.</summary>
     internal bool TryBeginActivitySlotQuiet() => _activityGate.Wait(0);
 }

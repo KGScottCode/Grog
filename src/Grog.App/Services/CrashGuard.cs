@@ -7,14 +7,6 @@ using Grog.Core.Storage;
 
 namespace Grog.App.Services;
 
-/// <summary>
-/// Last line of defense for the three places an exception can otherwise vanish: the UI thread (Avalonia
-/// would tear the process down), a faulted Task nobody awaited (the finalizer swallows it), and anything
-/// else on the AppDomain (process exit with no trace). Every one is written to grog.log WITH its stack,
-/// because a stranger's bug report is only as good as that line. UI-thread faults are marked handled so
-/// a rendering or binding slip does not kill a backup mid-run; the process-level ones cannot be rescued,
-/// so they are recorded and let through. Installed once, before the first window exists.
-/// </summary>
 public static class CrashGuard
 {
     private static LogFile? _log;
@@ -58,7 +50,6 @@ public static class CrashGuard
         try { AppSettings.FlushPendingSave(); } catch { /* never throw from the exit path */ }
     }
 
-    /// <summary>Set (or replace) the toast callback once the main view-model exists.</summary>
     public static void SetNotifier(Action<string>? notify) => _notify = notify;
 
     private static void Record(string where, Exception? ex)

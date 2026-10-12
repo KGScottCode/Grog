@@ -4,14 +4,6 @@ namespace Grog.Core.Download;
 
 using System;
 
-/// <summary>
-/// Time left for ONE file in flight. The engine reports a half-second speed for the graph; dividing what is left
-/// by that figure swings by minutes on a big file every time the link dips or bursts. Here the rate is a
-/// time-weighted moving average (about <see cref="RateTauSeconds"/> of memory), nothing is said until the file has
-/// moved for <see cref="SettleSeconds"/>, and the FINISH TIME is smoothed so the readout counts down instead of
-/// jumping. Same approach as <see cref="ThroughputMeter"/> for the whole run.
-/// <para>Pure and clock-free: the caller supplies timestamps, so tests drive time directly.</para>
-/// </summary>
 public sealed class FileEta
 {
     public const double RateTauSeconds = 20.0;
@@ -24,7 +16,6 @@ public sealed class FileEta
     private double _rate;            // smoothed bytes/sec
     private DateTime? _finish;       // smoothed finish time
 
-    /// <summary>Feed one progress sample; returns the smoothed seconds left, or null while still settling.</summary>
     public double? Update(DateTime now, long bytesReceived, long? bytesTotal)
     {
         if (_start is null || bytesReceived < _lastBytes)

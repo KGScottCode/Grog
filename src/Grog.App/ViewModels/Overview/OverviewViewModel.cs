@@ -21,14 +21,6 @@ using Grog.App.Runtime;
 
 namespace Grog.App.ViewModels;
 
-/// <summary>
-/// The Overview page's view model: the health signal and its tally, the lede and the deck, the
-/// issues modal with its fix flows, the run readouts (throughput, ETA, speed graph, coverage table, extras
-/// segments), the download queue pane with its sort and pill, the activity log and the toast. Split into
-/// partials by those topics. It PRESENTS the run: the download machinery (DownloadFiltered, the engine host,
-/// the progress feed, the meter and the run counters, Pause / Clear / Resume) stays on the shell as session
-/// orchestration and is read through <c>_root</c>; the library stats it grades come from <c>_root.Library</c>.
-/// </summary>
 public sealed partial class OverviewViewModel : ObservableObject
 {
     private readonly MainWindowViewModel _root;
@@ -62,17 +54,12 @@ public sealed partial class OverviewViewModel : ObservableObject
     public int HealthCorruptCount => _healthCorruptCount;
     public int HealthGoneCount    => _healthGoneCount;
     public int HealthDeviceProblemCount => _root.Storage.BackupLocations.Count(d => d.IsProblem);
-    /// <summary>Files GOG refuses to serve. Not in HealthIssueCount: not actionable, so it never reddens
-    /// the rail badge or page verdict; it gets its own calm row.</summary>
     public int HealthUnavailableCount => _healthUnavailableCount;
     // A failed run counts as ONE issue however many files it hit: one event, one cause.
     public int HealthIssueCount => HealthCorruptCount + HealthGoneCount + HealthDeviceProblemCount
                                  + (HasRunFailure ? 1 : 0);
     public bool HealthOk => HealthIssueCount == 0;
     public bool ShowHealthBadge => HealthIssueCount > 0;
-    /// <summary>The rail badge says what it counts when there is room ("10 issues"); collapsed to the icon
-    /// rail it is the bare number. Issues outrank the queue count beside it, so they must never read as
-    /// "10 what?".</summary>
     public string HealthBadgeText => HealthIssueCount == 0 ? ""
         : !_root.RailExpanded ? HealthIssueCount.ToString()
         : HealthIssueCount == 1 ? "1 issue" : $"{HealthIssueCount} issues";
@@ -81,10 +68,6 @@ public sealed partial class OverviewViewModel : ObservableObject
         : $"{HealthIssueCount} issues need attention: see Local Library Health on the Overview";
 
     // Rail row state: the rail is the summary, pages are the detail. Two readouts only.
-    /// <summary>THE rail's library fraction, one reader for its three texts. Counts every game the
-    /// library HOLDS that is in scope and not hidden (HiddenPolicy: the mature toggle and the per-game picks), so
-    /// the rail agrees with a grid that hides them. It read the FILTERED grid (Library.Games): right for hidden
-    /// games by accident, and wrong the moment a search or a filter narrowed the grid.</summary>
     private (int Done, int All) RailLibraryCounts()
     {
         var hidden = _library.Hidden;
@@ -92,7 +75,6 @@ public sealed partial class OverviewViewModel : ObservableObject
                                                 && (g.Item is null || hidden.IsVisible(g.Item))).ToList();
         return (rows.Count(g => g.StatusText == "Backed Up"), rows.Count);
     }
-    /// <summary>Tooltip for the rail's bare fraction; it owns the units -- GAMES in scope, not files.</summary>
     public string RailLibraryTip
     {
         get
@@ -115,8 +97,6 @@ public sealed partial class OverviewViewModel : ObservableObject
             return $"{done}/{all} Games";
         }
     }
-    /// <summary>Library rail second line, the verb spelled out: "{done} of {total} items backed
-    /// up". Same scoped counts as RailLibraryCount ("Items": games and movies both live in the grid).</summary>
     public string RailLibrarySub
     {
         get
@@ -130,11 +110,6 @@ public sealed partial class OverviewViewModel : ObservableObject
             return $"{done} of {all} backed up";
         }
     }
-    /// <summary>Library's outstanding items, worst first. The rail is the one
-    /// surface you see without opening a page, so it earns a line per exception rather than cramming them
-    /// into one that then truncates. Ordered by the SAME grading Core uses (Fault above Attention): data you
-    /// had and lost outranks data you have not fetched yet, so "missing" can never be hidden behind "new".
-    /// Empty in the healthy case -- green is assumed and never reported.</summary>
     public IReadOnlyList<RailException> RailLibraryExceptions
     {
         get
@@ -148,7 +123,6 @@ public sealed partial class OverviewViewModel : ObservableObject
         }
     }
 
-    /// <summary>Overview rail second line: what the queue holds, in Files.</summary>
     public string RailOverviewSub
     {
         get
@@ -168,14 +142,12 @@ public sealed partial class OverviewViewModel : ObservableObject
         }
     }
 
-    /// <summary>The rail line is amber while something is HAPPENING (downloading or moving), dim otherwise.</summary>
     public IBrush RailOverviewSubBrush =>
         (_root.DownloadRunning && !_root.DownloadPaused) || (_root.Storage.IsReorgRunning && _root.Storage.MovesLeft > 0)
             ? Palette.AccentAmber : Palette.InkDim;
 
     internal void RaiseRailOverviewSub() { OnPropertyChanged(nameof(RailOverviewSub)); OnPropertyChanged(nameof(RailOverviewSubBrush)); }   // 
 
-    /// <summary>Primary's drive for the Folders row: "F:" on Windows, the last path segment elsewhere.</summary>
     public string RailPrimaryDrive
     {
         get
@@ -192,8 +164,6 @@ public sealed partial class OverviewViewModel : ObservableObject
 
     // No count badge on the Folders rail item: it carries a red dot bound to HasDeviceProblem instead.
 
-    /// <summary>Rail Health icon color: red = issues, amber = incomplete, gray = nothing yet, green = full.
-    /// Mirrors the page verdict so the rail never reads green while the backup is incomplete.</summary>
     public IBrush HealthDotBrush =>
         !HealthOk            ? Palette.ErrorRed
       : !HealthHasAnyBackup  ? Palette.InkDim
@@ -238,12 +208,9 @@ public sealed partial class OverviewViewModel : ObservableObject
     private List<HealthFileRow> _healthCorruptRows = new(), _healthGoneRows = new();
 
     private long _partialGameBytes, _partialExtraBytes;
-    /// <summary>Done-plus-in-flight bytes for the coverage card's DATA readouts.</summary>
     internal long GameShownBytes => _stats.GameDoneBytes + _partialGameBytes;
     internal long ExtraShownBytes => _stats.ExtraDoneBytes + _partialExtraBytes;
 
-    /// <summary>How stale a catalog check may get before its derived counts stop being asserted. Tied to
-    /// the user's own schedule interval; a week is the fallback with no schedule.</summary>
     private TimeSpan CatalogStaleAfter
     {
         get
@@ -256,7 +223,6 @@ public sealed partial class OverviewViewModel : ObservableObject
         }
     }
 
-    /// <summary>The Status headline, chosen by severity. Ranking lives in Core (StatusLede), tested there.</summary>
     private Grog.Core.Sync.StatusLede.Lede Lede => Grog.Core.Sync.StatusLede.Pick(new(
         OfflineFolders: HealthDeviceProblemCount,
         MissingFiles: HealthGoneCount,
@@ -277,17 +243,12 @@ public sealed partial class OverviewViewModel : ObservableObject
     // Last run's failures, read from the run journal: a run can fail without touching the manifest
     // (no space, drive pulled, network gone), so the journal is the durable record of the attempt.
     private Grog.Core.Runs.RunOutcome? _lastRunFailure;
-    /// <summary>The whole last-run summary (any outcome), for the Schedule card's "last run result" line.</summary>
     internal Grog.Core.Runs.RunSummary? _lastRunSummary;
     internal Grog.Core.Runs.RunSummary? LastRunSummary => _lastRunSummary;
 
-    /// <summary>Re-reads the last run's outcome. Cheap (one small file), so it runs with every health
-    /// refresh; the journal only reports a run that ended badly.</summary>
     private long _lastRunReadAt = long.MinValue / 2;
     private bool _lastRunDirty = true;
 
-    /// <summary>Something that changes the journal happened (a settle, a run end, a Fresh Library); the next
-    /// RaiseHealth re-reads it. Between such events the record cannot change, so it is not re-read.</summary>
     internal void MarkLastRunDirty() => _lastRunDirty = true;
 
     private void RefreshLastRunFailure()
@@ -349,9 +310,6 @@ public sealed partial class OverviewViewModel : ObservableObject
 
     public bool HasRunFailure => _lastRunFailure is { Failed: > 0 };
 
-    /// <summary>A failed file that is back in the queue is addressed: the next Resume retries it, so the card
-    /// has nothing to say about it; only files that failed and are NOT queued remain a failure. A journal from before
-    /// the keys were written names no file, so its count stands as is.</summary>
     private Grog.Core.Runs.RunOutcome? _lastRunFailureRaw;
     private void ApplyUnaddressed()
     {
@@ -371,8 +329,6 @@ public sealed partial class OverviewViewModel : ObservableObject
         return left == 0 ? null : f with { Failed = left };
     }
 
-    /// <summary>Every readout of <see cref="HealthIssueCount"/> moves together: the Health card, the Overview
-    /// rail icon and the rail badge. Any change to one of its inputs (here: the last-run failure) raises all of them.</summary>
     private void RaiseIssueCountSet()
     {
         OnPropertyChanged(nameof(HealthIssueCount)); OnPropertyChanged(nameof(HealthOk)); OnPropertyChanged(nameof(ShowHealthBadge));
@@ -380,8 +336,6 @@ public sealed partial class OverviewViewModel : ObservableObject
         _root.RaiseHealthBadgeInRail();
     }
 
-    /// <summary>Forget the last run's failure record (Fresh Library reset, or a later run that ended clean):
-    /// the journal's current.json is what ReadLastFailure reads on every refresh, so the file goes too.</summary>
     internal void ClearRunJournalFailure()
     {
         // The summary stays: Dismiss clears the failure, not the Schedule card's "N of M files" line.
@@ -405,17 +359,12 @@ public sealed partial class OverviewViewModel : ObservableObject
           + (r.ConnectionLost ? $" {char.ToUpperInvariant(ConnectionLostShort[0])}{ConnectionLostShort[1..]}; Resume picks up where they stopped."   // the symptom, said plainly
              : string.IsNullOrWhiteSpace(r.Reason) ? "" : $" {r.Reason!.TrimEnd('.')}.")
         : "";
-    /// <summary>The one phrase every surface uses for a run that failed because the connection went away.</summary>
     internal const string ConnectionLostShort = "connection lost";
 
     // The run's own lede: a transfer in flight headlines WHEN IT ENDS; when idle the state word leads.
 
-    /// <summary>A finish clock only while a run is MOVING: after "Backup finished" with leftovers queued, the
-    /// meter's last rate projected a finish time over a stopped queue.</summary>
     public bool RunLedeIsClock => _root.DownloadRunning && !_root.DownloadPaused && !_root.FinishingCurrent && FinishClockValue is not null
         && !_root.Storage.HasWaitingDrive;
-    /// <summary>A catalog scan IS the current run while it lasts, so it outranks the download state here;
-    /// otherwise the lede reads "Paused" over a bar filling with scan progress.</summary>
     public bool RunLedeIsScan => _library.CatalogBusy;
 
     private DateTimeOffset? FinishClockValue
@@ -429,7 +378,6 @@ public sealed partial class OverviewViewModel : ObservableObject
         }
     }
 
-    /// <summary>The big value: a clock time while running, otherwise the run state.</summary>
     public string RunLedeValue
     {
         get
@@ -444,7 +392,6 @@ public sealed partial class OverviewViewModel : ObservableObject
         }
     }
 
-    /// <summary>The sentence the value completes.</summary>
     public string RunLedeHeadline
     {
         get
@@ -469,8 +416,6 @@ public sealed partial class OverviewViewModel : ObservableObject
         }
     }
 
-    /// <summary>Paused is a state, not an error: the big word keeps its size and this dim
-    /// inline reason says why nothing moves. Empty unless the run is paused (and no scan outranks it).</summary>
     public string RunLedePausedReason
     {
         get
@@ -501,15 +446,9 @@ public sealed partial class OverviewViewModel : ObservableObject
     public string LedeValue    => Lede.Value;
     public string LedeHeadline => Lede.Headline;
     public string LedeDetail   => Lede.Detail;
-    /// <summary>How much of the gap is already queued, beside the headline: "to Back Up"
-    /// alone reads as if nothing is planned when a queue is sitting right there. GAP LEDES ONLY - on
-    /// the longer fault headlines (files gone) the note is off-topic and clipped into the transport
-    /// buttons at 1366 (render-measured).</summary>
     public string LedeQueuedNote => DownloadQueueCount > 0
         && Lede.Kind is Grog.Core.Sync.StatusLede.Kind.Gap or Grog.Core.Sync.StatusLede.Kind.Stale
         ? $"({ByteFormat.Size(DownloadQueueBytes)} queued)" : "";
-    /// <summary>Graded by Core, colored by the one mapping. AllClear alone is green: this headline is the
-    /// one place that states health outright; everywhere else green stays banned (manage by exception).</summary>
     public IBrush LedeBrush => Lede.Kind == Grog.Core.Sync.StatusLede.Kind.AllClear
         ? Palette.SuccessGreen
         : SeverityBrush.For(Grog.Core.Sync.StatusLede.SeverityOf(Lede.Kind));
@@ -551,14 +490,10 @@ public sealed partial class OverviewViewModel : ObservableObject
             : _library.UpdatesCount > 0 ? Palette.AccentAmber : Palette.SuccessGreen;
 
     // Health status line, manage by exception: silent when good, worst active finding when not.
-    /// <summary>A folder situation worth reporting: none at all, or one that should be here and isn't.
-    /// Deliberately NOT "fewer online than total" -- a safely-unplugged removable is not a fault.</summary>
     private bool HealthFoldersBad => _root.Storage.BackupLocations.Count == 0 || HealthDeviceProblemCount > 0;
     private bool HealthCheckStale => Grog.Core.Sync.StatusLede.IsStale(
         _stats.LastApiRefresh is { } t ? DateTimeOffset.Now - t : null, CatalogStaleAfter);
 
-    /// <summary>True while the launch pass stats every backed-up file; the health line says so instead of a
-    /// missing count it cannot yet stand behind.</summary>
     private bool _diskCheckRunning;
     internal void SetDiskCheckRunning(bool on)
     {
@@ -567,7 +502,6 @@ public sealed partial class OverviewViewModel : ObservableObject
         RaiseHealthStatus();
     }
 
-    /// <summary>The one-line health readout: worst finding first, "Up to date" only when all of them pass.</summary>
     public string HealthStatusText
     {
         get
@@ -586,9 +520,7 @@ public sealed partial class OverviewViewModel : ObservableObject
             return "";
         }
     }
-    /// <summary>Renders only when something is wrong; the good state is the line's absence.</summary>
     public bool HasHealthStatus => HealthStatusText.Length > 0;
-    /// <summary>Same grading as the headline above, so one card's two lines never disagree on severity.</summary>
     public IBrush HealthStatusBrush => _diskCheckRunning ? Palette.InkDim : SeverityBrush.For(
         HealthFoldersBad || HealthGoneCount > 0 || HasRunFailure
             ? Grog.Core.Sync.Severity.Fault
@@ -646,15 +578,12 @@ public sealed partial class OverviewViewModel : ObservableObject
         }
     }
 
-    /// <summary>Health-page verdict color: red = issues, amber = incomplete, gray = nothing yet, green =
-    /// full. The rail dot stays on <see cref="HealthDotBrush"/> so an in-progress backup never alarms it.</summary>
     public IBrush HealthVerdictBrush =>
         !HealthOk            ? Palette.ErrorRed
       : !HealthHasAnyBackup  ? Palette.InkDim
       : !HealthFullyBackedUp ? Palette.AccentAmber
       : Palette.SuccessGreen;
 
-    /// <summary>The line under the verdict: the specifics behind whatever the verdict just claimed.</summary>
     public string HealthDetail
     {
         get
@@ -679,7 +608,6 @@ public sealed partial class OverviewViewModel : ObservableObject
         }
     }
 
-    /// <summary>The rail's health badge and library fraction re-read the rail width and the worst-case flag.</summary>
     internal void RaiseRailBadge()
     {
         OnPropertyChanged(nameof(HealthBadgeText));
@@ -688,8 +616,6 @@ public sealed partial class OverviewViewModel : ObservableObject
         OnPropertyChanged(nameof(RailLibraryExceptions));   // 
     }
 
-    /// <summary>The Overview-facing readouts the 1 Hz dashboard pass raises (coverage table, byte rollup,
-    /// hero card texts, extras segments).</summary>
     internal void RaiseDashboardReadouts()
     {
         OnPropertyChanged(nameof(GamesFilesText));

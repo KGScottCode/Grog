@@ -4,11 +4,8 @@ using System.Linq;
 
 namespace Grog.Core.Format;
 
-/// <summary>Version strings as the hosts show them.</summary>
 public static class VersionText
 {
-    /// <summary>MAJOR.MINOR.PATCH from an informational version: build metadata after '+' and a fourth
-    /// build-counter part are dropped; an empty input falls back, then to "0.0.0".</summary>
     public static string Trim3(string? info, string? fallback)
     {
         var v = string.IsNullOrWhiteSpace(info) ? fallback ?? "0.0.0" : info;

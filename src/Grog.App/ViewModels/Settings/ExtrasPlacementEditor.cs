@@ -12,19 +12,6 @@ using Grog.Core.Models;
 
 namespace Grog.App.ViewModels;
 
-/// <summary>
-/// The "Where extras are stored" card: three choices STAGED together and committed once.
-///
-/// Why this is the page's only staged card. The three pills are not peers -- the shape
-/// decides whether the other two mean anything -- and each used to commit on click through its own path,
-/// so "separate folder, on the second drive" was two commits, two prompts, and one of them silently did
-/// nothing (see <see cref="Grog.Core.Runs.ExtrasPlacementRun"/>). Staging makes the hierarchy real: nothing
-/// happens until the whole shape is chosen, and one Apply produces one move job.
-///
-/// It lives in its own class, not on SettingsViewModel, for the reason the S3 split exists: the settings
-/// view model is a composition root, and a card with staged state, dirty tracking, a debounced background
-/// planner and a leave guard is a component, not a property bag.
-/// </summary>
 public sealed partial class ExtrasPlacementEditor : ObservableObject
 {
     private readonly IExtrasPlacementHost _host;
@@ -40,8 +27,6 @@ public sealed partial class ExtrasPlacementEditor : ObservableObject
     private string? _stagedExtrasRootId;
     private bool _loaded;
 
-    /// <summary>Re-reads the committed state and drops any staging. Called when the store opens, when the
-    /// backup locations change under us, and by Discard.</summary>
     public void ResetFromManifest()
     {
         var m = Store?.Current;
@@ -58,11 +43,6 @@ public sealed partial class ExtrasPlacementEditor : ObservableObject
     private ExtrasPlacement _baselinePlacement = ExtrasPlacement.WithGame;
     private string? _baselineExtrasRootId;
 
-    /// <summary>The storage locations changed (a drive added, removed, detached, swapped). The card read them
-    /// ONCE, when the store opened, so removing the secondary left it staged on a drive that no longer
-    /// exists: dirty with nothing the user did, the leave guard asking about it, and Apply ready to route
-    /// extras to a missing root. An untouched card follows the manifest; a staged choice that
-    /// names a drive that is gone is dropped; a staged choice that still makes sense is kept and re-counted.</summary>
     public void OnLocationsChanged()
     {
         if (!_loaded) return;
@@ -79,12 +59,10 @@ public sealed partial class ExtrasPlacementEditor : ObservableObject
 
     private string? PrimaryRootId => Store?.Current.PrimaryRootId;
 
-    /// <summary>THE secondary lookup: the first location that is not the primary (default tuple when none).</summary>
     private (string? RootId, string? Label) Secondary => _host.Locations.FirstOrDefault(l => l.RootId != PrimaryRootId);
 
     private string? SecondaryRootId => Secondary.RootId;
 
-    /// <summary>The secondary's own name, or null when it has none (or there is no secondary).</summary>
     public string? SecondaryName => string.IsNullOrWhiteSpace(Secondary.Label) ? null : Secondary.Label;
 
     private string? CommittedExtrasRootId
@@ -105,21 +83,13 @@ public sealed partial class ExtrasPlacementEditor : ObservableObject
     public bool OnPrimaryActive => !OnSecondaryActive;
     public bool OnSecondaryActive => SeparateActive && _stagedExtrasRootId is { Length: > 0 } r && r != PrimaryRootId;
 
-    /// <summary>Staged placement, for the folder preview. The preview must show what APPLY WILL DO, so it
-    /// reads staging, never the manifest.</summary>
     public ExtrasPlacement StagedPlacement => _stagedPlacement;
-    /// <summary>Staged "extras live on the other device", for the preview's secondary block.</summary>
     public bool StagedOnSecondary => OnSecondaryActive;
 
     // ---- which rows exist ---------------------------------------------------------------------------
     // Rows are ABSENT, not disabled, when they do not apply. A dimmed control that still looks clickable
     // is what produced the original bug report: it was clicked, and it did nothing visible.
-    /// <summary>There is a second place to put things.</summary>
     public bool HasSecondary => _host.Locations.Count >= 2;
-    /// <summary>"Which storage holds them" -- purely "is there a second drive". Whether the sub-rows apply
-    /// AT ALL is the shape's business and the view handles it by reserving their space rather than
-    /// collapsing it, so this must NOT also test the shape: doing both made the card change height when the
-    /// shape toggled.</summary>
     public bool ShowStorageRow => HasSecondary;
 
     public string SecondaryLabel => SecondaryName ?? "Secondary";
@@ -137,8 +107,6 @@ public sealed partial class ExtrasPlacementEditor : ObservableObject
         }
     }
 
-    /// <summary>Footer line. The file count is what makes Apply a considered click rather than a shrug, so
-    /// it is stated as soon as the background plan answers; until then the line is honest about not knowing.</summary>
     public string PendingText => !IsDirty ? ""
         // A drive the move needs is not here: Apply will commit NOTHING, so the
         // footer must not promise a file count, or "nothing to move", that Apply cannot deliver.
@@ -283,16 +251,11 @@ public sealed partial class ExtrasPlacementEditor : ObservableObject
     }
 
     // ---- leave guard ---------------------------------------------------------------------------------
-    /// <summary>The shell asks before navigating away; staged-but-unapplied is the one state on this page
-    /// that a page change would silently discard.</summary>
     public bool HasPending => IsDirty && _host.ExtrasInScope;
 
-    /// <summary>Shown over the Settings page while the leave question stands. An overlay, not a modal
-    /// dialog, to match the migrate prompt this card's Apply feeds into.</summary>
     [ObservableProperty] private bool _showLeavePrompt;
     private string? _pendingNav;
 
-    /// <summary>The shell caught a page change with staged choices. Hold the destination and ask.</summary>
     internal void AskBeforeLeaving(string? target)
     {
         _pendingNav = target;
@@ -333,7 +296,6 @@ public sealed partial class ExtrasPlacementEditor : ObservableObject
         _host.LeaveTo(target);
     }
 
-    /// <summary>The rail key of the Storage page, where the move prompt lives.</summary>
     internal const string StoragePage = "Drives";
 
     private void RaiseAll()

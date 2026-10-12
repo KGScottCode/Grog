@@ -1,10 +1,5 @@
 // Grog - GOG.com library backup tool
 // Licensed under GPL-3.0-or-later
-//
-// The CLI half of the New flag: seeing what is flagged, backing exactly those up, and
-// clearing them. Plus two DEV-ONLY verbs (GROG_DEV_VERBS=1, never in help): `mark-new`, the inverse of
-// clear-new so a test can replay the flagged state, and `ordersprobe`, a research probe at GOG's order
-// history -- the only place a real ACQUISITION DATE might come from.
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,8 +14,6 @@ namespace Grog.Cli;
 
 internal static partial class CliVerbs
 {
-    /// <summary>`clear-new [--all | &lt;title|id&gt;]` -- retire the New flag. Without --all a title or id is
-    /// required: clearing the whole library is an explicit ask, never a bare verb's default.</summary>
     internal static async Task<int> ClearNew(CliContext ctx)
     {
         var args = ctx.Args;
@@ -51,8 +44,6 @@ internal static partial class CliVerbs
         return Continue;
     }
 
-    /// <summary>DEV ONLY (`GROG_DEV_VERBS=1`): `mark-new [--all | &lt;id&gt;]`, the inverse of clear-new, so a
-    /// test can put the library back into a flagged state without re-running a scan.</summary>
     internal static async Task<int> MarkNew(CliContext ctx)
     {
         var args = ctx.Args;
@@ -77,18 +68,12 @@ internal static partial class CliVerbs
         return Continue;
     }
 
-    /// <summary>DEV ONLY (`GROG_DEV_VERBS=1`): does GOG expose an order history we could date a purchase from?
-    /// Tries the likely endpoints with the authenticated client and reports what each one answered -- the URL,
-    /// the status, one whole order pretty-printed, and how many owned products the orders actually cover.
-    /// A research tool: an endpoint that says "no" clearly is a useful answer, not a failure.</summary>
     internal static async Task<int> Ordersprobe(CliContext ctx)
     {
         var manifest = ctx.Manifest;
         await manifest.LoadAsync();
         var session = await ctx.Auth.EnsureAuthenticatedAsync(CancellationToken.None);
 
-        // Most likely first: embed.gog.com's account order history (the page the website's "Orders" tab
-        // reads). The v2 form is listed after it because it has moved before.
         string[] urls =
         {
             "https://embed.gog.com/account/settings/orders/data?canceled=0&completed=1&in_progress=1&not_redeemed=1&pending=1&redeemed=1&page=1",
@@ -127,8 +112,6 @@ internal static partial class CliVerbs
             catch (Exception ex) { Out.Warn($"  not JSON ({ex.Message}): {Trunc(body.Replace('\n', ' '), 200)}"); continue; }
             using (doc)
             {
-                // Find the array of orders whatever it is called; then print ONE whole order, verbatim,
-                // because the point of a probe is to see the real shape rather than a summary of it.
                 var orders = FindArray(doc.RootElement, "orders") ?? FindArray(doc.RootElement, "items")
                           ?? (doc.RootElement.ValueKind == JsonValueKind.Array ? doc.RootElement : (JsonElement?)null);
                 if (orders is not { } arr || arr.GetArrayLength() == 0)
@@ -140,8 +123,6 @@ internal static partial class CliVerbs
                     continue;
                 }
                 anyOk = true;
-                // The scalars beside the array answer the question that decides the design: is this one pull
-                // or a page walk, and how many requests would a one-time backfill cost?
                 if (doc.RootElement.ValueKind == JsonValueKind.Object)
                 {
                     var scalars = doc.RootElement.EnumerateObject()
@@ -165,7 +146,6 @@ internal static partial class CliVerbs
         return Continue;
     }
 
-    /// <summary>The first array-valued property named <paramref name="name"/>, at the root or one level in.</summary>
     private static JsonElement? FindArray(JsonElement root, string name)
     {
         if (root.ValueKind != JsonValueKind.Object) return null;
@@ -177,8 +157,6 @@ internal static partial class CliVerbs
         return null;
     }
 
-    /// <summary>Every numeric-looking "id" anywhere under an order object -- the coverage line only needs to
-    /// know WHICH products an order mentions, not how GOG nests them.</summary>
     private static void CollectProductIds(JsonElement e, HashSet<long> into)
     {
         switch (e.ValueKind)

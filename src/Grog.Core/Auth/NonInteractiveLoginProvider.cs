@@ -6,9 +6,6 @@ using System.Threading.Tasks;
 
 namespace Grog.Core.Auth;
 
-/// <summary>Login provider for unattended runs: never opens a browser. If GOG's refresh token has
-/// lapsed and a real login is required, it throws <see cref="AuthExpiredException"/> so the job ends
-/// with a clear "session expired" signal rather than blocking.</summary>
 public sealed class NonInteractiveLoginProvider : IInteractiveLoginProvider
 {
     public Task<string> AcquireAuthorizationCodeAsync(Uri loginUrl, CancellationToken ct = default)

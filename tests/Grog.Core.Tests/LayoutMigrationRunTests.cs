@@ -15,8 +15,6 @@ using Grog.Core.Storage;
 using Grog.Core.Tests.Framework;
 using Grog.Core.Volumes;
 
-/// <summary>The shared layout-migration orchestrator (S2.1): the App's CheckLayoutMigration / MigrateNow rules
-/// and the CLI's `reorg layout`, over a temp root + JsonManifestStore, no fakes needed (the runner is disk-only).</summary>
 [NewBatch]
 [Trait("reorg")]
 public class LayoutMigrationRunTests
@@ -36,7 +34,6 @@ public class LayoutMigrationRunTests
         return new Env(store, root, layout, paths.ConfigDir);
     }
 
-    /// <summary>A flat-layout file (&lt;root&gt;/&lt;slug&gt;/&lt;name&gt;), optionally absent from disk.</summary>
     static GameFile AddFile(Env e, long gogId, string slug, string title, string rel, string content, bool onDisk = true)
     {
         var item = e.Store.Current.Items.FirstOrDefault(i => i.GogId == gogId);

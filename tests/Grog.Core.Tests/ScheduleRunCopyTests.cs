@@ -7,11 +7,6 @@ using Grog.App.ViewModels;
 using Grog.Core.Scheduling;
 using Grog.Core.Tests.Framework;
 
-/// <summary>
-/// The run outcome's user-facing words, which live in the App (presentation) while the grade stays in
-/// Core. Same honesty rules as the Core half: one word per concept, and an aborted slot never claims
-/// Grog was not running.
-/// </summary>
 [NewBatch]
 [Trait("schedule")]
 public class ScheduleRunCopyTests

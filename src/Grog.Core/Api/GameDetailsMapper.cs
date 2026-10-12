@@ -7,8 +7,6 @@ using Grog.Core.Models;
 
 namespace Grog.Core.Api;
 
-/// <summary>Turns a parsed <see cref="GameDetails"/> (API shape) into a <see cref="LibraryItem"/> (domain
-/// shape). Pure and side-effect free: no HTTP, no disk.</summary>
 public static class GameDetailsMapper
 {
     public static LibraryItem ToLibraryItem(long gogId, GameDetails details, bool isDlc = false)
@@ -52,8 +50,6 @@ public static class GameDetailsMapper
             });
         }
 
-        // GOG nests each DLC's own installers/extras inside dlcs[]; they are NOT in the base game's
-        // lists. Pull them up onto this game so they're captured, tagged with their DLC title.
         foreach (var dlc in details.Dlcs)
         {
             var child = ToLibraryItem(gogId, dlc, isDlc: true);
@@ -61,7 +57,6 @@ public static class GameDetailsMapper
 
             foreach (var f in child.Files)
             {
-                // Re-file the DLC's installers/extras onto the parent, noting their DLC origin.
                 f.GameGogId = gogId;
                 if (f.Kind == FileKind.Installer) f.Kind = FileKind.DlcInstaller;
                 if (string.IsNullOrEmpty(f.ExtraType) && f.Kind == FileKind.Extra)
@@ -74,8 +69,6 @@ public static class GameDetailsMapper
         return item;
     }
 
-    /// <summary>Parses GOG's human size strings ("1.5 GB") to approximate bytes for display/planning; exact
-    /// bytes come from Content-Length at download time. Null when unparseable.</summary>
     public static long? ParseSize(string? sizeText)
     {
         if (string.IsNullOrWhiteSpace(sizeText)) return null;
@@ -100,6 +93,5 @@ public static class GameDetailsMapper
         return multiplier < 0 ? null : (long)(value * multiplier);
     }
 
-    /// <summary>Folder-safe name derived from the title; the one rule lives in <see cref="Format.Naming.Slug"/>.</summary>
     public static string Slugify(string title) => Format.Naming.Slug(title);
 }

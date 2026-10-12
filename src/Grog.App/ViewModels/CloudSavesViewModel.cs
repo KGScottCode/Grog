@@ -15,8 +15,6 @@ using Grog.Core.Manifest;
 
 namespace Grog.App.ViewModels;
 
-/// <summary>The Cloud Saves screen: owns the cloud-game list + its discovery/download flows via the same Core
-/// services the CLI uses. Shell state is supplied lazily so it composes without re-coupling to MainWindowViewModel.</summary>
 public partial class CloudSavesViewModel : ObservableObject
 {
     private readonly Func<JsonManifestStore?> _manifest;
@@ -30,8 +28,6 @@ public partial class CloudSavesViewModel : ObservableObject
     private readonly Func<int> _keepCloudSaves;
     private readonly Func<Grog.Core.Auth.AccountSessions?> _sessions;
 
-    /// <summary>Host log sink (wired by MainWindowViewModel): cloud-save work writes account-first
-    /// [Cloud] lines to the shared Activity log / grog.log, which outlives the page.</summary>
     public Action<string, bool, LogCategory>? HostLog { get; set; }
 
     private void LogCloud(string message, bool isError = false)
@@ -61,11 +57,6 @@ public partial class CloudSavesViewModel : ObservableObject
         _keepCloudSaves = keepCloudSaves;
     }
 
-    // --- Cloud-saves archive folder (defaults to <backup root>/Cloud Saves; overridable) ---
-
-    /// <summary>The folder cloud-save archives land in -- the override if set, else the default.
-    /// a bound getter used to build a BackupLayout (probes every root on disk) per
-    /// binding evaluation; the value is now cached and recomputed off the dispatcher by RefreshFromManifest.</summary>
     public string CloudFolderText
     {
         get
@@ -80,8 +71,6 @@ public partial class CloudSavesViewModel : ObservableObject
     private string _cloudFolderTextCache = "";
     private int _cloudFolderTextGen;
 
-    /// <summary>Recompute the default cloud folder text on a worker and raise CloudFolderText when it lands.
-    /// Only the LATEST request applies (a generation counter), and only if manifest/root are still the same.</summary>
     private void RecomputeCloudFolderText()
     {
         var m = _manifest();
@@ -113,13 +102,9 @@ public partial class CloudSavesViewModel : ObservableObject
 
     public bool CloudFolderIsOverridden => !string.IsNullOrEmpty(_manifest()?.Current.CloudSavesFolder);
 
-    // --- Per-account folder rows: with multiple accounts the header lists each
-    //     account's own folder ("Name : path") instead of one path, so the split layout is visible.
     public sealed record CloudFolderRow(string AccountId, string Name, string Path, AccountBadge? Badge, bool IsOverridden)
     { public bool HasBadge => Badge is not null; }
 
-    /// <summary>Point ONE account's saves at a folder of its own, fully replacing its spot under the
-    /// base. Per-account because a household may want each player's saves on their own disk.</summary>
     [RelayCommand]
     private async Task ChangeAccountCloudFolder(CloudFolderRow? row)
     {
@@ -200,16 +185,11 @@ public partial class CloudSavesViewModel : ObservableObject
         RefreshFromManifest();
     }
 
-    /// <summary>The bound, filtered + sorted view. The full set lives in <see cref="_allCloud"/>; every
-    /// refresh repopulates that and re-applies the current search + sort.</summary>
     public ObservableCollection<CloudGameRow> CloudGames { get; } = new();
-    /// <summary>The bound list WITH account grouping: CloudAccountHeaderRow items interleaved with the game
-    /// rows they own, kept flat for the row templates. A single account gets no grouping chrome.</summary>
     public ObservableCollection<object> CloudItems { get; } = new();
     private readonly List<CloudGameRow> _allCloud = new();
     [ObservableProperty] private string _cloudStatus = "";
 
-    /// <summary>Expand/collapse one account's section, persisted like other view state.</summary>
     [RelayCommand]
     private void ToggleCloudAccount(CloudAccountHeaderRow? header)
     {
@@ -228,7 +208,6 @@ public partial class CloudSavesViewModel : ObservableObject
         ApplyCloudView();
     }
 
-    /// <summary>The display name for an account id, from the registered accounts.</summary>
     private string AccountName(string id)
     {
         var a = _manifest()?.Current.Accounts.FirstOrDefault(x => x.Id == id);
@@ -236,8 +215,6 @@ public partial class CloudSavesViewModel : ObservableObject
              : string.IsNullOrEmpty(a.Username) ? (a.Id.Length == 0 ? "This account" : a.Id) : a.Username;
     }
 
-    /// <summary>The cloud service bound to the account that OWNS a row's saves: per-account sessions when
-    /// accounts are registered (non-interactive, can never pop a login), the legacy session otherwise.</summary>
     private Grog.Core.CloudSaves.CloudSaveService CloudServiceFor(string accountId)
     {
         if (_sessions() is { } s && s.Accounts.Count > 0)
@@ -245,14 +222,9 @@ public partial class CloudSavesViewModel : ObservableObject
         return new Grog.Core.CloudSaves.CloudSaveService(_apiHttp(), _auth());
     }
 
-    /// <summary>Core's cloud-save run over this page's manifest, sessions and root (its ServiceFor is the
-    /// same rule as <see cref="CloudServiceFor"/>). </summary>
     private Grog.Core.Runs.CloudSaveRun NewCloudRun(CloudRunHost host)
         => new(_manifest()!, _apiHttp(), _auth(), _sessions(), _backupRoot(), host);
 
-    /// <summary>The page's side of a CloudSaveRun: the run's per-game progress line becomes the status text
-    /// during Download All (and is dropped for a single row, whose RunBusy label already says it); every
-    /// other line is an account-first [Cloud] log entry, exactly the ones this page wrote itself. </summary>
     private sealed class CloudRunHost : Grog.Core.Runs.NullBackupHost
     {
         private readonly CloudSavesViewModel _vm;
@@ -271,7 +243,6 @@ public partial class CloudSavesViewModel : ObservableObject
 
     // ---- Search + sort + summary ----
     public enum CloudSortKey { Name, Size, Last, Changed }
-    // Name A->Z; the rest most-first. Shared scaffold: SortState.
     private readonly SortState<CloudSortKey> _cloudSort = new(CloudSortKey.Name, k => k == CloudSortKey.Name);
 
     [ObservableProperty] private string _cloudFilter = "";
@@ -290,7 +261,6 @@ public partial class CloudSavesViewModel : ObservableObject
     public string CloudSortGlyphSize    => _cloudSort.Glyph(CloudSortKey.Size);
     public string CloudSortGlyphLast    => _cloudSort.Glyph(CloudSortKey.Last);
     public string CloudSortGlyphChanged => _cloudSort.Glyph(CloudSortKey.Changed);
-    /// <summary>The one sort control's face: current key + direction glyph ("Name ▲").</summary>
     public string CloudSortLabel => _cloudSort.Key switch
     {
         CloudSortKey.Size => "Size" + CloudSortGlyphSize,
@@ -305,9 +275,6 @@ public partial class CloudSavesViewModel : ObservableObject
         OnPropertyChanged(nameof(CloudSortLabel));   // 
     }
 
-    /// <summary>Rebuild the bound list from the full set, honoring the search text and current sort.</summary>
-    /// <summary>The Library's hidden rule, so a hidden game is not NAMED here either. Applied to the VIEW
-    /// only: <see cref="_allCloud"/>, the need count and "Download all" still cover its saves (names, never bytes).</summary>
     public Func<long, bool> IsHiddenGame { get; set; } = _ => false;
     internal void RefreshHiddenView() => ApplyCloudView();
 
@@ -330,8 +297,7 @@ public partial class CloudSavesViewModel : ObservableObject
         CloudGames.Clear();
         foreach (var g in q) CloudGames.Add(g);
 
-        // Grouped view: account header rows interleaved with their games, shown whenever MORE THAN ONE account
-        // is registered -- an account with no saves still gets its header, saying so. One account = flat page.
+        // Grouped view
         CloudItems.Clear();
         var shown = CloudGames.ToList();
         var registered = _manifest()?.Current.Accounts ?? new List<Grog.Core.Models.GrogAccount>();
@@ -342,8 +308,7 @@ public partial class CloudSavesViewModel : ObservableObject
         else
         {
             var collapsed = _manifest()?.Current.CloudCollapsedAccounts ?? new List<string>();
-            // Every registered account in registration order, plus any orphan ids still carrying saves
-            // (e.g. a removed account's last-seen entries) so no row can ever be silently unreachable.
+            // Every registered account in order
             var ids = registered.Select(a => a.Id)
                 .Concat(_allCloud.Select(g => g.AccountId).Distinct().Where(id => registered.All(a => a.Id != id)))
                 .ToList();
@@ -364,7 +329,6 @@ public partial class CloudSavesViewModel : ObservableObject
     }
 
     public bool HasCloudGames => _allCloud.Count > 0;
-    /// <summary>Header line: games, local saves, and bytes backed up.</summary>
     public string CloudSummary
     {
         get
@@ -379,8 +343,6 @@ public partial class CloudSavesViewModel : ObservableObject
     }
     public string CloudCountText => !string.IsNullOrWhiteSpace(CloudFilter) ? $"{CloudGames.Count} of {_allCloud.Count} shown" : "";
 
-    /// <summary>True when the status line reports a failure -- drives a loud red/bold treatment so a
-    /// cloud backup that DIDN'T happen can't be missed.</summary>
     [ObservableProperty] private bool _cloudStatusIsError;
 
     public Avalonia.Media.IBrush CloudStatusBrush => CloudStatusIsError ? Palette.ErrorRedBright : Palette.InkMuted;
@@ -394,7 +356,6 @@ public partial class CloudSavesViewModel : ObservableObject
         OnPropertyChanged(nameof(CloudStatusWeight));
     }
 
-    /// <summary>Show the cloud-save games already flagged in the manifest (no network).</summary>
     public void RefreshFromManifest()
     {
         CloudStatusIsError = false;
@@ -405,9 +366,7 @@ public partial class CloudSavesViewModel : ObservableObject
         _allCloud.Clear();
         var manifest = _manifest();
         if (manifest is null) { ApplyCloudView(); return; }
-        ReconcileStaleBookkeeping(manifest);   // off-thread; re-runs this refresh if it changes anything
-        // Show only games GOG's last discovery confirmed have cloud saves (a cached CloudClientId alone lingers).
-        // ONE ROW PER (game, account): a co-saved game appears once per section, each with ITS OWN archive + bookkeeping.
+        ReconcileStaleBookkeeping(manifest);   
         manifest.Mutate(cur => Grog.Core.CloudSaves.CloudSaveReconciler.SeedLegacy(cur));   // 
         foreach (var it in manifest.Current.Items
                      .Where(i => i.HasCloudSaves ?? false)
@@ -418,8 +377,6 @@ public partial class CloudSavesViewModel : ObservableObject
                     e.Files, e.UpdatedUtc, e.BackedUpFiles, e.BackedUpChangeUtc,
                     accountId: e.AccountId));
         ApplyCloudView();
-        // Only the EMPTY case says anything: with games present the summary sub-head below already
-        // carries games / localSaves / bytes, so a count here restated it one line early.
         CloudStatus = _allCloud.Count == 0
             ? "No cloud saves known yet. Run a library scan (or press Check for new saves) to look."
             : "";
@@ -433,12 +390,6 @@ public partial class CloudSavesViewModel : ObservableObject
         }
     }
 
-    /// <summary>A "backed up" claim is only true if local save files actually exist on disk: clear the
-    /// bookkeeping for any game whose local save folder is empty, so a row never claims an empty backup.
-    /// The disk walk (one directory enumeration per claimed game, on the backup drive) runs OFF the UI
-    /// thread and at most once a minute: it used to run inline on every manifest refresh - thirty-odd call
-    /// sites, scan completion included - and a sleeping drive froze the window. Changes are
-    /// applied on the dispatcher and trigger one more refresh.</summary>
     private long _lastReconcileTicks = long.MinValue;
     private bool _reconciling;
     private void ReconcileStaleBookkeeping(JsonManifestStore manifest, bool force = false)
@@ -496,8 +447,6 @@ public partial class CloudSavesViewModel : ObservableObject
         });
     }
 
-    /// <summary>True if the game has at least one actual cloud-save file under ONE ACCOUNT's local save
-    /// folder. Uses the SAME path resolution as the downloader so the check matches where files land.</summary>
     private static bool HasLocalSaveFilesOnDisk(JsonManifestStore manifest, Grog.Core.Volumes.BackupLayout layout, Grog.Core.Models.LibraryItem it, string backupRoot, string accountId)
     {
         try
@@ -512,8 +461,6 @@ public partial class CloudSavesViewModel : ObservableObject
         catch { return true; }   // on any error, don't wrongly wipe a real backup's bookkeeping
     }
 
-    /// <summary>One-call discovery via GOG's own master list (v2 containers). Flags which library
-    /// games have cloud saves + caches size/space_id, then shows them. No per-game library walk.</summary>
     public async Task DiscoverAsync()
     {
         var manifest = _manifest();
@@ -580,17 +527,11 @@ public partial class CloudSavesViewModel : ObservableObject
         finally { HasDiscovered = true; }
     }
 
-    /// <summary>True once a discovery pass has run this session. Navigating to the page auto-discovers ONLY
-    /// while false: a cold start populates itself, but returning never re-queries GOG behind the user's back.</summary>
     public bool HasDiscovered { get; private set; }
 
-    /// <summary>Explicit re-query. The page is a view of what we already know; asking GOG again is an
-    /// action the user takes, not something that happens because they looked at the tab.</summary>
     [RelayCommand]
     private async Task CheckForNewSaves() => await DiscoverAsync();
 
-    /// <summary>Per-game "Save As": export this game's cloud save into a folder the user picks (e.g. the
-    /// game's live save folder) -- a manual restore, separate from the timestamped archive.</summary>
     [RelayCommand]
     private async Task SaveAs(CloudGameRow? row)
     {
@@ -612,7 +553,6 @@ public partial class CloudSavesViewModel : ObservableObject
         });
     }
 
-    /// <summary>The status line for one row's Download, from what the run recorded.</summary>
     internal static string DownloadStatusText(string title, Grog.Core.Runs.CloudSaveEntryResult? entry)
     {
         if (entry is null) return $"Couldn't back up {title}: it is no longer listed with cloud saves. Check for new saves and try again.";
@@ -652,11 +592,7 @@ public partial class CloudSavesViewModel : ObservableObject
     [ObservableProperty] private bool _cloudAllRunning;
     private System.Threading.CancellationTokenSource? _cloudAllCts;
 
-    /// <summary>Games Download-all would save locally (never backed up, or changed since the last local
-    /// save). Up-to-date games are skipped.</summary>
     public int CloudNeedCount => _allCloud.Count(g => !g.IsUpToDate);
-    /// <summary>Rail row state: current games over games with cloud saves, the same shape as Library's
-    /// fraction. Distinct games; a game is current only when EVERY account's saves for it are backed up.</summary>
     public string RailCloudCount
     {
         get
@@ -667,7 +603,6 @@ public partial class CloudSavesViewModel : ObservableObject
             return $"{current}/{byGame.Count} Games";
         }
     }
-    /// <summary>Cloud rail second line: "{done} of {total} backed up", same figures as RailCloudCount.</summary>
     public string RailCloudSub
     {
         get
@@ -724,8 +659,6 @@ public partial class CloudSavesViewModel : ObservableObject
     // ---- LocalSave history: expand a game to its timestamped localSaves on disk, then open the folder,
     //      restore one into a chosen folder, or prune one (two-step confirm). Pure disk work, no GOG call. ----
 
-    /// <summary>After a rebuild (e.g. a prune reruns RefreshFromManifest), re-open this game so the panel
-    /// doesn't collapse under the user. Cleared once honored.</summary>
     private long? _expandAfterRefresh;
 
     [RelayCommand]
@@ -736,9 +669,6 @@ public partial class CloudSavesViewModel : ObservableObject
         if (row.IsExpanded) LoadLocalSaves(row);
     }
 
-    /// <summary>the archive dir resolution (BackupLayout: probes every root) and the
-    /// directory walk run on a worker; rows are posted back only if this row is still expanded and still part
-    /// of the current list (a refresh rebuilds rows; a stale walk must not populate a dead row).</summary>
     private void LoadLocalSaves(CloudGameRow row)
     {
         row.LocalSaves.Clear();
@@ -769,9 +699,6 @@ public partial class CloudSavesViewModel : ObservableObject
         });
     }
 
-    /// <summary>This row's account's archive dir for this game, resolved exactly as the downloader resolves it.
-    /// The tokens.json slot keeps the legacy per-game folder; named accounts write under accounts/&lt;id&gt;/.
-    /// pure function of captured inputs so it can run on a worker.</summary>
     private static string ResolveGameDir(Grog.Core.Manifest.LibraryManifest current, string backupRoot, string accountId, string slug)
     {
         string baseDir;
@@ -792,8 +719,6 @@ public partial class CloudSavesViewModel : ObservableObject
         if (snap is not null) Grog.App.Services.FileManager.Open(snap.Dir);
     }
 
-    /// <summary>Restore a specific local save's files into a folder the user picks (e.g. the game's live save
-    /// folder). Copies from disk; never overwrites or touches the local save itself.</summary>
     [RelayCommand]
     private async Task RestoreLocalSave(LocalSaveRow? snap)
     {
@@ -821,8 +746,6 @@ public partial class CloudSavesViewModel : ObservableObject
     [RelayCommand]
     private void CancelDeleteLocalSave(LocalSaveRow? snap) { if (snap is not null) snap.ConfirmingDelete = false; }
 
-    /// <summary>Delete one local save folder for good (confirmed via the row's two-step gate), then re-sync
-    /// the game's bookkeeping from what's actually left on disk so counts/summary stay honest.</summary>
     [RelayCommand]
     private async Task DeleteLocalSave(LocalSaveRow? snap)
     {

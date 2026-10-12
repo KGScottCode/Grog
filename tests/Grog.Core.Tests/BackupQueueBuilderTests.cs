@@ -12,10 +12,6 @@ using Grog.Core.Tests.Framework;
 
 namespace Grog.Core.Tests;
 
-/// <summary>
-/// The ONE selection rule both hosts and the App's three counts (scoped label, submenu, enqueue) build from.
-/// Each option is pinned on its own so a host wiring one wrongly fails here, not in a user's queue.
-/// </summary>
 public sealed class BackupQueueBuilderTests
 {
     private static GameFile F(long game, string key, FileKind kind = FileKind.Installer, FileState state = FileState.NotBackedUp,
@@ -69,9 +65,6 @@ public sealed class BackupQueueBuilderTests
         public string? ResolveCloudDir(string slug, out string rootId) { rootId = "p"; return null; }
     }
 
-    /// <summary>The resume drain applies the unplugged-home-drive rule the fresh path has: an Outdated
-    /// file whose drive is away is not fetched onto another root (that splits one file across two roots and
-    /// strands its Old Versions step). It stays queued and waits.</summary>
     [Test]
     public void Resume_drain_leaves_a_file_whose_home_drive_is_unplugged_queued_and_unfetched()
     {

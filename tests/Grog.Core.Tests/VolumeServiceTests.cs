@@ -25,7 +25,6 @@ public class VolumeServiceTests
         return (store, root, layout);
     }
 
-    /// <summary>A second location must live beside the primary, never inside it.</summary>
     static string Sibling(string root, string name) => Path.GetFullPath(Path.Combine(root, "..", name));
 
     static void Cleanup(string root) => Directory.Delete(Path.GetFullPath(Path.Combine(root, "..")), true);
@@ -209,8 +208,6 @@ public class VolumeServiceTests
         finally { Cleanup(root); }
     }
 
-    /// <summary>The shelf. A detached drive keeps every record and count, is never bound (even with its
-    /// folder present), is no placement target, does not count as an offline drive, and comes back with Reattach.</summary>
     [Test]
     void DetachRoot_KeepsFilesCounted_NeverBinds_AndReattaches()
     {
@@ -335,8 +332,6 @@ public class VolumeServiceTests
         finally { Cleanup(root); }
     }
 
-    /// <summary>Re-adding a detached root's folder (Add / Scan and Add) brings it back instead of
-    /// returning it still shelved and invisible.</summary>
     [Test]
     void AddRoot_OnADetachedRootsPath_Reattaches()
     {
@@ -355,8 +350,6 @@ public class VolumeServiceTests
         finally { Cleanup(root); }
     }
 
-    /// <summary>Other storage swaps into a slot in one step; a primary swap stamps the outgoing primary's
-    /// implicit (null-RootId) files so they are not re-attributed to the new primary.</summary>
     [Test]
     void SwapIntoSlot_TakesTheSlot_AndAPrimarySwapStampsImplicitFiles()
     {
@@ -404,8 +397,6 @@ public class VolumeServiceTests
         finally { Cleanup(root); }
     }
 
-    /// <summary>SetPrimary moves the ROLE pins (EnsurePrimary stamps them with the first primary
-    /// explicitly) and stamps only records that hold bytes.</summary>
     [Test]
     void SetPrimary_MovesRolePins_StampsOnlyHeldBytes()
     {

@@ -1,20 +1,17 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <!-- Grog palette. Color = meaning (design doc S4). Named once; views reference these,
-         never a hex literal. Tokens ending in Alt/AltN are near-duplicates flagged to collapse. -->
+
     <Color x:Key="AccentAmberColor">#D8A040</Color>
     <Color x:Key="AccentAmberDeepColor">#D09820</Color>
     <Color x:Key="AccentAmberHoverColor">#E0B058</Color>
     <Color x:Key="AccentOrangeColor">#D87028</Color>
     <Color x:Key="ErrorRedColor">#C86060</Color>
-    <!-- Fixed status colors (like ErrorRed / SuccessGreen, NOT theme-swapped): a disconnected REMOVABLE
-         drive is a warning, not an error. Orange sits between green (connected) and red (fixed drive gone). -->
+
     <Color x:Key="WarnOrangeColor">#E08838</Color>
     <Color x:Key="SurfaceWarnDark2Color">#2A231D</Color>
-    <!-- Brief green "reconnected" flash fill for a removable drive that just came back. -->
+
     <Color x:Key="SurfaceOkDark2Color">#18271D</Color>
-    <!-- Videos content hue is the one that swaps: violet by default, amber in Ode to GOG where violet
-         would echo the purple accent. ThemeService flips it. -->
+
     <Color x:Key="TypeVideosColor">#A090C8</Color>
     <Color x:Key="ErrorRedBrightColor">#F85048</Color>
     <Color x:Key="InkBrightColor">#C6CBD0</Color>
@@ -38,15 +35,13 @@
     <Color x:Key="SurfaceAmberDark2Color">#2E2A1C</Color>
     <Color x:Key="SurfaceAmberDark3Color">#2A2419</Color>
     <Color x:Key="SurfaceAmberDark4Color">#3A2E14</Color>
-    <!-- Selected accent-card fill (Settings mode cards): an accent-tinted dark surface. Tokenised so the
-         theme toggle re-tints it with the rest of the amber family instead of leaving a stray warm patch. -->
+
     <Color x:Key="SurfaceAmberSelectColor">#211A0F</Color>
-    <!-- Soft-amber: the "related but lesser" tier (Rescan) between solid amber (Back up) and outline. -->
+
     <Color x:Key="AccentAmberSoftColor">#C09850</Color>
     <Color x:Key="SurfaceAmberSoftColor">#24D8A040</Color>
     <Color x:Key="StrokeAmberSoftColor">#52D8A040</Color>
-    <!-- Soft-red pair, same alphas as the amber-soft pair, so a destructive tinted button (Clear) reads as a
-         calm sibling of the primary tinted button (Resume) instead of out-shouting it. -->
+
     <Color x:Key="SurfaceErrorSoftColor">#24C86060</Color>
     <Color x:Key="StrokeErrorSoftColor">#52C86060</Color>
     <Color x:Key="SurfaceBgColor">#14181D</Color>
@@ -56,11 +51,9 @@
     <Color x:Key="SurfaceGreenDarkColor">#14251A</Color>
     <Color x:Key="SurfaceNeutralDarkColor">#1A1A1A</Color>
     <Color x:Key="SurfacePanelColor">#1B2027</Color>
-    <!-- Dashboard card fill: four steps darker than SurfacePanel so a stroke-less card still separates
-         from the canvas by fill alone; internal hairlines carry the structure. -->
+
     <Color x:Key="SurfaceCardColor">#181D23</Color>
-    <!-- Section-card fill: six steps lighter than the #161B21 page so a section reads as an object ON
-         the page at a distance - page -> card -> tinted header strip is three values the eye keeps. -->
+
     <Color x:Key="SurfaceSectionColor">#1C222A</Color>
     <Color x:Key="SurfacePanelAltColor">#191F26</Color>
     <Color x:Key="SurfaceRaisedColor">#20262E</Color>
@@ -126,32 +119,26 @@
     <SolidColorBrush x:Key="SurfaceSunken" Color="{StaticResource SurfaceSunkenColor}" />
     <SolidColorBrush x:Key="White" Color="{StaticResource WhiteColor}" />
 
-    <!-- Flat-canvas tokens (softening pass): everything sits on SurfaceBg; the grid + filter cards are the only
-         objects, framed by FlatEdge; row separators are the fainter FlatRowLine. NavActiveTint is the sole fill. -->
     <SolidColorBrush x:Key="FlatEdge"    Color="#FFFFFF" Opacity="0.09" />
     <SolidColorBrush x:Key="FlatRowLine" Color="#FFFFFF" Opacity="0.05" />
-    <!-- Row hairlines that used to be inline hexes (09-02): the 6%/15% whites the settings rows and the
-         DataGrid hover/selection fills use. Keyed so a theme can darken them; never swapped by ThemeService. -->
+
     <SolidColorBrush x:Key="RowHairline"      Color="#FFFFFF" Opacity="0.06" />
     <SolidColorBrush x:Key="RowHairlineStrong" Color="#FFFFFF" Opacity="0.15" />
     <SolidColorBrush x:Key="RowHoverFill"     Color="#FFFFFF" Opacity="0.13" />
     <SolidColorBrush x:Key="RowSelectFill"    Color="#FFFFFF" Opacity="0.24" />
-    <!-- THEME SWATCHES: the picker must show every theme's own accent regardless of the active theme, so
-         these are FIXED colors by design - the one place the swapped AccentAmber must not be used. -->
+
     <SolidColorBrush x:Key="ThemeSwatchDefault"       Color="#D9A441" />
     <SolidColorBrush x:Key="ThemeSwatchOdeToGog"      Color="#A874FF" />
     <SolidColorBrush x:Key="ThemeSwatchTavernFill"    Color="#0B0A08" />
     <SolidColorBrush x:Key="ThemeSwatchTavernStroke"  Color="#E2A63B" />
-    <!-- Typed-confirm text box strokes: destructive (red family) and warn (orange family), muted. -->
+
     <SolidColorBrush x:Key="StrokeDangerInput" Color="#5A2F2D" />
     <SolidColorBrush x:Key="StrokeWarnInput"   Color="#5A4326" />
-    <!-- Brand tile ink (the "G" on the amber tile) and the close-button hover red. -->
+
     <SolidColorBrush x:Key="BrandTileInk"      Color="#1A1408" />
     <SolidColorBrush x:Key="WinCloseHover"     Color="#C0342E" />
     <SolidColorBrush x:Key="NavActiveTint" Color="{StaticResource AccentAmberColor}" Opacity="0.10" />
 
-    <!-- Fluent ToggleSwitch overrides: these keys shadow the FluentTheme's own, as OWN brush instances so
-         ThemeService re-tints them with the accent family. Knob goes dark: gold track, dark knob. -->
     <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="{StaticResource AccentAmberColor}"/>
     <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="{StaticResource AccentAmberHoverColor}"/>
     <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="{StaticResource AccentAmberDeepColor}"/>
@@ -165,24 +152,16 @@
     <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPressed" Color="{StaticResource SurfaceBgColor}"/>
     <SolidColorBrush x:Key="ToggleSwitchKnobFillOnDisabled" Color="{StaticResource InkMutedDimColor}"/>
 
-    <!-- Section-header accent: amber, fading to nothing left-to-right. Trails a white uppercase label on the rail
-         and in the Details pane (eyebrow + rule). Theme-swapped to purple in Ode to GOG by ThemeService. -->
     <LinearGradientBrush x:Key="AmberRuleFade" StartPoint="0%,50%" EndPoint="100%,50%">
         <GradientStop Color="#60D9A441" Offset="0"/>
         <GradientStop Color="#00D9A441" Offset="1"/>
     </LinearGradientBrush>
 
-    <!-- Rules have two tiers: AMBER marks a PAGE SECTION, NEUTRAL marks a division INSIDE a card, so card
-         internals never out-shout the heading. Standing exception: Details' download-group eyebrows keep amber. -->
-    <!-- Vertical amber fade: marks the PRIMARY item down a card's left edge (Accounts). Theme-swapped in
-         ThemeService alongside AmberRuleFade. -->
     <LinearGradientBrush x:Key="AmberEdgeFade" StartPoint="50%,0%" EndPoint="50%,100%">
         <GradientStop Color="#60D9A441" Offset="0"/>
         <GradientStop Color="#00D9A441" Offset="1"/>
     </LinearGradientBrush>
 
-    <!-- Row-rest rules: the neutral twin of the completion pair, for a row that has not started. Own
-         brushes, not NeutralRuleFade - 17% alpha vanishes on a grid row. -->
     <LinearGradientBrush x:Key="RowRuleFade" StartPoint="0%,50%" EndPoint="100%,50%">
         <GradientStop Color="#44FFFFFF" Offset="0"/>
         <GradientStop Color="#00FFFFFF" Offset="1"/>
@@ -192,8 +171,6 @@
         <GradientStop Color="#44FFFFFF" Offset="1"/>
     </LinearGradientBrush>
 
-    <!-- Completion rules: flank the tick on a fully-backed-up row; low alpha because they repeat per row.
-         NOT theme-swapped: green is a STATE color and means healthy under every theme. -->
     <LinearGradientBrush x:Key="SuccessRuleFade" StartPoint="0%,50%" EndPoint="100%,50%">
         <GradientStop Color="#9959C46B" Offset="0"/>
         <GradientStop Color="#0059C46B" Offset="1"/>
@@ -208,40 +185,28 @@
         <GradientStop Color="#00FFFFFF" Offset="1"/>
     </LinearGradientBrush>
 
-    <!-- Mirror of NeutralRuleFade for centered headings, so each rule dims AWAY from the title and neither
-         ends on a hard edge. Not theme-swapped: white is neutral in both themes. -->
     <LinearGradientBrush x:Key="NeutralRuleFadeIn" StartPoint="0%,50%" EndPoint="100%,50%">
         <GradientStop Color="#00FFFFFF" Offset="0"/>
         <GradientStop Color="#2BFFFFFF" Offset="1"/>
     </LinearGradientBrush>
 
-    <!-- Open-bottom card (Folders): the section fill dissolves over a FIXED 90px band (pixels, not a share
-         of card height, or it re-bands when the window grows); 90px keeps the steps ~4px apart. -->
     <LinearGradientBrush x:Key="SectionFadeOut" StartPoint="50%,0%" EndPoint="50%,100%">
         <GradientStop Color="#1C222A" Offset="0"/>
         <GradientStop Color="#001C222A" Offset="1"/>
     </LinearGradientBrush>
 
-    <!-- Folders: the card's lower half dissolves to the window bottom while the side strokes stay solid.
-         LINEAR on purpose - easing creates a shallow stretch and the widest band lives at the shallowest slope. -->
     <LinearGradientBrush x:Key="SectionFadeLong" StartPoint="50%,0%" EndPoint="50%,100%">
         <GradientStop Color="#1C222A" Offset="0"/>
         <GradientStop Color="#001C222A" Offset="1"/>
     </LinearGradientBrush>
 
-    <!-- Card top-edge highlight: a 1px white whisper along a card's top edge. Reads as a light source above the
-         page, so dark cards sit ON the canvas instead of reading as holes cut into it. -->
     <SolidColorBrush x:Key="CardTopHighlight" Color="#FFFFFF" Opacity="0.055" />
 
-    <!-- Speed-graph trace: a VERTICAL accent gradient so peaks read as peaks. Keyed, not inline, so
-         ThemeService can swap its stops - an inline brush would strand an amber graph on a purple page. -->
     <LinearGradientBrush x:Key="SpeedTraceFill" StartPoint="50%,0%" EndPoint="50%,100%">
         <GradientStop Color="#60D9A441" Offset="0"/>
         <GradientStop Color="#1AD9A441" Offset="1"/>
     </LinearGradientBrush>
 
-    <!-- Column divider: full-height neutral rule between peer columns, stronger than an in-card rule and
-         faded at both ends. Neutral, not amber: a divider is structure, never an action. -->
     <LinearGradientBrush x:Key="ColumnDividerBrush" StartPoint="50%,0%" EndPoint="50%,100%">
         <GradientStop Color="#00FFFFFF" Offset="0"/>
         <GradientStop Color="#26FFFFFF" Offset="0.06"/>
@@ -249,8 +214,6 @@
         <GradientStop Color="#00FFFFFF" Offset="1"/>
     </LinearGradientBrush>
 
-    <!-- ONE LIGHT SOURCE, ABOVE: canvas is the floor, rail a shade back, cards catch the most light.
-         Deltas stay tiny (big deltas band) and ramps stay smooth with no interior stop (a mid-stop Mach-bands). -->
     <LinearGradientBrush x:Key="CanvasGlow" StartPoint="50%,0%" EndPoint="50%,100%">
         <GradientStop Color="#161B21" Offset="0"/>
         <GradientStop Color="#161B21" Offset="1"/>
@@ -263,24 +226,20 @@
         <GradientStop Color="#191E25" Offset="0"/>
         <GradientStop Color="#191E25" Offset="1"/>
     </LinearGradientBrush>
-    <!-- Recessed plot: glow from the TOP EDGE only. Never horizontal - a left-to-right gradient in a time
-         series would read as a trend, i.e. it would imply data the empty plot does not have. -->
+
     <RadialGradientBrush x:Key="PlotRecess" Center="50%,0%" GradientOrigin="50%,0%" RadiusX="75%" RadiusY="95%">
         <GradientStop Color="#12171C" Offset="0"/>
         <GradientStop Color="#12171C" Offset="0.55"/>
         <GradientStop Color="#12171C" Offset="1"/>
     </RadialGradientBrush>
-    <!-- Rail's right edge: separation by LIGHT, not a border stroke. -->
+
     <LinearGradientBrush x:Key="RailEdge" StartPoint="50%,0%" EndPoint="50%,100%">
         <GradientStop Color="#00FFFFFF" Offset="0"/>
         <GradientStop Color="#12FFFFFF" Offset="0.1"/>
         <GradientStop Color="#12FFFFFF" Offset="0.9"/>
         <GradientStop Color="#00FFFFFF" Offset="1"/>
     </LinearGradientBrush>
-    <!-- Brand warmth at the rail's head (theme-swapped), neutral shadow at its foot - the foot is the
-         absence of light, never a second glow. -->
-    <!-- Measured: rail content starts at y=34, the "ON GOG" eyebrow at y=139, so the glow is full at the
-         wordmark and ZERO by ~104px; a longer falloff reads as a warm band with a visible boundary. -->
+
     <RadialGradientBrush x:Key="RailBrandGlow" Center="0%,0%" GradientOrigin="0%,0%" RadiusX="42%" RadiusY="115%">
         <GradientStop Color="#60D9A441" Offset="0"/>
         <GradientStop Color="#10D9A441" Offset="0.30"/>
@@ -291,25 +250,20 @@
         <GradientStop Color="#00000000" Offset="1"/>
     </LinearGradientBrush>
 
-    <!-- Brand tile (app icon / collapsed-rail mark): a diagonal accent gradient. ThemeService live-swaps its two
-         stops (amber by default, a deeper purple in Ode to GOG) exactly like the flat accent brushes. -->
     <LinearGradientBrush x:Key="BrandTileBrush" StartPoint="0%,0%" EndPoint="100%,100%">
         <GradientStop Color="{StaticResource AccentAmberHoverColor}" Offset="0"/>
         <GradientStop Color="{StaticResource AccentAmberDeepColor}" Offset="1"/>
     </LinearGradientBrush>
 
-    <!-- ===== TYPE RAMP: a fixed set with one job each, nothing between them. Migrate pages onto these
-         as each is rewritten. -->
     <x:Double x:Key="FontTitle">22</x:Double>
     <x:Double x:Key="FontSection">17.5</x:Double>
     <x:Double x:Key="FontRow">17</x:Double>
     <x:Double x:Key="FontBody">15.5</x:Double>
     <x:Double x:Key="FontCaption">14</x:Double>
     <x:Double x:Key="FontEyebrow">12</x:Double>
-    <!-- Section labels are tracked wide (~0.16em) so they read as labels, not shouting. -->
+
     <x:Double x:Key="TrackSection">2.4</x:Double>
 
-    <!-- ===== RADII: three values only. -->
     <CornerRadius x:Key="RadiusChip">6</CornerRadius>
     <CornerRadius x:Key="RadiusControl">8</CornerRadius>
     <CornerRadius x:Key="RadiusCard">12</CornerRadius>

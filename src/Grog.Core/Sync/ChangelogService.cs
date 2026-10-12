@@ -14,11 +14,6 @@ using Grog.Core.Storage;
 
 namespace Grog.Core.Sync;
 
-/// <summary>
-/// Fetches a game's GOG changelog (api.gog.com/products/{id}?expand=changelog), strips the HTML to
-/// readable text, and stores it as .grog/changelogs/&lt;slug&gt;.json loaded only when viewed, so the
-/// main manifest stays lean. No read/unread state -- this is reference text.
-/// </summary>
 public sealed class ChangelogService
 {
     private readonly HttpClient _http;
@@ -36,8 +31,6 @@ public sealed class ChangelogService
 
     private string PathFor(string slug) => Path.Combine(_changelogDir, $"{Sanitize(slug)}.json");
 
-    /// <summary>Fetch the changelog from GOG and store it. Returns the cleaned text (may be empty
-    /// when the game has no changelog -- that's normal, not an error). Null on fetch failure.</summary>
     public async Task<string?> FetchAndStoreAsync(long gogId, string slug, string title, CancellationToken ct = default)
     {
         var session = await _auth.EnsureAuthenticatedAsync(ct);
@@ -63,7 +56,6 @@ public sealed class ChangelogService
         return text;
     }
 
-    /// <summary>Load a previously-stored changelog, or null if none is stored yet.</summary>
     public async Task<ChangelogEntry?> LoadAsync(string slug, CancellationToken ct = default)
     {
         var path = PathFor(slug);
@@ -84,8 +76,6 @@ public sealed class ChangelogService
         await JsonSerializer.SerializeAsync(stream, entry, opts, ct);
     }
 
-    /// <summary>Strip GOG's changelog HTML to readable plain text: turn block/break tags into
-    /// newlines, drop the rest, decode entities, and collapse whitespace runs.</summary>
     internal static string CleanHtml(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw)) return "";

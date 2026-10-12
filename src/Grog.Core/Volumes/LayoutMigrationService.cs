@@ -9,10 +9,6 @@ using Grog.Core.Models;
 
 namespace Grog.Core.Volumes;
 
-/// <summary>
-/// Migrates a flat backup layout (&lt;root&gt;/&lt;slug&gt;) to the category layout (Games/, Extras/).
-/// <see cref="Plan"/> is pure (no disk) for dry-run display; execution is the journaled ReorgRunner.
-/// </summary>
 public sealed class LayoutMigrationService
 {
     public sealed record Move(long GogId, string Title, string FromRel, string ToRel, string FromAbs, string ToAbs);
@@ -26,9 +22,6 @@ public sealed class LayoutMigrationService
         _layout = layout;
     }
 
-    /// <summary>Computes the file's correct relative path under the chosen layout (null if already there).
-    /// The tail is just the filename, so this is robust regardless of current nesting; the extras shape
-    /// matches BackupLayout.SubPathFor exactly. Pure string logic, internal for testing.</summary>
     internal static string? NewRelativeFor(string relPath, string slug, FileKind kind, ExtrasPlacement layout, GameFile? file = null)
     {
         var rel = relPath.Replace('\\', '/');
@@ -49,7 +42,6 @@ public sealed class LayoutMigrationService
         return target == rel ? null : target;
     }
 
-    /// <summary>Plans the moves needed; no disk access. Files already under a category folder are skipped.</summary>
     public IReadOnlyList<Move> Plan()
     {
         var moves = new List<Move>();

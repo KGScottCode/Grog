@@ -19,8 +19,6 @@ using Grog.Core.Tests.Framework;
 
 namespace Grog.Core.Tests;
 
-/// <summary>"Finish current files" asked while PAUSED: the arm names the files that were in progress, the Resume's
-/// run starts only those, and when the last of them lands the run ends with the rest still queued.</summary>
 [Trait("download")]
 public sealed class RunDrainFromPauseTests
 {

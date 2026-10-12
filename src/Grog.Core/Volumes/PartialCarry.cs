@@ -10,16 +10,8 @@ using Grog.Core.Models;
 
 namespace Grog.Core.Volumes;
 
-/// <summary>A.part belongs to its queued file and follows that file's drive. "Move files" moved only
-/// finished files, and a Detached drive is not bound by the layout, so the engine's own stray-partial adopt
-/// (PreparePartial) never looked there: clear a stick, detach it, and every in-progress download restarted from
-/// zero with its .part left behind on a drive Grog no longer writes to. The owner should not have to know that.
-///
-/// One helper, three steps in the delete's shape: <see cref="Plan"/> (gate held: records), the disk work (NO gate),
-/// then the records follow the disk (gate held). Never runs for a file the engine is transferring right now.</summary>
 public static class PartialCarry
 {
-    /// <summary>One in-progress download recorded on the drive being left.</summary>
     public sealed record Item(GameFile File, string Title, string TargetRootId, string? TargetPath, long RecordedBytes);
 
     public sealed record Result(int Carried, long CarriedBytes, int Left, long LeftBytes, int Cleared)
@@ -28,9 +20,6 @@ public static class PartialCarry
         public bool Any => Carried + Left + Cleared > 0;
     }
 
-    /// <summary>The queued files whose partial is recorded on <paramref name="fromRootId"/>, each with the drive it
-    /// should follow: the root it is routed to, else <paramref name="preferredRootId"/>, else the primary; never
-    /// the drive being left. Records only, no disk. Caller holds the gate.</summary>
     public static List<Item> Plan(LibraryManifest m, IBackupLayout layout, string fromRootId, string? preferredRootId)
     {
         var items = new List<Item>();
@@ -50,9 +39,6 @@ public static class PartialCarry
         return items;
     }
 
-    /// <summary>What a confirm can say before anything moves: how many in-progress downloads are recorded on the
-    /// drive and their bytes. Records only.</summary>
-    /// <summary>The queued files whose in-progress download sits on <paramref name="rootId"/>, by key.</summary>
     public static List<(long GogId, string FileKey)> RecordedKeysOn(LibraryManifest m, string rootId)
     {
         if (m.PrimaryRootId is not { } primary) return new();
@@ -71,8 +57,6 @@ public static class PartialCarry
         return (on.Count, on.Sum(f => f.PartialBytes ?? 0L));
     }
 
-    /// <summary>The drives a Relocate job CLEARS: every file that holds bytes on the source root is in the job. Each
-    /// comes with the root its files are going to (the job's most common target). Caller holds the gate.</summary>
     public static List<(string FromRootId, string ToRootId)> RootsClearedBy(LibraryManifest m, ReorgJob job)
     {
         var cleared = new List<(string, string)>();
@@ -91,11 +75,6 @@ public static class PartialCarry
         return cleared;
     }
 
-    /// <summary>Carry every in-progress download off <paramref name="fromRootPath"/>. Across volumes the move is a
-    /// copy, so a partial goes only where there is room for it beside what is already planned there
-    /// (<paramref name="devices"/>, spent as this goes) and only onto a volume that can hold the whole file. What
-    /// cannot go stays where it is and is counted: the caller says so. A recorded partial whose .part is not on the
-    /// drive has its record cleared (the record follows the disk). Disk work runs with NO gate held.</summary>
     public static Result Carry(IManifestStore store, IBackupLayout layout, string fromRootId, string fromRootPath,
                                string? preferredRootId, IReadOnlyList<DeviceSpace> devices,
                                Func<GameFile, bool>? isTransferring = null, Action<string>? log = null)
@@ -129,7 +108,6 @@ public static class PartialCarry
             {
                 var dst = DownloadEngine.PartialPathFor(it.TargetPath, it.File);
                 Directory.CreateDirectory(Path.GetDirectoryName(dst)!);
-                // A shorter copy already there (an earlier restart) loses to the longer one: the bytes paid for win.
                 if (File.Exists(dst) && new FileInfo(dst).Length >= len) { File.Delete(src); len = new FileInfo(dst).Length; }
                 else File.Move(src, dst, overwrite: true);
                 free[dev.Key] -= dev.Charge(len);

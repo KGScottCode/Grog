@@ -6,8 +6,6 @@ using System.Linq;
 using Grog.Core.Download;
 using Grog.Core.Tests.Framework;
 
-/// <summary>Auto concurrency picks from the queue head's median size: small = 4, medium = 3,
-/// large = 2, capped by what is left, one file = one worker, unknown sizes count as small.</summary>
 [NewBatch]
 [Trait("download")]
 public class ConcurrencyAdvisorTests

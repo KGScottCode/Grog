@@ -25,7 +25,6 @@ namespace Grog.App.ViewModels;
 // Roots: add / change / remove / re-point / make primary / removable / lost, and their dialogs.
 public sealed partial class StorageViewModel
 {
-    /// <summary>Toggle a device's persisted "removable" flag; drives Missing-vs-Disconnected everywhere.</summary>
     [RelayCommand]
     private async Task ToggleRemovable(BackupLocationRow? row)
     {
@@ -119,8 +118,6 @@ public sealed partial class StorageViewModel
         LocationErrorText = message;
         ShowLocationErrorModal = true;
     }
-    /// <summary>A failed storage action: the dialog gets the message, the log gets the whole exception (site
-    /// and path), because "Access to the path is denied" alone is undiagnosable.</summary>
     private void ShowLocationError(string what, Exception ex)
     {
         _root.Log($"{what}: {ex}", isError: true, category: LogCategory.Move);
@@ -132,14 +129,11 @@ public sealed partial class StorageViewModel
     private string? _pendingAddPath;
     [ObservableProperty] private bool _showAddIntent;
     [ObservableProperty] private string _addIntentFolderName = "";
-    /// <summary>The add-intent dialog title: "Use <folder>?" (a ConfirmDialog title is one string).</summary>
     public string AddIntentTitle => $"Use {AddIntentFolderName}?";
     partial void OnAddIntentFolderNameChanged(string value) => OnPropertyChanged(nameof(AddIntentTitle));
 
     [RelayCommand] private void CancelAddIntent() { ShowAddIntent = false; _pendingAddPath = null; }
 
-    /// <summary>Register the folder WITHOUT the import scan: for a folder the user knows is
-    /// empty, forcing a scan is busywork. Rescan &amp; Verify later covers a wrong guess.</summary>
     [RelayCommand]
     private async Task AddIntentSkipScan()
     {
@@ -165,8 +159,6 @@ public sealed partial class StorageViewModel
         catch (Exception ex) { ShowLocationError("Couldn't add that folder", ex); }
     }
 
-    /// <summary>Register the folder AND scan it for existing GOG backups: confident matches are adopted
-    /// (stamped with the new root's id), problems surface in the results screen for Find-match.</summary>
     [RelayCommand]
     private async Task AddIntentExisting()
     {
@@ -240,8 +232,6 @@ public sealed partial class StorageViewModel
     //      is a plain remove (no choice, no gate).
     private BackupLocationRow? _pendingDeleteRow;
     [ObservableProperty] private bool _showDeleteDeviceDialog;
-    /// <summary>The destructive "delete files and remove storage" path is visible while it runs: on a slow
-    /// USB drive it took 30+ seconds with nothing on screen, and read as broken. Count and bytes tick per file.</summary>
     [ObservableProperty] private bool _showDeleteDeviceProgress;
     [ObservableProperty] private string _deleteDeviceProgressTitle = "";
     [ObservableProperty] private string _deleteDeviceProgressText = "";
@@ -261,11 +251,7 @@ public sealed partial class StorageViewModel
 
     public bool DeleteHasFiles => (_pendingDeleteRow?.FileCount ?? 0) > 0;
     public string DeleteOtherLabel => OtherDeviceForDelete?.Label ?? "Primary";
-    /// <summary>"Move & Forget" needs another device; with a lone primary it silently ran as Forget.</summary>
     public bool DeleteCanMove => OtherDeviceForDelete is not null;
-    /// <summary>Erase is offered only while the drive is here: on an absent drive every File.Exists is false, so
-    /// "Delete" removed 0 files and then forgot the records, stranding the bytes. A root folder absent
-    /// from disk is an unplugged drive, not a missing file.</summary>
     public bool DeleteCanErase => _pendingDeleteRow is { IsOnline: true };
     public string DeleteMoveOptionText => $"Move its files to {DeleteOtherLabel}, then forget this storage";
     public string DeleteSummary
@@ -286,13 +272,10 @@ public sealed partial class StorageViewModel
     public string DeleteDestructiveNote => _pendingDeleteRow is { } r && r.FileCount > 0
         ? $"Destructive - the {r.FileCount} file{(r.FileCount == 1 ? "" : "s")} in this storage {(r.FileCount == 1 ? "is" : "are")} permanently deleted. This can't be undone."
         : "Destructive - files in this storage are permanently deleted.";
-    /// <summary>Detach: the drive goes on the shelf with its files still counted as backed up. Not for the
-    /// primary (something must hold the slot) and pointless for an empty folder.</summary>
     public bool DeleteCanDetach => _pendingDeleteRow is { IsPrimary: false };
     public string DeleteDetachNote => _pendingDeleteRow is { } r
         ? $"Nothing touched, nothing re-downloaded. Its {r.FileCount} file{(r.FileCount == 1 ? "" : "s")} stay{(r.FileCount == 1 ? "s" : "")} recorded as backed up on {r.Label}, the slot frees for another drive, and it waits under Other storage on this page until you use it again." + PartialsCarryNote(r.RootId)
         : "";
-    /// <summary>Detach carries the drive's in-progress downloads to where each file belongs now; the dialog says so.</summary>
     private string PartialsCarryNote(string rootId)
     {
         if (_session.Manifest is not { } st) return "";
@@ -324,9 +307,6 @@ public sealed partial class StorageViewModel
 
     [RelayCommand] private void SetDeleteChoice(string? which) { if (int.TryParse(which, out var n)) DeleteChoice = n; }
 
-    /// <summary>Non-blocking heads-up: re-plan the live queue WITHOUT the device being
-    /// removed, and say when the queued backup can no longer finish. Never blocks the removal --
-    /// the user may be about to attach a different device.</summary>
     [ObservableProperty] private string _deleteQueueImpactText = "";
     public bool ShowDeleteQueueImpact => DeleteQueueImpactText.Length > 0;
 
@@ -383,9 +363,6 @@ public sealed partial class StorageViewModel
 
     // ---- OTHER STORAGE: a drive with no slot. Use as <slot> when free, Swap with <slot> when held,
     //      Forget is the plain remove. Files never move; the queue is re-planned after every slot change. ----
-    /// <summary>The rail's "N other storage" lands here: the section shows,
-    /// every drive expanded. Leaving the page, or its own close, hides it again. The empty-slot offer is separate
-    /// and always shown.</summary>
     public event Action? ScrollToOtherStorageRequested;
     [ObservableProperty] private bool _showOtherStorageSection;
     internal void RevealOtherStorage()
@@ -398,7 +375,6 @@ public sealed partial class StorageViewModel
     [RelayCommand] private void ToggleOtherStorageSection() => ShowOtherStorageSection = !ShowOtherStorageSection;
     public string OtherStorageCaret => ShowOtherStorageSection ? "▾" : "▸";
     public string OtherStorageToggleTip => ShowOtherStorageSection ? "Minimise" : "Show the drives";
-    /// <summary>The minimised line: every drive's name, count and size, so nothing is lost by folding it.</summary>
     public string OtherStorageSummary => string.Join("   ·   ", OtherStorage.Select(o => $"{o.Label}  {o.Summary}  {o.StateText}"));
     partial void OnShowOtherStorageSectionChanged(bool value)
     { OnPropertyChanged(nameof(OtherStorageCaret)); OnPropertyChanged(nameof(OtherStorageToggleTip)); }
@@ -472,8 +448,6 @@ public sealed partial class StorageViewModel
         catch (Exception ex) { ShowLocationError("Couldn't swap the storage", ex); }
     }
 
-    /// <summary>Every slot change ends the same way: reconcile (the layout scan binds the drive), rebuild the
-    /// cards and grids, re-plan the queue onto the new slots, and say so.</summary>
     private async Task AfterSlotChangeAsync(string logLine)
     {
         await _root.ReconcileAndRefresh();
@@ -497,9 +471,6 @@ public sealed partial class StorageViewModel
             catch (Exception ex) { _root.Log($"In-progress downloads were not carried off {shelved.Label}: {ex.Message}", isError: false, category: LogCategory.Move); }
     }
 
-    /// <summary>A slot change on a root a move is reading from or writing to (running or paused) is
-    /// refused with a toast: Forget reset the files of a drive the runner was still copying onto, and the runner
-    /// then stamped them with a root that no longer existed.</summary>
     private bool MoveTouchesRoot(string? rootId)
     {
         if (string.IsNullOrEmpty(rootId) || _activeReorgJob is not { } job || !(IsReorgRunning || ReorgPaused)) return false;
@@ -549,8 +520,6 @@ public sealed partial class StorageViewModel
         ? $"Stop tracking {r.Label} ({r.Path})? Its {r.FileCount} file{(r.FileCount == 1 ? "" : "s")} ({Grog.Core.Format.ByteFormat.Size(r.Bytes)}) will count as not backed up until you back {(r.FileCount == 1 ? "it" : "them")} up again or re-add this storage. Nothing on the drive is touched."
           + PartialsStayNote(r.RootId)
         : "";
-    /// <summary>The confirm's last word when in-progress downloads are still recorded on the drive: a carry
-    /// already ran when it left its slot, so what is left could not go.</summary>
     private string PartialsStayNote(string rootId)
     {
         if (_session.Manifest is not { } st) return "";
@@ -804,7 +773,6 @@ public sealed partial class StorageViewModel
     public string ChangeFolderText { get; private set; } = "";
     public string ChangeOrphanText { get; private set; } = "";
 
-    /// <summary>Open a backup folder in the OS file manager; best-effort, silently ignores failures.</summary>
     [RelayCommand]
     private void OpenFolder(BackupLocationRow? row) => Grog.App.Services.FileManager.Open(row?.Path);
 
@@ -868,8 +836,6 @@ public sealed partial class StorageViewModel
     [ObservableProperty] private bool _showChangeRepointPrompt;
     public string ChangeRepointText { get; private set; } = "";
 
-    /// <summary>Pool thread. Probes up to five of the root's recorded files under <paramref name="newRoot"/>;
-    /// returns (sampled, found). Zero sampled when the root records no files.</summary>
     private static (int Sampled, int Found) SampleFilesUnder(Grog.Core.Manifest.JsonManifestStore? manifest, string rootId, string newRoot)
     {
         if (manifest is null) return (0, 0);
@@ -883,8 +849,6 @@ public sealed partial class StorageViewModel
         return (sample.Count, found);
     }
 
-    /// <summary>The files are already at the new path: rewrite the hint (Core's RepointRoot, via
-    /// <see cref="RepointRootAsync"/>) and let reconcile clear any Missing flags.</summary>
     [RelayCommand]
     private async Task ConfirmChangeRepoint()
     {
@@ -903,8 +867,6 @@ public sealed partial class StorageViewModel
         catch (Exception ex) { ShowLocationError("Couldn't change the folder", ex); }
     }
 
-    /// <summary>"The move is running, here is where to watch it." Shown once when a move actually has
-    /// work to do; the move itself continues regardless of whether this is dismissed or navigated from.</summary>
     [ObservableProperty] private bool _showMoveStartedNotice;
 
     [RelayCommand]
@@ -917,8 +879,6 @@ public sealed partial class StorageViewModel
         _root.Navigate("Overview");
     }
 
-    /// <summary>Relocate the files via the reorg runner (journaled, resumable, pausable), then re-point the
-    /// root: files keep RootId + relative path, and PathHint flips only when the plan reaches its end.</summary>
     [RelayCommand]
     private async Task ConfirmChangeMove()
     {
@@ -962,7 +922,6 @@ public sealed partial class StorageViewModel
         });
     }
 
-    /// <summary>Continue without moving: second (red) confirm, then re-point + mark files missing.</summary>
     [RelayCommand]
     private void RequestChangeOrphan()
     {
@@ -1000,7 +959,6 @@ public sealed partial class StorageViewModel
         catch (Exception ex) { ShowLocationError("Couldn't change the folder", ex); }
     }
 
-    /// <summary>Empty location: nothing to move, just update the path.</summary>
     private async Task ApplyChangeNoMoveAsync()
     {
         var row = _pendingChangeRow; var newPath = _pendingChangePath;
@@ -1011,9 +969,6 @@ public sealed partial class StorageViewModel
         _root.Log($"{row.Label} storage set to {newPath}");
     }
 
-    /// <summary>Update the root's path in place through Core's one re-point (foreign-marker and nesting refusals,
-    /// PortablePath/LastSeen, the marker write); files keep RootId + relative paths, so they stay tracked. For the
-    /// primary, also adopt it as the app's backup root. False when Core refused; the refusal is already shown.</summary>
     internal async Task<bool> RepointRootAsync(BackupLocationRow row, string newPath)
     {
         var full = System.IO.Path.GetFullPath(newPath);
@@ -1033,11 +988,6 @@ public sealed partial class StorageViewModel
         return true;
     }
 
-    /// <summary>THE way a root becomes primary. The manifest's PrimaryRootId and the app's own primary folder
-    /// (settings ChosenRoot / _backupRoot) must move together: BackupLayout binds the primary to the app's
-    /// path and rewrites the root's PathHint from it, so a promotion that left _backupRoot on the OLD folder
-    /// silently re-pointed the new primary at the old drive (the promoted USB root took the
-    /// removed F: path, F: could not be re-added, and new downloads would have landed on F:).</summary>
     internal async Task PromoteToPrimaryAsync(string rootId)
     {
         if (_session.Manifest is null) return;
@@ -1046,10 +996,6 @@ public sealed partial class StorageViewModel
         if (root is not null && !string.IsNullOrEmpty(root.PathHint)) await AdoptPrimaryPathAsync(root.PathHint);
     }
 
-    /// <summary>The ONLY storage is going: clear the primary everywhere the app keeps it (manifest, shared root,
-    /// settings) so the app returns to the choose-folder state. Before only the manifest was cleared and
-    /// the next BackupLayout built on the still-set root re-created a "Primary" at the same path from a worker
-    /// thread: the card never left, the files stayed counted, and a fresh import was queued.</summary>
     private void ClearPrimary()
     {
         if (_session.Manifest is null) return;
@@ -1060,7 +1006,6 @@ public sealed partial class StorageViewModel
         _root.RaiseRootPathChanged();
     }
 
-    /// <summary>Point the app at a new primary backup folder (updates the shared root + settings).</summary>
     internal Task AdoptPrimaryPathAsync(string full)
     {
         _session.BackupRoot = full;

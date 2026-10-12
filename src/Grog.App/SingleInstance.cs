@@ -7,13 +7,8 @@ using System.Threading;
 
 namespace Grog.App;
 
-/// <summary>Keeps Grog to ONE running instance per user; a second launch signals the first to come forward
-/// and then exits. Two instances would mean concurrent manifest writers -- a data-loss risk.</summary>
-/// <remarks>Windows: named Mutex + auto-reset EventWaitHandle (session-scoped). Linux/macOS: an exclusively
-/// locked lock file plus a Unix domain socket the second launch connects to as the show signal.</remarks>
 public static class SingleInstance
 {
-    // Session-scoped names (per interactive login), so two different users can each run their own Grog.
     private const string MutexName = "Grog.SingleInstance.9E1C0F2A";
     private const string ShowEventName = "Grog.ShowRequest.9E1C0F2A";
 
@@ -22,12 +17,8 @@ public static class SingleInstance
     private static FileStream? _lockFile;
     private static Socket? _listenSocket;
 
-    /// <summary>Invoked (on a background thread) when a second launch asks the running instance to show itself.
-    /// The app wires this to surface the main window. Marshal to the UI thread inside the handler.</summary>
     public static Action? ShowRequested;
 
-    // $XDG_RUNTIME_DIR is per-user tmpfs, cleared at logout -- the right home for a lock and a socket.
-    // Fall back to the config dir when absent; stale files are handled by the lock probe, not existence.
     private static string RuntimeDir
     {
         get
@@ -40,19 +31,15 @@ public static class SingleInstance
     private static string LockPath => Path.Combine(RuntimeDir, "grog-instance.lock");
     private static string SocketPath => Path.Combine(RuntimeDir, "grog-show.sock");
 
-    /// <summary>True if THIS process is the primary instance and should start normally. False means another Grog
-    /// is already running (the caller should <see cref="SignalExisting"/> and exit).</summary>
     public static bool TryAcquire()
     {
         if (OperatingSystem.IsWindows()) return TryAcquireWindows();
         try
         {
             Directory.CreateDirectory(RuntimeDir);
-            // FileShare.None takes an exclusive advisory lock on Unix; a second process gets IOException.
-            // The stream is held for the process lifetime -- the LOCK is the truth, file existence proves nothing.
             _lockFile = new FileStream(LockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
 
-            // Primary: listen on the domain socket so a second launch can ask us to surface.
+            // Primary
             try { File.Delete(SocketPath); } catch { /* stale from a crash; bind below recreates it */ }
             _listenSocket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
             _listenSocket.Bind(new UnixDomainSocketEndPoint(SocketPath));
@@ -63,11 +50,10 @@ public static class SingleInstance
         }
         catch (IOException)
         {
-            return false;   // lock held: another Grog is running
+            return false;
         }
         catch
         {
-            // If the OS refuses the primitives for any reason, fail OPEN (run normally) rather than block launch.
             return true;
         }
     }
@@ -79,7 +65,6 @@ public static class SingleInstance
             _mutex = new Mutex(initiallyOwned: true, MutexName, out bool createdNew);
             if (!createdNew) return false;
 
-            // We're the primary: open a listener the secondary can poke to ask us to surface.
             _showEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
             var listener = new Thread(ListenForShowRequests) { IsBackground = true, Name = "Grog-ShowListener" };
             listener.Start();
@@ -87,7 +72,7 @@ public static class SingleInstance
         }
         catch
         {
-            return true;   // fail OPEN, as above
+            return true;   // fail OPEN
         }
     }
 
@@ -115,7 +100,6 @@ public static class SingleInstance
         }
     }
 
-    /// <summary>Called by a SECOND launch: wake the running instance so it comes to the foreground.</summary>
     public static void SignalExisting()
     {
         if (OperatingSystem.IsWindows())
@@ -139,7 +123,6 @@ public static class SingleInstance
         catch { /* best-effort, as above */ }
     }
 
-    /// <summary>Release the instance lock on shutdown.</summary>
     public static void Release()
     {
         try { _mutex?.ReleaseMutex(); } catch { /* not owned / already gone */ }

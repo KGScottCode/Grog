@@ -18,14 +18,9 @@ using Grog.Core.Tests.Framework;
 
 namespace Grog.Core.Tests;
 
-/// <summary>
-/// The engine against a CDN that misbehaves: a resolve timeout, a web page served as the file, a length far
-/// from the label, a 206 from the wrong offset, and a same-name update under KeepOldVersions.
-/// </summary>
 [Trait("download")]
 public sealed class DownloadEngineHardeningTests
 {
-    /// <summary>A body whose stream dies after <c>_good</c> bytes: a dropped connection, not a short file.</summary>
     private sealed class DroppingContent : HttpContent
     {
         private readonly byte[] _bytes; private readonly int _good;
@@ -54,7 +49,6 @@ public sealed class DownloadEngineHardeningTests
         }
     }
 
-    /// <summary>A body that delivers a prefix, then blocks until the read is cancelled: a stalled link mid-file.</summary>
     private sealed class HeldContent : HttpContent
     {
         private readonly byte[] _bytes; private readonly long _good; private readonly TaskCompletionSource _held;
@@ -81,7 +75,6 @@ public sealed class DownloadEngineHardeningTests
         }
     }
 
-    /// <summary>A body with no Content-Length: what a chunked 200 looks like to the engine.</summary>
     private sealed class ChunkedContent : HttpContent
     {
         private readonly byte[] _bytes;
@@ -101,15 +94,10 @@ public sealed class DownloadEngineHardeningTests
         public int Gets;
         public long? LastRangeFrom;
         public bool FailFirstGetMidway;
-        /// <summary>The downlink resolve times out: what GogApiClient's 30 s CancelAfter surfaces as.</summary>
         public bool ResolveTimesOut;
-        /// <summary>The GET answers 200 with an HTML page (a login or error page) instead of the file.</summary>
         public bool ServeHtmlPage;
-        /// <summary>A Range request is answered 206 with Content-Range starting at 0 and the whole body.</summary>
         public bool WrongRangeFrom;
-        /// <summary>The GET answers 200 with a chunked body: no Content-Length on the wire.</summary>
         public bool NoContentLength;
-        /// <summary>After this many body bytes the read blocks until the token is cancelled (a stalled link).</summary>
         public long HoldBodyAfter;
         public TaskCompletionSource BodyHeld = new(TaskCreationOptions.RunContinuationsAsynchronously);
 

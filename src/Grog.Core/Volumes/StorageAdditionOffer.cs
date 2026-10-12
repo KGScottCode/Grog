@@ -9,17 +9,6 @@ using Grog.Core.Sync;
 
 namespace Grog.Core.Volumes;
 
-/// <summary>
-/// The numbers behind the "New storage added" offer. When a second storage is added while the
-/// queue holds files that had nowhere to go, the queue is re-planned onto the new drive and the user is asked
-/// ONE question about the files already on the old primary: leave them, move only the games that will
-/// otherwise end up split across two drives, or move everything and make the new drive primary.
-///
-/// Pure: reads the manifest, touches no disk. The App runs the chosen move through the existing move engine
-/// (ReorgPlanner.ForFileMoves), which honours the folder SHAPE for every file it lands. The STORAGE half of
-/// the extras decision (Routing.RoleRoots[Extras]) is honoured here: a pinned extra is not offered for the
-/// per-game move, because that move must not silently undo where the user said extras live.
-/// </summary>
 public static class StorageAdditionOffer
 {
     public sealed record Result(
@@ -32,13 +21,11 @@ public static class StorageAdditionOffer
         public bool HasSplitGames => SplitGameCount > 0;
     }
 
-    /// <summary>True when at least one queued row now fits on the new root: the question exists only then.</summary>
     public static bool ShouldOffer(LibraryManifest m, string newRootId)
         => m.Downloads.Snapshot().Any(q => q.Fits && q.TargetRootId == newRootId);
 
     public static Result Compute(LibraryManifest m, string newRootId, string oldPrimaryRootId)
     {
-        // N / X: what will download onto the new drive, priced at what it still needs (as the planner does).
         var byId = m.Items.ToDictionary(i => i.GogId);
         int qn = 0; long qbytes = 0;
         var gamesQueuedToNew = new HashSet<long>();
@@ -53,7 +40,6 @@ public static class StorageAdditionOffer
             gamesQueuedToNew.Add(q.GogId);
         }
 
-        // M / Y: what is present on the old primary, the Old Versions archive included (it travels with its file).
         bool OnOldPrimary(GameFile f) => BackupScope.IsPresent(f) && (f.RootId ?? oldPrimaryRootId) == oldPrimaryRootId;
         var all = new List<(LibraryItem, GameFile)>();
         long allBytes = 0;
@@ -61,8 +47,6 @@ public static class StorageAdditionOffer
             foreach (var f in item.Files.Concat(item.OldVersionFiles))
                 if (OnOldPrimary(f)) { all.Add((item, f)); allBytes += Rollups.HeldBytesOf(f); }
 
-        // K: games that will have files on BOTH drives once the queue lands, and the per-game move that keeps
-        // each of them whole. Extras pinned to another root by the placement setting are counted, not moved.
         bool extrasPinnedElsewhere = m.ExtrasLayout != ExtrasPlacement.WithGame
             && m.Routing.RoleRoots.TryGetValue(ContentRole.Extras, out var extrasRoot)
             && !string.IsNullOrEmpty(extrasRoot) && extrasRoot != newRootId;

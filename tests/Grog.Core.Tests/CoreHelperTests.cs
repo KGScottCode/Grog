@@ -11,7 +11,6 @@ using Grog.Core.Volumes;
 
 namespace Grog.Core.Tests;
 
-/// <summary>The one rule for "which root holds this file", used by every Core site that used to spell it out.</summary>
 public sealed class EffectiveRootIdTests
 {
     [Test]
@@ -38,7 +37,6 @@ public sealed class PluralTests
     }
 }
 
-/// <summary>One empty folder, one delete, one retry: the .grog-tmp tidy-up and the delete sweep share it.</summary>
 public sealed class FolderPrunerDeleteIfEmptyTests
 {
     private sealed class FlakyIo : IFolderIo
@@ -90,7 +88,6 @@ public sealed class FolderPrunerDeleteIfEmptyTests
     }
 }
 
-/// <summary>The runner's per-test limit: attribute, then GROG_TEST_TIMEOUT, then 120 s.</summary>
 public sealed class TestTimeoutTests
 {
     [Test]

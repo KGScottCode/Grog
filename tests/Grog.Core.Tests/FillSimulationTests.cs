@@ -21,31 +21,12 @@ using Grog.Core.Volumes;
 
 namespace Grog.Core.Tests;
 
-/// <summary>
-/// FILL SIMULATION. Every fit rule has its own unit test; what nothing tested was the LOOP: plan,
-/// download, the drive fills, re-plan, hold the rest, stop, resume, add a drive. The owner's 16 GB FAT32 stick was
-/// the only thing that exercised it, at twenty minutes a fill, and on it found a whole family of defects in
-/// one afternoon (FAT32's per-file ceiling, a dead partial holding the drive full, packing to the byte, disk-full
-/// strikes, orphaned partials).
-///
-/// This runs the REAL BackupRun, planner, queue builder, engine and settler against a fake GOG and a fake drive
-/// with a hard capacity, from many random seeds, and checks after every phase what must always be true:
-///   1. no transfer ever fails (a file is downloaded, or held as won't-fit; never "disk full");
-///   2. the drive is never over-committed, at any sample, mid-run or after;
-///   3. every file is either on disk at its real size, or queued and flagged won't-fit;
-///   4. the run's "held" count equals the number of won't-fit rows;
-///   5. no .part is left that no queued file's record owns;
-///   6. nothing is held that would still fit in what is left (the drive is actually used).
-/// GOG's size labels are rounded (both ways), some files are over the FAT ceiling, runs are cancelled mid-transfer
-/// and resumed, and a second drive arrives late.
-/// </summary>
 [Trait("fillsim")]
 public sealed class FillSimulationTests
 {
     private const long KB = 1024, MB = 1024 * 1024;
     private const long Cluster = 32 * KB;
 
-    /// <summary>The CDN: every file is zeros of its REAL length, resumable by Range.</summary>
     private sealed class SimGog : HttpMessageHandler
     {
         public readonly Dictionary<string, long> RealSize = new();   // "g{game}f{n}" -> bytes
@@ -89,8 +70,6 @@ public sealed class FillSimulationTests
             protected override bool TryComputeLength(out long length) { length = _len; return true; }
         }
 
-        /// <summary>Zeros in 64 KB reads with a yield between them, so transfers genuinely interleave and a cancel
-        /// can land mid-file.</summary>
         private sealed class ZeroStream : Stream
         {
             private long _left;
@@ -133,13 +112,10 @@ public sealed class FillSimulationTests
         public Task SaveAsync(CancellationToken ct = default) => Task.CompletedTask;
     }
 
-    /// <summary>A drive with a hard capacity. "Used" is what is really under its folder, every file rounded up to
-    /// its cluster plus one cluster of directory cost: what a filesystem would charge.</summary>
     private sealed class SimDrive
     {
         public string RootId = "", Path = "";
         public long Capacity, MaxFile = long.MaxValue;
-        /// <summary>A second root on the SAME volume: it has no room of its own, it spends its host's.</summary>
         public SimDrive? Host; public readonly List<string> GuestPaths = new();
         public long Used()
         {
@@ -156,9 +132,6 @@ public sealed class FillSimulationTests
             catch { /* a folder vanished mid-walk (.grog-tmp): the next sample sees it */ }
             return used;
         }
-        /// <summary>A real drive answers "free" atomically; a folder walk does not (a file renamed from .grog-tmp into
-        /// its game folder mid-walk can be missed entirely, overstating the room by a whole file). Three walks, the
-        /// fullest one wins.</summary>
         public long Free() => Host is not null ? Host.Free() : Math.Max(0, Capacity - Math.Max(Used(), Math.Max(Used(), Used())));
     }
 
@@ -220,9 +193,6 @@ public sealed class FillSimulationTests
             Drives.Add(new SimDrive { RootId = root.Id, Path = p, Capacity = capacity });
         }
 
-        /// <summary>A library of games with installers and extras. Real sizes 150 KB - 6 MB with a few 9-12 MB "big"
-        /// ones; the LABEL (what GOG advertises, all the planner knows at first) is the real size rounded to the
-        /// nearest MB, minimum 1 MB: wrong in both directions, as GOG's are.</summary>
         public void BuildLibrary(int games)
         {
             var m = Store.Current;
@@ -247,7 +217,6 @@ public sealed class FillSimulationTests
             }
         }
 
-        /// <summary>A second backup folder on drive A's own volume (two roots, one ledger).</summary>
         public void AddRootOnDriveA()
         {
             var p = System.IO.Path.Combine(Base, "shareOfA"); Directory.CreateDirectory(p);
@@ -257,8 +226,6 @@ public sealed class FillSimulationTests
             Drives.Add(new SimDrive { RootId = root.Id, Path = p, Host = Drives[0], Capacity = Drives[0].Capacity, MaxFile = Drives[0].MaxFile });
         }
 
-        /// <summary>The owner's move: the second drive becomes Primary and the first goes on the shelf (Detached),
-        /// after its in-progress downloads were carried off it.</summary>
         public PartialCarry.Result ClearAndShelveDriveA()
         {
             var a = Drives[0]; var b = Drives[1];
@@ -271,7 +238,6 @@ public sealed class FillSimulationTests
         }
         public readonly List<SimDrive> Shelved = new();
 
-        /// <summary>The stick came back under another letter: same bytes, new path.</summary>
         public void RebindDriveA()
         {
             var moved = System.IO.Path.Combine(Base, "driveA_replugged");
@@ -333,7 +299,6 @@ public sealed class FillSimulationTests
         public void Dispose() { try { Directory.Delete(Base, true); } catch { } }
     }
 
-    /// <summary>What must hold after a run that was allowed to finish.</summary>
     private static void AssertSettledState(Sim s, BackupRunResult result, string phase)
     {
         var m = s.Store.Current;
@@ -390,8 +355,6 @@ public sealed class FillSimulationTests
         }
     }
 
-    /// <summary>One seed, the whole story: fill a FAT-limited drive, cancel mid-run, resume to the end, then add a
-    /// second drive and resume again.</summary>
     private static async Task RunStory(int seed)
     {
         using var s = new Sim(seed, capacityA: 40 * MB, maxFileA: 8 * MB);
@@ -460,8 +423,6 @@ public sealed class FillSimulationTests
         }
     }
 
-    /// <summary>The stick is pulled mid-run and comes back under another path with its partials on it: they are
-    /// resumed from there (the .part name carries no drive path), nothing is orphaned, nothing fails.</summary>
     private static async Task ReplugStory(Sim s, string tag, int seed)
     {
         await s.RunAsync(resume: false, cancelAfterMs: 40 + seed % 60);
@@ -476,8 +437,6 @@ public sealed class FillSimulationTests
         AssertSettledState(s, again, tag + " re-plugged idle resume");
     }
 
-    /// <summary>Try Again on files the run held as won't-fit: they go back through the same gate, none fails, none
-    /// strikes, and what still does not fit is held again.</summary>
     private static async Task TryAgainStory(Sim s, string tag, int seed)
     {
         await s.RunAsync(resume: false, cancelAfterMs: 40 + seed % 60);
@@ -495,8 +454,6 @@ public sealed class FillSimulationTests
         AssertSettledState(s, await s.RunAsync(resume: true), tag + " try again, second drive");
     }
 
-    /// <summary>Keep Old Versions on, drive A full, a second drive present: an update to a file on A is bigger and
-    /// spills to B. The old build is archived on A where it sits (a rename, no room charged anywhere).</summary>
     private static async Task UpdateSpillStory(Sim s, string tag, int seed)
     {
         AssertSettledState(s, await s.RunAsync(resume: false), tag + " fill");
@@ -530,8 +487,6 @@ public sealed class FillSimulationTests
         AssertSettledState(s, updated, tag + " update");
     }
 
-    /// <summary>Two backup folders on ONE volume share its room: adding the second root to a full stick buys
-    /// nothing, and the pair is never over-committed.</summary>
     private static async Task SharedVolumeStory(Sim s, string tag, int seed)
     {
         await s.RunAsync(resume: false, cancelAfterMs: 40 + seed % 60);
@@ -544,8 +499,6 @@ public sealed class FillSimulationTests
         AssertSettledState(s, await s.RunAsync(resume: true), tag + " shared volume, third root");
     }
 
-    /// <summary>Cancel mid-run, add a big drive, carry the in-progress downloads off the stick, shelve the stick,
-    /// resume: every partial is resumed from the new drive, none is left behind on the shelved one.</summary>
     private static async Task ShelveStory(Sim s, string tag, int seed)
     {
         await s.RunAsync(resume: false, cancelAfterMs: 40 + seed % 60);
@@ -565,8 +518,6 @@ public sealed class FillSimulationTests
         Assert.Equal(0, Directory.Exists(tmp) ? Directory.GetFiles(tmp, "*.part").Length : 0, $"[{tag}] nothing was written to the shelved drive");
     }
 
-    /// <summary>A move asked for mid-backup: the files in progress finish, nothing new starts, the run ends with the
-    /// rest queued and NO partial made; the next run picks the queue up and settles it.</summary>
     private static async Task DrainStory(Sim s, string tag, int seed)
     {
         s.Engine = null;
@@ -580,8 +531,6 @@ public sealed class FillSimulationTests
         AssertSettledState(s, await s.RunAsync(resume: true), tag + " after the drain");
     }
 
-    /// <summary>Finish current files, taken back a moment later: whether the undo
-    /// lands (the run carries on) or comes too late (it ends drained), the end state is the settled fill.</summary>
     private static async Task UndoDrainStory(Sim s, string tag, int seed)
     {
         s.Engine = null;
@@ -591,9 +540,6 @@ public sealed class FillSimulationTests
         AssertSettledState(s, r, tag + " after keep downloading");
     }
 
-    /// <summary>Moves and downloads run side by side. A move onto drive A registers what it still has
-    /// to write there (PendingWrites); a fill of A running at the same time must plan around it: never over-commit,
-    /// never fail a transfer. The move here is simulated by a registered pending-write ledger that drains over time.</summary>
     private static async Task ParallelMoveStory(Sim s, string tag, int seed)
     {
         // A "move" of 12 MB landing on drive A in 6 steps of 2 MB while the fill runs.

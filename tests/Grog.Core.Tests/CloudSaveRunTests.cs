@@ -20,17 +20,12 @@ using Grog.Core.Storage;
 using Grog.Core.Tests.Framework;
 using Grog.Core.Volumes;
 
-/// <summary>The shared cloud-save orchestrator (S2.1): the App's DownloadLocalSaveForAsync / Download All /
-/// retention rules and the CLI's `cloudsaves --all` / `cloudsaves prune`, over a temp root + JsonManifestStore
-/// and a fake GOG cloud (build meta -> game token -> save list -> per-file download).</summary>
 [NewBatch]
 [Trait("cloud")]
 public class CloudSaveRunTests
 {
     // ---- fake GOG cloud ------------------------------------------------------------------------
 
-    /// <summary>Serves the whole per-game cloud flow for clientId "cid1": builds -> meta (plain JSON; the zlib
-    /// path falls back) -> scoped token -> v1 save list -> two save files. Counts requests per host.</summary>
     sealed class FakeCloud : HttpMessageHandler
     {
         public List<string> Urls { get; } = new();
@@ -97,7 +92,6 @@ public class CloudSaveRunTests
                 Now = () => now ?? DateTimeOffset.Now,
             };
 
-        /// <summary>The per-account per-game archive dir, resolved the way the run resolves it.</summary>
         public string GameDir(string accountId, string slug)
         {
             var cloudBase = Layout.ResolveCloudBaseDir(out _) ?? Path.Combine(Root, "Cloud Saves");
@@ -117,7 +111,6 @@ public class CloudSaveRunTests
         return new Env(store, root, layout, cloud, new HttpClient(cloud), new LogHost());
     }
 
-    /// <summary>A game GOG's discovery confirmed has saves for account acc1 (the shape ApplyAccounts leaves).</summary>
     static (LibraryItem Item, CloudAccountSave Entry) AddCloudGame(Env e, long gogId, string slug, string title, string clientId = "cid1")
     {
         var item = new LibraryItem { GogId = gogId, Title = title, Slug = slug, HasCloudSaves = true, CloudClientId = clientId };

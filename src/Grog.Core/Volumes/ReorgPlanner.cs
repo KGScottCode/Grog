@@ -8,21 +8,14 @@ using Grog.Core.Models;
 
 namespace Grog.Core.Volumes;
 
-/// <summary>Builds a <see cref="ReorgJob"/> from a desired end-state. The runner executes it; this
-/// only decides what moves where. The "where a file belongs" logic is shared with
-/// <see cref="LayoutMigrationService.NewRelativeFor"/> so there's exactly one definition.</summary>
 public static class ReorgPlanner
 {
-    /// <summary>Human label for a root ("Archive", "USB Backup"), for blocked-move messages. Falls back to
-    /// a generic phrase when the root has no label or can't be found.</summary>
     private static string DriveLabel(LibraryManifest m, string? rootId)
     {
         var r = m.Roots.FirstOrDefault(x => x.Id == rootId);
         return string.IsNullOrWhiteSpace(r?.Label) ? "a backup drive" : r!.Label;
     }
 
-    /// <summary>Plans the moves to bring existing backups into the current <c>ExtrasLayout</c> shape.
-    /// Every move stays on its root (atomic rename); correct files are skipped, offline roots left alone.</summary>
     public static ReorgJob ForLayoutChange(LibraryManifest m, IBackupLayout layout)
     {
         var job = new ReorgJob { Reason = ReorgReason.Layout };
@@ -41,8 +34,6 @@ public static class ReorgPlanner
                 var rootId = m.EffectiveRootId(f);
                 if (!layout.IsOnline(rootId))
                 {
-                    // Drive offline/missing: record it so the caller blocks the whole job rather than
-                    // silently dropping these moves.
                     job.NoteUnavailableDrive(DriveLabel(m, rootId));
                     continue;
                 }
@@ -75,9 +66,6 @@ public static class ReorgPlanner
         return job;
     }
 
-    /// <summary>Plans the moves for repointing a backup folder: every tracked file on the root keeps its
-    /// relative path (src = oldPath/rel, dst = newPath/rel), the root is unchanged, and after the job settles
-    /// the caller flips the root's PathHint. Pure -- no disk touched.</summary>
     public static ReorgJob ForRootPathChange(LibraryManifest m, string rootId, string oldPath, string newPath)
     {
         var job = new ReorgJob { Reason = ReorgReason.ChangeFolder, RepointRootId = rootId, RepointPath = Path.GetFullPath(newPath) };
@@ -90,8 +78,6 @@ public static class ReorgPlanner
 
         foreach (var item in m.Items)
         {
-            // Include OldVersionFiles: a whole-folder repoint must carry the irreplaceable Old Versions/
-            // archive too, or it is silently stranded on the old drive. Same src=old/rel -> dst=new/rel logic.
             foreach (var f in item.Files.Concat(item.OldVersionFiles))
             {
                 var fileRoot = m.EffectiveRootId(f);
@@ -123,19 +109,6 @@ public static class ReorgPlanner
         return job;
     }
 
-    /// <summary>Plans relocating a specific set of files onto <paramref name="targetRootId"/> (the one move
-    /// path behind device-grid buttons and drag-drop). Folder shape comes from the layout; the root is the
-    /// device the user picked. Files already on the target are skipped. Pure -- the runner touches disk.
-    /// With <paramref name="room"/>, a cross-volume move that cannot land (over the per-file limit, or past the
-    /// free bytes left after the moves already planned here) goes to <see cref="ReorgJob.NotFitting"/> instead;
-    /// null checks nothing.</summary>
-    /// <summary>A resumed job is re-checked the way a new one is planned: the pending cross-volume moves that no longer
-    /// fit the target (room, in order, or its per-file limit) are marked Failed with the reason and listed in
-    /// <see cref="ReorgJob.NotFitting"/>, so a resume never retries a file the drive cannot take. Returns how many.</summary>
-    /// <summary>Re-derive every unsettled move's absolute paths from where its roots are NOW: the journal
-    /// stores absolute paths, and a drive that came back under another letter (or a relocation the user accepted)
-    /// left them pointing at a volume that is gone or is someone else's. A root the layout cannot place keeps the
-    /// journal's path. A Change Folder job's destination is its own new folder, not a root. Returns how many changed.</summary>
     public static int Rebase(ReorgJob job, LibraryManifest m, IBackupLayout layout)
     {
         int changed = 0;
@@ -169,9 +142,6 @@ public static class ReorgPlanner
         int dropped = 0;
         lock (job.SyncRoot)
         {
-            // Dropped moves LEAVE the plan: marked Failed they were re-admitted by the next run (it retries every
-            // Failed move) and copied into a full drive until the breaker paused the job. The file
-            // stays where it is, untouched, and NotFitting says so.
             foreach (var mv in job.Moves.ToList())
             {
                 if (mv.State is not (ReorgMoveState.Pending or ReorgMoveState.Failed) || mv.Kind != ReorgMoveKind.CopyVerifyDelete) continue;
@@ -196,7 +166,6 @@ public static class ReorgPlanner
         var targetRootPath = layout.RootPath(targetRootId);
         if (targetRootPath is null)
         {
-            // Target drive offline/missing: record it so the caller blocks with a clear message.
             job.NoteUnavailableDrive(DriveLabel(m, targetRootId));
             return job;
         }
@@ -210,8 +179,6 @@ public static class ReorgPlanner
 
             if (!layout.IsOnline(curRoot))
             {
-                // Source drive offline/missing: record it so the caller blocks the whole move instead of
-                // quietly skipping the stranded files.
                 job.NoteUnavailableDrive(DriveLabel(m, curRoot));
                 continue;
             }
@@ -220,8 +187,6 @@ public static class ReorgPlanner
             string toRel; string toAbs;
             if (f.IsOldVersion && !string.IsNullOrEmpty(f.LocalRelativePath))
             {
-                // A retained build lives under Old Versions/, not the Games/Extras layout: keep its relative
-                // path verbatim so the archive shape is preserved on the target device.
                 toRel = f.LocalRelativePath!.Replace('\\', '/');
                 toAbs = Path.Combine(targetRootPath, toRel.Replace('/', Path.DirectorySeparatorChar));
             }
@@ -236,18 +201,17 @@ public static class ReorgPlanner
                 toAbs = Path.Combine(targetRootPath, toRelNative.Replace('/', Path.DirectorySeparatorChar));
             }
 
-            // Same physical volume is an instant rename; otherwise copy -> verify -> delete.
+            // Same physical volume is an instant rename
             var srcVolume = src is not null ? (Grog.Core.Storage.DriveResolver.MountRootOf(src) ?? Path.GetPathRoot(Path.GetFullPath(src))) : null;
             var sameVolume = srcVolume is not null &&
                 string.Equals(srcVolume, targetVolume, StringComparison.OrdinalIgnoreCase);
             var size = Grog.Core.Sync.Rollups.HeldBytesOf(f);
 
-            // A file that cannot fit is never queued: the copy would fail part-way and leave the user to sort it out.
+            // A file that cannot fit is never queued
             if (room is not null && !sameVolume)
             {
                 var name = Path.GetFileName(toAbs);
                 if (size > room.MaxFileBytes) { job.NotFitting.Add(new ReorgSkipped(item.Title, name, size, room.LimitReason)); continue; }
-                // The same arithmetic the download planner uses: the size rounded to the target's allocation unit.
                 long charged = room.Charge(size);
                 if (charged > roomLeft) { job.NotFitting.Add(new ReorgSkipped(item.Title, name, size, MoveRoom.NoRoomReason)); continue; }
                 roomLeft -= charged;

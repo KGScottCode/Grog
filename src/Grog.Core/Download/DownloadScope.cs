@@ -8,37 +8,23 @@ using Grog.Core.Models;
 
 namespace Grog.Core.Download;
 
-/// <summary>
-/// Declarative rules for which files a download run should include. Usable per-run (from CLI flags)
-/// and persistable as saved defaults in the manifest. Kept as plain data so the GUI can bind to it
-/// and the CLI can populate it from flags; <see cref="Selector"/> applies it.
-/// </summary>
 public sealed class DownloadScope
 {
     // Content kind toggles.
-    /// <summary>Also gates language packs: a language pack is an installer for its language, and no
-    /// caller has ever wanted one without the other.</summary>
     public bool IncludeInstallers { get; set; } = true;
     public bool IncludePatches { get; set; } = true;
     public bool IncludeExtras { get; set; } = true;
     public bool IncludeDlcInstallers { get; set; } = true;
 
-    /// <summary>Extra sub-types to include (soundtrack, artbook, manual, ...). Empty = all extra types.
-    /// Matched case-insensitively against GameFile.ExtraType substrings.</summary>
     public HashSet<string> ExtraTypes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     // OS / language.
-    /// <summary>Preferred OSes in priority order, e.g. ["linux","windows"]. Empty = all.
-    /// With <see cref="OsFallback"/>, only the highest-priority available OS per game is taken.</summary>
     public List<string> OsPriority { get; set; } = new();
     public bool OsFallback { get; set; }
-    /// <summary>Language substrings to include (e.g. "english"). Empty = all.</summary>
     public List<string> Languages { get; set; } = new();
 
     // Game-level filters.
-    /// <summary>Only these product types (game/mod/pack/dlc/movie). Empty = all.</summary>
     public HashSet<ProductType> Types { get; set; } = new();
-    /// <summary>Regex applied to game title; null = no title filter.</summary>
     public string? TitleRegex { get; set; }
 
     // Blacklist: substrings; a file whose resolved/display name contains any is skipped.
@@ -55,7 +41,6 @@ public sealed class DownloadScope
     };
 }
 
-/// <summary>Applies a <see cref="DownloadScope"/> to the library, yielding the files to fetch.</summary>
 public static class DownloadFileSelector
 {
     public static IEnumerable<(LibraryItem game, GameFile file)> Select(

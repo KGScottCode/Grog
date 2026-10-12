@@ -50,9 +50,6 @@ public class ImportPlannerTests
         Assert.Equal(2L, plan.Matched[0].GogId, "matched the more specific DOOM 3: Phobos");
     }
 
-    /// <summary>A name the record carries beats GOG's rounded size: a forgotten drive re-added dropped
-    /// 5 of 44 files because a 2.7 GB part is reported as 2.68 GB and tiny extras as "1 MB". The last-held path's
-    /// leaf and the CDN name are authoritative, whatever the size says.</summary>
     [Test]
     void Match_by_recorded_name_ignores_the_size_tolerance()
     {
@@ -69,8 +66,6 @@ public class ImportPlannerTests
         Assert.Equal("k1,k2", string.Join(",", plan.Matched[0].Files.Select(f => f.FileKey).OrderBy(k => k)), "both adopted by name");
     }
 
-    /// <summary>A game whose only files are extras has no installer at its top level; its folder must
-    /// still count as a game folder or the walk's depth cap skips it.</summary>
     [Test]
     void Extras_only_game_folder_is_scanned()
     {
@@ -85,9 +80,6 @@ public class ImportPlannerTests
         Assert.Equal("k1", plan.Matched[0].Files.Single().FileKey);
     }
 
-    /// <summary>A backup root keeps an empty top-level Extras folder after a separate extras
-    /// tree was ever applied. The root then read as ONE game folder ("no library match") and nothing under Games
-    /// was scanned: a forgotten drive re-added adopted 0 files.</summary>
     [Test]
     void A_backup_root_with_a_top_level_Extras_folder_is_not_a_game_folder()
     {

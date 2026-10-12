@@ -5,11 +5,6 @@ using Grog.Core.Tests.Framework;
 
 namespace Grog.Core.Tests;
 
-/// <summary>
-/// The update check's whole contract: newer means told, everything else means silence. Silence on failure
-/// matters as much as the happy path -- a backup tool is often offline, and an update checker that ever
-/// throws or nags becomes a startup hazard.
-/// </summary>
 [Trait("update")]
 public sealed class GrogUpdateCheckTests
 {

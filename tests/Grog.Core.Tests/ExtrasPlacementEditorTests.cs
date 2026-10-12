@@ -13,14 +13,6 @@ using Grog.Core.Models;
 using Grog.Core.Runs;
 using Grog.Core.Tests.Framework;
 
-/// <summary>
-/// The staged "Where extras are stored" card. <see cref="ExtrasPlacementTests"/> pins the PLANNER;
-/// this pins the CARD - what is staged, when it is dirty, and what the leave guard does - because that is
-/// the half that decides whether the planner is ever asked.
-///
-/// Reachable at all only because the editor takes <see cref="IExtrasPlacementHost"/> rather than the root
-/// view model; the fake below is the whole shell it needs. Same pattern as ScheduleViewModelTests.
-/// </summary>
 [Trait("settings")]
 public sealed class ExtrasPlacementEditorTests
 {
@@ -61,7 +53,6 @@ public sealed class ExtrasPlacementEditorTests
     [Teardown]
     void Teardown() { try { Directory.Delete(_dir, true); } catch { } }
 
-    /// <summary>A store holding the COMMITTED state, plus the two locations the card asks about.</summary>
     private ExtrasPlacementEditor Card(ExtrasPlacement committed, string committedExtrasRoot = "r1",
                                        bool secondDrive = true)
     {

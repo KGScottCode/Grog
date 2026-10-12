@@ -80,7 +80,6 @@ public class LiveGogApiTests
         Assert.True(products.Count >= 100, "paging fetched beyond the first page");
     }
 
-    /// <summary>Tests must never pop a browser; reaching interactive login means something is wrong.</summary>
     sealed class FailFastLoginProvider : IInteractiveLoginProvider
     {
         public Task<string> AcquireAuthorizationCodeAsync(Uri loginUrl, CancellationToken ct = default)

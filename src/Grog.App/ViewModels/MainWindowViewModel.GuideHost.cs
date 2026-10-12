@@ -6,12 +6,8 @@ using System.Linq;
 
 namespace Grog.App.ViewModels;
 
-// The window's side of the first-run guide: IGuideHost, explicitly implemented so the guide's view of the
-// window stays the narrow one the interface names, and the Changed handler that re-raises what reads it.
 public partial class MainWindowViewModel : IGuideHost
 {
-    /// <summary>The first-run guide (spotlight, captions, tour cursor). Bound by the overlay in
-    /// MainWindow.axaml through <c>DataContext="{Binding Guide}"</c>.</summary>
     public GuideViewModel Guide { get; }
 
     bool IGuideHost.IsConnected => IsConnected;
@@ -33,17 +29,11 @@ public partial class MainWindowViewModel : IGuideHost
     GameRowViewModel? IGuideHost.SelectedRow { get => Library.SelectedRow; set => Library.SelectedRow = value; }
     AppSettings IGuideHost.Settings => _settings;
     void IGuideHost.Navigate(string view) => Navigate(view);
-    // The primary's label reads the GRID's selection (SelectedRows), not SelectedRow: clearing only the
-    // latter left "Back up - 1 item" on the tour's Overview stop after the one-file demo.
     void IGuideHost.ClearGridSelection() { Library.SelectedRow = null; Library.ClearSelection(); Library.SelectedRows.Clear(); RaiseBarState(); }
     void IGuideHost.ScaffoldChosenFolder() => ScaffoldChosenFolder();
     void IGuideHost.Log(string message) => Log(message);
     void IGuideHost.ReopenWelcome() => ShowWelcomeOverlay = true;
 
-    /// <summary>The guide's step or active flag moved: everything of the window's that reads the guide
-    /// re-raises here. The primary button's label and target depend on the step (the whole-library card
-    /// overrides the selection); the scan panel swaps between the page and the overlay on the active flag;
-    /// the rail's status decorations stay hidden until the tour's last stop introduces them.</summary>
     private void OnGuideChanged()
     {
         Library.RaiseGuideDerived(); OnPropertyChanged(nameof(BarPrimaryLabel));

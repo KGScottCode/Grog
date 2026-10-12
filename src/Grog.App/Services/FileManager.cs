@@ -4,7 +4,6 @@ using System.Runtime.InteropServices;
 
 namespace Grog.App.Services;
 
-/// <summary>Opens a folder in the OS file manager; the single implementation shared by all view models.</summary>
 public static class FileManager
 {
     public static void Open(string? path)

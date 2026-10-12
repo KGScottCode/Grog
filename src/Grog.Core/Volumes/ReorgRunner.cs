@@ -11,13 +11,6 @@ using Grog.Core.Verify;
 
 namespace Grog.Core.Volumes;
 
-/// <summary>
-/// Executes a <see cref="ReorgJob"/> safely and resumably: journaled per-file state machine, manifest
-/// repathed only once the destination provably exists, renames same-drive, copy -> verify -> delete-source
-/// cross-drive. Pause/cancel take effect between files AND between copy chunks (a multi-GB copy must not
-/// ignore Pause for minutes); an interrupted copy discards its .grogpart at once, so resume just re-runs
-/// the same job.
-/// </summary>
 public sealed class ReorgRunner
 {
     private const string PartSuffix = ".grogpart";
@@ -25,7 +18,6 @@ public sealed class ReorgRunner
     private readonly IManifestStore _store;
     private readonly ReorgJournalStore _journal;
 
-    /// <summary>Fired as each file starts and finishes, and periodically during a cross-drive copy.</summary>
     public event Action<ReorgProgress>? Progress;
 
     public ReorgRunner(IManifestStore store, ReorgJournalStore journal)
@@ -34,20 +26,13 @@ public sealed class ReorgRunner
         _journal = journal;
     }
 
-    /// <summary>Loads a journal left behind by an interrupted run (for the resume prompt), or null.</summary>
     public ReorgJob? LoadPending() => _journal.Load();
 
-    /// <summary>Is the storage under this absolute path reachable right now? Overridable for tests. The default asks
-    /// the drive resolver (a pulled removable reads offline), not <c>Path.GetPathRoot</c>: on macOS and Linux that is
-    /// always "/", so a pulled source drive read "reachable" and every remaining move was Skipped and repathed at
-    /// files that were never there. The callers pass the STORAGE folder (the move's absolute path with
-    /// its relative part stripped), so an unmounted mount point whose folder is gone reads offline on Linux too.</summary>
     public Func<string, bool> VolumeReachable { get; set; } = path =>
     {
         try
         {
-            // The storage folder itself, else its nearest existing ancestor: a drive letter root ("G:\") says the
-            // drive is present; the POSIX root ("/") says nothing and never counts.
+            // The storage folder itself, else its nearest existing ancestor
             var probe = Path.GetFullPath(path);
             while (!Directory.Exists(probe))
             {
@@ -61,8 +46,6 @@ public sealed class ReorgRunner
         catch { return false; }
     };
 
-    /// <summary>The storage folder a move's absolute path sits under: the path with its relative part stripped, or
-    /// the path's own folder when the two do not line up (an old journal).</summary>
     internal static string StorageFolderOf(string abs, string rel) => StorageFolder(abs, rel).Folder;
     private static (string Folder, bool Exact) StorageFolder(string abs, string rel)
     {
@@ -76,8 +59,6 @@ public sealed class ReorgRunner
         }
         catch { return (abs, false); }
     }
-    /// <summary>The storage folder itself is the fact when the move names it: gone (unplugged, unmounted, deleted)
-    /// is unreachable, whatever ancestor still exists. A journal whose paths do not line up falls back to the probe.</summary>
     private bool Reachable(string abs, string rel)
     {
         var (folder, exact) = StorageFolder(abs, rel);
@@ -88,23 +69,14 @@ public sealed class ReorgRunner
     private bool SourceReachable(ReorgMove mv) => Reachable(mv.FromAbs, mv.FromRel);
     private bool TargetReachable(ReorgMove mv) => Reachable(mv.ToAbs, mv.ToRel);
 
-    /// <summary>Failures in a row before the runner stops trying and pauses the job. A pulled drive fails every
-    /// move in milliseconds; without this the whole tail is burned through (43 files).</summary>
     public const int ConsecutiveFailurePause = 3;
 
-    /// <summary>Runs (or resumes) the job to completion, or until paused/canceled. Settled moves are
-    /// skipped, so calling this again on the same job resumes where it left off.</summary>
     public async Task<ReorgResult> RunAsync(ReorgJob job, ReorgControl control, CancellationToken ct = default)
     {
         var m = _store.Current;
-        // Entering the loop means running, first start or resume alike: clear the persisted pause flag here
-        // (Finalize sets it) so ReorgJob.Paused on disk always reflects reality.
         lock (job.SyncRoot)
         {
             job.Paused = false;
-            // A start or resume re-admits earlier failures: a move that failed because a drive blinked out is
-            // worth another go, and the user's Resume click is the retry (before Failed moves were
-            // never picked up again, whatever the comment said).
             foreach (var x in job.Moves)
                 if (x.State == ReorgMoveState.Failed) { x.State = ReorgMoveState.Pending; x.Error = null; }
         }
@@ -113,8 +85,6 @@ public sealed class ReorgRunner
         var result = new ReorgResult();
         int consecutiveFailures = 0;
 
-        // Pick the next move each iteration (not a fixed foreach) so the pending tail can be reordered live.
-        // Failed moves wait for a later resume; the pick is guarded so it can't race a UI-thread reorder.
         while (true)
         {
             ReorgMove? mv;
@@ -149,10 +119,6 @@ public sealed class ReorgRunner
                 mv.State = ReorgMoveState.Failed;
                 mv.Error = ex.Message;
                 consecutiveFailures++;
-                // The BREAKER. A destination (or source) volume that is gone will fail every remaining move in
-                // milliseconds; marching on turns one unplugged cable into a queue of failures. Put this move
-                // back (nothing landed: the copy never started or its .part was discarded), pause the job and
-                // say why. Resume is the retry, once the drive is back.
                 string? why = !TargetReachable(mv) ? "the destination drive is not reachable"
                     : !SourceReachable(mv) ? "the source drive is not reachable"
                     : consecutiveFailures >= ConsecutiveFailurePause ? $"{consecutiveFailures} moves failed in a row (last: {ex.Message})"
@@ -166,7 +132,6 @@ public sealed class ReorgRunner
                     SaveJournal(job);
                     await SaveManifestAsync(ct);
                     lock (job.SyncRoot) job.Current = null;
-                    // Nothing of this file landed (its .part was discarded): the card's bar goes back to 0, not to full.
                     RaiseProgress(job, mv, 0);
                     return Finalize(job, result);
                 }
@@ -188,10 +153,6 @@ public sealed class ReorgRunner
     // Serialize journal writes against reorder mutations of job.Moves (both touch the list).
     private void SaveJournal(ReorgJob job) { lock (job.SyncRoot) _journal.Save(job); }
 
-    /// <summary>Puts a stopped job's already-moved files back, newest first, then clears the journal. Each
-    /// file is moved back and repathed before the next is attempted (journal saved as it goes), so an
-    /// interrupted revert leaves a smaller, still-valid job. Files gone from the destination count as
-    /// unrecoverable and are skipped; the rest still go back.</summary>
     public async Task<ReorgRevertResult> RevertAsync(ReorgJob job, CancellationToken ct = default)
     {
         var res = new ReorgRevertResult();
@@ -201,8 +162,6 @@ public sealed class ReorgRunner
 
         foreach (var mv in settled)
         {
-            // Stopping a revert is cooperative and between files, never mid-file; the journal survives so
-            // the rest can still be put back later.
             if (ct.IsCancellationRequested) { res.Stopped = true; return res; }
             try
             {
@@ -227,13 +186,10 @@ public sealed class ReorgRunner
             await SaveManifestAsync(ct);
         }
 
-        // Nothing left to resolve, so the plan can go. (A stopped revert returned above and keeps it --
-        // the plan is the only record of where the remaining files belong.)
         _journal.Delete();
         return res;
     }
 
-    /// <summary>The inverse of <see cref="Repath"/>: points the manifest back at the original location.</summary>
     private void RepathBack(ReorgMove mv)
     {
         using (_store.Gate.Enter())   // 
@@ -252,8 +208,6 @@ public sealed class ReorgRunner
     {
         if (result.Outcome == ReorgOutcome.Paused)
         {
-            // Record the pause in the journal so it survives a restart, like the paused download queue
-            // (LibraryManifest.Downloads.Paused); the transient ReorgControl dies with the process.
             lock (job.SyncRoot) job.Paused = true;
             SaveJournal(job);
             return result;   // journal kept for resume
@@ -261,15 +215,12 @@ public sealed class ReorgRunner
 
         if (result.Outcome == ReorgOutcome.Canceled)
         {
-            // Keep the journal: the plan is the only record of what moved where, so it survives until the
-            // user resolves it -- revert, or discard and accept the orphans.
             lock (job.SyncRoot) { job.Canceled = true; job.Paused = false; }
             DiscardParts(job);
             SaveJournal(job);
             return result;
         }
 
-        // Reached the end of the plan.
         if (job.HasFailures)
         {
             result.Outcome = ReorgOutcome.CompletedWithErrors;
@@ -300,9 +251,6 @@ public sealed class ReorgRunner
             return;
         }
 
-        // Nothing on disk to move (never downloaded): still repath so the manifest matches the new scheme
-        // and future writes land in the right place. NOT when the source VOLUME is gone: that file may well
-        // exist, and repathing it would point the manifest at a place it never went (then read as Missing).
         if (!fromExists)
         {
             if (!SourceReachable(mv))
@@ -318,7 +266,6 @@ public sealed class ReorgRunner
 
         if (mv.Kind == ReorgMoveKind.Rename)
         {
-            // Same volume: atomic rename. Nothing is copied, so nothing needs hash-verifying.
             if (toExists) File.Delete(mv.ToAbs);   // stale target from a prior partial run
             File.Move(mv.FromAbs, mv.ToAbs);
             Repath(mv);
@@ -327,14 +274,12 @@ public sealed class ReorgRunner
             return;
         }
 
-        // Cross-drive: copy -> verify -> promote -> delete source. Never delete-first.
+        // Cross-drive
         if (mv.State != ReorgMoveState.Verified)
         {
             var part = mv.ToAbs + PartSuffix;
             if (File.Exists(part)) File.Delete(part);   // discard any partial from an earlier attempt
 
-            // Any failure or interruption mid-copy (IO error, pause, cancel) takes its .grogpart with it: nothing
-            // sweeps parts later, and a half-written part is worth nothing since the next attempt restarts.
             try
             {
                 await CopyWithProgressAsync(mv, part, job, control, ct);
@@ -360,26 +305,20 @@ public sealed class ReorgRunner
             SaveJournal(job);
         }
 
-        // State == Verified: destination is present + verified. Point the manifest at it, then and only
-        // then remove the source.
+        // State == Verified
         Repath(mv);
         if (File.Exists(mv.FromAbs) && !samePath) File.Delete(mv.FromAbs);
         lock (job.SyncRoot) { mv.State = ReorgMoveState.Done; mv.CopiedBytes = 0; }
-        // Same tidy-up the rename path does: an emptied game folder on the source drive is ours to remove
-        // (a drive emptied by a cross-drive move kept every Games/<slug>/ shell).
         if (!samePath) PruneEmptySourceDirs(mv.FromAbs);
         PruneEmptySourceDirs(mv.FromAbs);
     }
 
-    /// <summary>Removes one move's un-promoted .grogpart (best-effort) and forgets its copied bytes.</summary>
     private static void DiscardPart(ReorgMove mv, ReorgJob job)
     {
         try { var part = mv.ToAbs + PartSuffix; if (File.Exists(part)) File.Delete(part); } catch { /* best-effort */ }
         lock (job.SyncRoot) mv.CopiedBytes = 0;
     }
 
-    /// <summary>Sweeps the .grogpart of every move that has not landed (Pending/Copied/Failed). Run when a job
-    /// is canceled or discarded so a stopped reorg leaves no partial files on the destination drive.</summary>
     public static void DiscardParts(ReorgJob job)
     {
         List<ReorgMove> open;
@@ -389,8 +328,6 @@ public sealed class ReorgRunner
         foreach (var mv in open) DiscardPart(mv, job);
     }
 
-    /// <summary>The emptied source chain goes (a layout reorg left every old game/bucket
-    /// folder behind as an empty husk). One rule, shared with Delete: <see cref="FolderPruner"/>.</summary>
     private static void PruneEmptySourceDirs(string fromAbs) => FolderPruner.PruneEmptyChainAbove(fromAbs);
 
     private async Task CopyWithProgressAsync(ReorgMove mv, string destPart, ReorgJob job, ReorgControl control, CancellationToken ct)
@@ -406,18 +343,15 @@ public sealed class ReorgRunner
         int read;
         while ((read = await src.ReadAsync(buffer.AsMemory(0, bufferSize), ct)) > 0)
         {
-            // Honor Pause/Cancel per chunk, not just between files: the caller's catch treats this as a
-            // pause/cancel, the un-promoted .grogpart is discarded on the next attempt, source untouched.
             if (control.IsPaused || control.IsCanceled) throw new OperationCanceledException();
             await dst.WriteAsync(buffer.AsMemory(0, read), ct);
             copied += read;
-            // Once per chunk (1 MB): what is already on the target so RemainingWrites() stops reserving it twice.
             lock (job.SyncRoot) mv.CopiedBytes = copied;
             var frac = total > 0 ? Math.Clamp((double)copied / total, 0, 1) : 0;
             RaiseProgress(job, mv, frac);
         }
 
-        // Cross-drive: the bytes must be on the platter before verify passes and the source is deleted.
+        // Cross-drive
         await dst.FlushAsync(ct);
         dst.Flush(flushToDisk: true);
     }
@@ -430,8 +364,7 @@ public sealed class ReorgRunner
         if (!string.IsNullOrEmpty(mv.ExpectedMd5))
             return string.Equals(await Hashing.Md5Async(destPart, ct), mv.ExpectedMd5, StringComparison.OrdinalIgnoreCase);
 
-        // No hash: a real recorded size is the yardstick. Only a rounded GOG label (SizeIsLabel, off by a few
-        // KB, which would fail every good copy) defers to the source file's real length.
+        // No hash
         var destLen = new FileInfo(destPart).Length;
         if (!mv.SizeIsLabel && mv.SizeBytes > 0) return destLen == mv.SizeBytes;
         if (File.Exists(mv.FromAbs)) return destLen == new FileInfo(mv.FromAbs).Length;
@@ -444,7 +377,6 @@ public sealed class ReorgRunner
         {
             var m = _store.Current;
             var item = m.ItemById(mv.GogId);
-            // Search OldVersionFiles too: a relocated Old Versions/ entry lives there, not in Files.
             var f = item?.Files.FirstOrDefault(x => x.FileKey == mv.FileKey)
                     ?? item?.OldVersionFiles.FirstOrDefault(x => x.FileKey == mv.FileKey);
             if (f is null) return;

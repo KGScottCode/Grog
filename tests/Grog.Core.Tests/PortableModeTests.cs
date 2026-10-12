@@ -7,12 +7,6 @@ using Grog.Core.Tests.Framework;
 
 namespace Grog.Core.Tests;
 
-/// <summary>
-/// Portable mode is a present-tense fact about the folder: a Data directory beside the executable makes
-/// that folder the whole install (the VS Code convention; the ZIP ships one, the installer never does).
-/// These tests pin the resolution order and the two safety behaviors: an unwritable Data folder falls
-/// back instead of failing, and a ZIP user upgrading in place gets their profile state copied in once.
-/// </summary>
 [Trait("storage")]
 public sealed class PortableModeTests
 {

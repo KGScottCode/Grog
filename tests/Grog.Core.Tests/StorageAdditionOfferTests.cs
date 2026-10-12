@@ -8,8 +8,6 @@ using Grog.Core.Volumes;
 
 namespace Grog.Core.Tests;
 
-/// <summary>The numbers behind the "new storage added" offer. Pure manifest arithmetic; the App only
-/// renders these and dispatches the chosen move.</summary>
 [Trait("placement")]
 public sealed class StorageAdditionOfferTests
 {

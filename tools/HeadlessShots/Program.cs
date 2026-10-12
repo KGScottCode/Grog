@@ -17,7 +17,7 @@ using Grog.Core.Models;
 using Grog.Core.Storage;
 using Grog.Core.Volumes;
 
-// --- 1. temp env, redirected before anything reads settings ---
+// --- 1. temp env
 string tmp = Path.Combine(Path.GetTempPath(), "grog-shots-" + Guid.NewGuid().ToString("N")[..8]);
 string root = Path.Combine(tmp, "backup");
 string cfg = Path.Combine(tmp, "cfg");
@@ -25,15 +25,6 @@ Directory.CreateDirectory(root); Directory.CreateDirectory(cfg);
 Environment.SetEnvironmentVariable("GROG_BACKUP_ROOT", root);
 Environment.SetEnvironmentVariable("GROG_CONFIG_DIR", cfg);
 Environment.SetEnvironmentVariable("XDG_CONFIG_HOME", cfg);
-// settings: root chosen, onboarding done, so the app opens straight to the Library
-// PLATFORM PINNED TO WINDOWS + LINUX: the seed tags installers Os="windows", and a Linux container scopes
-// every one of them OUT -- detail pane empty, file rows gone, nothing like the real screen.
-// PATH NOTE: settings live directly in GROG_CONFIG_DIR, NOT in a "Grog" subfolder under it. That subfolder
-// is part of the %APPDATA% default, not part of the override, and writing it there left the app reading
-// defaults while this file sat one directory away looking correct.
-// When rendering a REAL manifest, honor the real profile's hide list: hiding is discretion (the owner
-// hides specific titles before taking screenshots), and a render tool that un-hides them silently would
-// leak exactly what the feature exists to conceal. Read from app-settings.json BESIDE the manifest.
 string hiddenIdsJson = "[]";
 if (Environment.GetEnvironmentVariable("GROG_SHOT_MANIFEST") is { Length: > 0 } mp
     && Path.GetDirectoryName(mp) is { } mdir && File.Exists(Path.Combine(mdir, "app-settings.json")))
@@ -42,8 +33,6 @@ if (Environment.GetEnvironmentVariable("GROG_SHOT_MANIFEST") is { Length: > 0 } 
     if (doc.RootElement.TryGetProperty("HiddenIds", out var hid))
         hiddenIdsJson = hid.GetRawText();
 }
-// GROG_SHOT_SETTINGS=<path>: a REAL app-settings.json (root re-pointed at the harness root) so a startup that
-// depends on a profile's actual settings can be reproduced here.
 if (Environment.GetEnvironmentVariable("GROG_SHOT_SETTINGS") is { Length: > 0 } sp && File.Exists(sp))
 {
     var node = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(sp))!.AsObject();
@@ -55,7 +44,7 @@ else
 File.WriteAllText(Path.Combine(cfg, "app-settings.json"),
     $"{{\"ChosenRoot\":\"{root.Replace("\\","\\\\")}\",\"IncludeGames\":true,\"IncludeExtras\":true,\"LanguagesChosen\":true,\"Platforms\":[\"windows\",\"linux\"],\"PlatformsChosen\":true,\"HiddenIds\":{hiddenIdsJson}}}");
 
-// --- 2. seed a manifest: a game with a paused, partially-downloaded file in the queue ---
+// --- 2. seed a manifest
 static GameFile File2(string key, string name, FileKind kind, FileState st, long size, long? partial = null)
     => new() { FileKey = key, Name = name, Kind = kind, State = st, ExpectedSizeBytes = size,
                Os = kind == FileKind.Extra ? "" : "windows", PartialBytes = partial, HasPartial = partial > 0 };
@@ -64,9 +53,6 @@ static GameFile Present(GameFile f, string root, long size, string rel, string e
 { f.RootId = root; f.State = FileState.Verified; f.LocalSizeBytes = size; f.LocalRelativePath = rel; f.ExtraType = extraType; return f; }
 
 var _extraSeed = new System.Collections.Generic.List<LibraryItem>();
-// alpha carries an acquisition date and beta deliberately does NOT, so one render
-// shows both halves of the detail pane's "Added" row: the dated form, and the row hiding itself when GOG's
-// order history does not cover a product.
 var alpha = new LibraryItem { GogId = 101, Title = "Neverwinter Nights 2 Complete", Slug = "nwn2", Type = ProductType.Game,
                               DateAcquired = new DateTimeOffset(2019, 11, 27, 18, 4, 0, TimeSpan.Zero) };
 alpha.Files.Add(Present(File2("a1", "setup_nwn2_(83148)-1.bin", FileKind.Installer, FileState.Verified, 4_000_000_000), "sec", 4_000_000_000, "nwn2/setup1.bin"));
@@ -75,16 +61,10 @@ alpha.Files.Add(Present(File2("a3", "setup_nwn2_(83148)-3.bin", FileKind.Install
 alpha.Files.Add(Present(File2("a4", "Soundtrack (FLAC).zip", FileKind.Extra, FileState.Verified, 640_000_000), "primary", 640_000_000, "nwn2/soundtrack.zip", "soundtrack"));
 alpha.Files.Add(Present(File2("a5", "Manual (PDF).zip", FileKind.Extra, FileState.Verified, 12_000_000), "primary", 12_000_000, "nwn2/manual.zip", "manual"));
 alpha.Files.Add(Present(File2("a6", "Manual (PDF) [secondary].zip", FileKind.Extra, FileState.Verified, 9_000_000), "sec", 9_000_000, "nwn2/manual2.zip", "manual"));
-// beta is flagged New so one render shows BOTH severity tiers stacked on the rail:
-// a red Fault line above an amber Attention line. Without it the amber tier has no coverage in any shot.
 var beta = new LibraryItem { GogId = 102, Title = "Baldur's Gate 2 Complete", Slug = "bg2", Type = ProductType.Game, IsNew = true };
 beta.Files.Add(Present(File2("b1", "setup_baldurs_gate_2_(83210)-1.bin", FileKind.Installer, FileState.Verified, 5_100_000_000), "primary", 5_100_000_000, "bg2/setup1.bin"));
 beta.Files.Add(Present(File2("b2", "setup_baldurs_gate_2_(83210)-2.bin", FileKind.Installer, FileState.Verified, 4_400_000_000), "sec", 4_400_000_000, "bg2/setup2.bin"));
 
-// THE BACK-UP STEP needs something it can actually queue: a small, in-scope, not-yet-backed-up GAME file.
-// Every other seeded installer is either Verified or half-downloaded (which shows a pause glyph, not an
-// arrow), so without this the guide's pick is correctly null and the step has nothing to ring. Added only
-// for that shot, to leave every other render's counts untouched.
 if (Environment.GetEnvironmentVariable("GROG_SHOT_GUIDE_STEP") == "back-up")
 {
     var tiny = new LibraryItem { GogId = 104, Title = "A Short Hike", Slug = "short-hike", Type = ProductType.Game };
@@ -93,8 +73,7 @@ if (Environment.GetEnvironmentVariable("GROG_SHOT_GUIDE_STEP") == "back-up")
     _extraSeed.Add(tiny);
 }
 
-// GROG_SHOT_MANYDONE=1: a column of COMPLETED rows. The question "does a green bar on every row read as
-// signal or as wallpaper" cannot be judged from a seed with one finished game in it.
+// GROG_SHOT_MANYDONE=1
 if (Environment.GetEnvironmentVariable("GROG_SHOT_MANYDONE") == "1")
 {
     string[] names = { "Baldur's Gate", "Fallout 2", "Planescape Torment", "Arcanum", "System Shock 2",
@@ -116,8 +95,7 @@ if (Environment.GetEnvironmentVariable("GROG_SHOT_MANYDONE") == "1")
     }
 }
 
-// GROG_SHOT_SCOPEMIX=1: a mac-only game under a windows-narrowed scope beside a plain not-downloaded
-// game, so the two resting treatments (dim "Not in Scope" vs primary-ink "Not Downloaded") render together.
+// GROG_SHOT_SCOPEMIX=1
 bool scopeMix = Environment.GetEnvironmentVariable("GROG_SHOT_SCOPEMIX") == "1";
 if (scopeMix)
 {
@@ -131,18 +109,16 @@ if (scopeMix)
 
 var manifest = new LibraryManifest { PrimaryRootId = "primary" };
 if (scopeMix) manifest.Scope = new Grog.Core.Sync.ScopeSettings { Platforms = { "windows" }, PlatformsChosen = true };
-// GROG_SE_PROBE=1: an everything-scope manifest, to check the header button's tri-state.
+
+// GROG_SE_PROBE=1
 if (Environment.GetEnvironmentVariable("GROG_SE_PROBE") == "1" || Environment.GetEnvironmentVariable("GROG_SE_SCOPE") == "1")
     manifest.Scope = new Grog.Core.Sync.ScopeSettings { IncludeGames = true, IncludeExtras = true,
         LanguagesChosen = true, ExtraLanguages = new(), ExtraLanguagesChosen = true, PlatformsChosen = true };
-// GROG_SHOT_FRESH=1: a brand-new profile -- no library at all. The first-run guide's early steps only exist
-// in that state, so without this the harness can only ever render the LAST step. Seeding the absence is the
-// only honest way to shoot them: the guide derives its step from real state and must not be overridable.
+
+// GROG_SHOT_FRESH=1
 bool freshProfile = Environment.GetEnvironmentVariable("GROG_SHOT_FRESH") == "1";
-// GROG_SHOT_MANIFEST=<path>: render against a REAL manifest file instead of the synthetic seed. Layout
-// truths (wrapping, density, long titles) only show at real library scale -- the two-game seed cannot
-// produce them. Items and scope are adopted; roots/paths stay the harness's own so nothing on the host
-// is ever touched. All other seed knobs (queue, issues, cloud) still apply on top.
+
+// GROG_SHOT_MANIFEST=<path>
 if (Environment.GetEnvironmentVariable("GROG_SHOT_MANIFEST") is { Length: > 0 } realPath && !freshProfile)
 {
     var real = System.Text.Json.JsonSerializer.Deserialize<LibraryManifest>(
@@ -158,8 +134,8 @@ if (Environment.GetEnvironmentVariable("GROG_SHOT_MANIFEST") is { Length: > 0 } 
 else if (!freshProfile) { manifest.Items.Add(alpha); manifest.Items.Add(beta); }
 if (!freshProfile && Environment.GetEnvironmentVariable("GROG_SHOT_MANIFEST") is null)
     foreach (var x in _extraSeed) manifest.Items.Add(x);
-// GROG_SHOT_STRESS=N: N synthetic games (4 installers + 3 extras each, mixed states, half on the primary)
-// on top of the seed, to measure the UI passes at library scale. Deterministic, no disk files.
+
+// GROG_SHOT_STRESS=N
 int stressN = int.TryParse(Environment.GetEnvironmentVariable("GROG_SHOT_STRESS"), out var _sn) ? _sn : 0;
 if (stressN > 0 && !freshProfile)
 {
@@ -187,21 +163,14 @@ if (stressN > 0 && !freshProfile)
         }
         manifest.Items.Add(it);
     }
-    // QUEUE THE GAPS TOO. The stress seed used to scale the LIBRARY and leave the download queue at
-    // the base seed's 1-3 files, so every "at scale" measurement ran against a 2-row queue pane -- and the
-    // queue pane was the one control that did not virtualize. A fresh library queues ~1100 files; that is the
-    // condition that actually stalls the UI, and it has to be reproducible here or the next regression hides
-    // exactly as this one did.
+    // QUEUE THE GAPS TOO
     int queued = 0;
     foreach (var it in manifest.Items)
         foreach (var gf in it.Files)
             if (gf.State is FileState.NotBackedUp or FileState.Outdated) { manifest.Downloads.Enqueue(it.GogId, gf.FileKey); queued++; }
     Console.WriteLine($"stress seed: {stressN} games, {manifest.Items.Sum(i => i.Files.Count)} files, {queued} queued");
 }
-// GROG_SHOT_SCOPEFULL=1: files across all three platforms and several languages, so the SETTINGS scope card
-// renders in its REAL state -- all four pickers, the language PAIR, and non-trivial counts. Without it the
-// base seed shows one platform and no language choices, so two of the four controls are invisible here and
-// the card can only be judged on the owner's machine.
+// GROG_SHOT_SCOPEFULL=1
 if (Environment.GetEnvironmentVariable("GROG_SHOT_SCOPEFULL") == "1" && !freshProfile)
 {
     var oses = new[] { "windows", "mac", "linux" };
@@ -234,18 +203,14 @@ if (Environment.GetEnvironmentVariable("GROG_SHOT_SCOPEFULL") == "1" && !freshPr
     Console.WriteLine("scopefull seed: 3 platforms, 8 languages");
 }
 
-// --- SHOT SEED: health issue states (dev-only, container mock) ---
-// GROG_SHOT_BATCH=1: the one-run sweep (every page at 1366x768). Its seed wants the conditional
-// states in one profile: error/corrupt rows (issues defaults to 3), a populated queue, and cloud
-// saves under TWO accounts so the grouped page has something to group.
+// --- SHOT SEED
 bool batch = Environment.GetEnvironmentVariable("GROG_SHOT_BATCH") == "1";
 int issues = int.TryParse(Environment.GetEnvironmentVariable("GROG_SHOT_ISSUES"), out var _n) ? _n : 0;
 if (batch && issues == 0) issues = 3;
 if (issues > 0)
 {
     var bad = new LibraryItem { GogId = 103, Title = "Icewind Dale Enhanced Edition", Slug = "iwd", Type = ProductType.Game };
-    // GROG_SHOT_GONEONLY=1: seed ONLY missing files (no corrupt) - the state where the lede offers
-    // its one-click "(Fix Now)", which hides when both problem types are present.
+    // GROG_SHOT_GONEONLY=1
     bool goneOnly = Environment.GetEnvironmentVariable("GROG_SHOT_GONEONLY") == "1";
     for (int i = 0; i < issues; i++)
     {
@@ -262,8 +227,7 @@ if (issues > 0)
     manifest.Items.Add(bad);
 }
 
-// GROG_SHOT_ORPHAN=1: one game owned solely by an account that is no longer registered - renders the
-// orange "account disconnected" row (distinct from delisted red).
+// GROG_SHOT_ORPHAN=1
 if (Environment.GetEnvironmentVariable("GROG_SHOT_ORPHAN") == "1")
 {
     manifest.Accounts.Add(new Grog.Core.Models.GrogAccount { Id = "primaryacct", Username = "Primary" });
@@ -281,7 +245,6 @@ if (Environment.GetEnvironmentVariable("GROG_SHOT_ORPHAN") == "1")
 
 if (batch)
 {
-    // Two accounts, so the Accounts page and the grouped Cloud Saves page render their real shapes.
     manifest.Accounts.Add(new GrogAccount { Id = "acc1", Username = "GOGUSER", Login = "GogUser@emailaddr.com" });
     manifest.Accounts.Add(new GrogAccount { Id = "acc2", Username = "SECONDBOX", Login = "second@example.com" });
     alpha.HasCloudSaves = true; alpha.CloudClientId = "50225266424";
@@ -289,7 +252,6 @@ if (batch)
     alpha.CloudByAccount.Add(new CloudAccountSave { AccountId = "acc2", SizeBytes = 2_100_000, Files = 3, UpdatedUtc = DateTimeOffset.UtcNow.AddDays(-40), SpaceId = "s2" });
     beta.HasCloudSaves = true; beta.CloudClientId = "50225266425";
     beta.CloudByAccount.Add(new CloudAccountSave { AccountId = "acc1", SizeBytes = 900_000, Files = 2, UpdatedUtc = DateTimeOffset.UtcNow.AddDays(-7), SpaceId = "s3" });
-    // Real gaps behind the paused half-download, so the queue shot is POPULATED, not one row.
     beta.Files.Add(File2("b3", "setup_baldurs_gate_2_patch.exe", FileKind.Patch, FileState.NotBackedUp, 90_000_000));
     beta.Files.Add(File2("b4", "setup_baldurs_gate_2_(83210)-3.bin", FileKind.Installer, FileState.NotBackedUp, 1_200_000_000));
 }
@@ -311,8 +273,6 @@ if (Environment.GetEnvironmentVariable("GROG_SHOT_NOSEC") != "1")
 store.Current.PrimaryRootId = "primary";
 await store.SaveAsync();
 
-// Materialize the on-primary files on disk (sparse) so the startup reconcile keeps them Verified
-// instead of flipping them to MissingLocally. Sec is offline (removable), so it isn't reconciled.
 var seedLayout = new BackupLayout(store.Current, root);
 foreach (var it in store.Current.Items)
     foreach (var f in it.Files)
@@ -325,15 +285,12 @@ foreach (var it in store.Current.Items)
         fs.SetLength(f.LocalSizeBytes ?? f.ExpectedSizeBytes ?? 0);   // sparse: no real disk used
     }
 
-// --- 3. headless render ---
+// 3. headless render
 AppBuilder.Configure<App>()
     .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
     .UseSkia().WithInterFont().SetupWithoutStarting();
 
 void Pump() { for (int i = 0; i < 6; i++) { Dispatcher.UIThread.RunJobs(); System.Threading.Thread.Sleep(120); } }
-// Where the PNGs land: the repo's _shots/ folder (gitignored), found by walking up to Grog.slnx,
-// so a VS run leaves renders readable from the container through the shared folder.
-// GROG_SHOT_DIR overrides; the old /root/grog path is the last resort.
 string shotDir = Environment.GetEnvironmentVariable("GROG_SHOT_DIR") ?? "";
 if (shotDir.Length == 0)
 {
@@ -348,13 +305,8 @@ void Shot(string name, Avalonia.Controls.Window w)
 Dispatcher.UIThread.Invoke(() =>
 {
     var vm = new MainWindowViewModel();
-    // 1920x1080 ON PURPOSE: Kevin runs the app locked to 1080p so every page is checked against the
-    // smallest screen we claim to support. A taller harness window hides exactly the failure that
-    // matters -- a page that only fits because the render had room the real target does not.
-    // Size override, so anything position-dependent can be proved RELATIVE rather than merely looking right
-    // at one resolution: GROG_SHOT_SIZE=1366x768.
+    // 1920x1080 ON PURPOSE
     double shotW = 1920, shotH = 1080;
-    // The sweep's whole point is the smallest claimed screen; GROG_SHOT_SIZE still overrides.
     if (Environment.GetEnvironmentVariable("GROG_SHOT_BATCH") == "1") { shotW = 1366; shotH = 768; }
     if (Environment.GetEnvironmentVariable("GROG_SHOT_SIZE") is { Length: > 2 } sz)
     {
@@ -364,7 +316,6 @@ Dispatcher.UIThread.Invoke(() =>
     }
     var win = new MainWindow { DataContext = vm, Width = shotW, Height = shotH };
     win.Show();
-    // let async startup (bind root + load manifest) settle
     for (int i = 0; i < 25; i++) { Dispatcher.UIThread.RunJobs(); System.Threading.Thread.Sleep(150); }
     vm.IsConnected = true;   // fake a connected account so the Library grid renders (no network)
     for (int i = 0; i < 6; i++) { Dispatcher.UIThread.RunJobs(); System.Threading.Thread.Sleep(120); }
@@ -372,18 +323,14 @@ Dispatcher.UIThread.Invoke(() =>
     for (int i = 0; i < 4; i++) { Dispatcher.UIThread.RunJobs(); System.Threading.Thread.Sleep(120); }
     Console.WriteLine($"games={vm.Library.Games.Count} connected={vm.IsConnected}");
 
-    // GROG_SHOT_STRESS=N: time the UI passes at scale, then exit. Each pass is invoked the way the app does
-    // (through its UiWatch-wrapped entry) and the per-name distribution is printed.
-    if (stressN > 0 && Environment.GetEnvironmentVariable("GROG_SHOT_STRESS_SEEDONLY") != "1")   // SEEDONLY: keep the seed, skip the timing pass, fall through to the page shots
+    // GROG_SHOT_STRESS=N
+    if (stressN > 0 && Environment.GetEnvironmentVariable("GROG_SHOT_STRESS_SEEDONLY") != "1")   // SEEDONLY
     {
-        // Every Core entry point that runs on the UI thread is named here: the stress pass is how a violation shows.
         Grog.Core.UiThreadGuard.IsUiThread = () => Dispatcher.UIThread.CheckAccess();
         Grog.Core.UiThreadGuard.Violation = what => Console.WriteLine($"GUARD UI thread ran {what}");
         var timings = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<double>>();
         Grog.App.Services.UiWatch.OnTimed = (name, ms) => { if (!timings.TryGetValue(name, out var l)) timings[name] = l = new(); l.Add(ms); };
         var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
-        // (S3.2 / S3.3 / S3.4) the passes live on the page view models now: the row rebuild on the Library, the health pass on the
-        // Overview, the inventory rebuild on the Storage page.
         void Call(string method)
         {
             object target = method == "RebuildRows" ? vm.Library : method == "RaiseHealth" ? vm.Overview : method == "RebuildInventory" ? vm.Storage : vm;
@@ -410,9 +357,7 @@ Dispatcher.UIThread.Invoke(() =>
                 Console.WriteLine($"  {kv.Key,-28} n={l.Count,3}  avg {l.Average(),7:F1} ms  p50 {l[l.Count / 2],7:F1}  max {l[^1],7:F1}");
             }
         }
-        // The stress pass above times the RENDER passes. It never touched the queue ACTIONS,
-        // which is how a re-sort that froze the app on a real 1100-file queue shipped twice. Time them here,
-        // at the same scale, through the same commands the buttons invoke.
+        // The stress pass above times the RENDER passes
         {
             vm.NavigateCommand.Execute("Overview"); Settle(6);
             int queued = vm.Overview.DownloadQueueCount;
@@ -438,8 +383,6 @@ Dispatcher.UIThread.Invoke(() =>
     }
 
     void Settle(int n = 4) { for (int i = 0; i < n; i++) { Dispatcher.UIThread.RunJobs(); System.Threading.Thread.Sleep(120); } }
-    // Apply a theme the same way the app does (Settings.SetTheme): swap the accent brushes AND nudge the
-    // chips, whose Game fill/text are derived live from the accent.
     void ApplyTheme(Grog.App.GrogTheme t)
     {
         Grog.App.ThemeService.Apply(t);
@@ -450,13 +393,9 @@ Dispatcher.UIThread.Invoke(() =>
     {
         vm.Library.ShowCompositionModal = false; vm.Storage.ShowDeleteDeviceDialog = false;
         vm.ShowWelcomeOverlay = false; vm.Storage.ShowMigratePrompt = false; vm.Storage.ShowLostDeviceDialog = false;
-        // The first-run guide auto-starts on a seeded profile and its scrim covers whatever is being shot.
-        // Every shot except GROG_SHOT_GUIDE wants the plain interface.
         vm.Guide.GuideActive = false;
     }
     void AllChipsOn() { foreach (var c in vm.Library.SoftwareChips) c.IsActive = true; foreach (var c in vm.Library.ExtraFilterChips) c.IsActive = true; }
-    // A fake reorg job over the seeded games: the first move is mid-copy, the rest wait, sizes deliberately
-    // unsorted so a Size sort visibly changes the list.
     void SeedMove()
     {
         var job = new Grog.Core.Volumes.ReorgJob { Reason = Grog.Core.Volumes.ReorgReason.ChangeFolder };
@@ -475,28 +414,22 @@ Dispatcher.UIThread.Invoke(() =>
     }
 
 
-    // GROG_SHOT_BATCH=1: every page in ONE run. Overview is shot first because it is home and must
-    // show first paint; cloud grouped is shot before cloud flat because flat is produced by removing
-    // the second account. Private VM state (_manifest, _lastScanPasses, OnPropertyChanged) is reached
-    // by reflection ON PURPOSE: the harness may not add public surface to the app for a screenshot.
+    // GROG_SHOT_BATCH=1
     if (Environment.GetEnvironmentVariable("GROG_SHOT_BATCH") == "1")
     {
         var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
-        // (S3.2) the scan record is the LibraryViewModel's, so the raise lands there (the root re-raises the name).
         void Raise(string prop) => typeof(LibraryViewModel)
             .GetMethod("OnPropertyChanged", flags, null, new[] { typeof(string) }, null)!
             .Invoke(vm.Library, new object?[] { prop });
         void B(string name) { Settle(8); Shot("sweep_" + name, win); }
 
-        // Overview (home): first paint, then expanded issue groups, then the issues modal.
         CloseOverlays(); vm.Library.SelectedRow = null; Settle(6);
-        // Fit metric: the Overview ScrollViewer's content vs viewport. Extent > Viewport = the page scrolls.
         foreach (var sv in win.GetVisualDescendants().OfType<Avalonia.Controls.ScrollViewer>())
             if (sv.Extent.Height > 100 && sv.Viewport.Height > 100 && sv.IsEffectivelyVisible)
                 Console.WriteLine($"OVERVIEW extent={sv.Extent.Height:F0} viewport={sv.Viewport.Height:F0} overflow={sv.Extent.Height - sv.Viewport.Height:F0}");
         Shot("sweep_overview", win);
-        // Moving pane populated: one copy in flight, a sortable tail (the "Order by" pills only exist here).
-        // GROG_SHOT_MOVE=1 alone renders it too, outside the sweep.
+
+        // GROG_SHOT_MOVE=1 alone renders it too
         SeedMove(); Settle(6);
         Shot("sweep_overview_moving", win);
         vm.Overview.GoneExpanded = true; vm.Overview.CorruptExpanded = true; Settle(4);
@@ -540,13 +473,12 @@ Dispatcher.UIThread.Invoke(() =>
         typeof(LibraryViewModel).GetField("_lastNewFiles", flags)!.SetValue(vm.Library, 0);
         foreach (var pn in new[] { "ShowScanNewGames" }) Raise(pn);
 
-        // Accounts BEFORE the cloud shots: cloud_flat is produced by deleting the second account,
-        // and shooting Accounts after that rendered one card under a rail still saying (2).
+        // Accounts BEFORE the cloud shots
         CloseOverlays(); vm.NavigateCommand.Execute("Accounts"); B("accounts");
-        // Folders, then Cloud Saves grouped (two accounts) then flat (second account removed).
+        // Folders, then Cloud Saves grouped
         vm.NavigateCommand.Execute("Drives"); B("folders");
         vm.NavigateCommand.Execute("CloudSaves"); B("cloud_grouped");
-        if (vm.Session.Manifest is JsonManifestStore ms)   // (S1.1) the store lives on the session now
+        if (vm.Session.Manifest is JsonManifestStore ms)
         {
             ms.Current.Accounts.RemoveAll(a => a.Id == "acc2");
             foreach (var it in ms.Current.Items) it.CloudByAccount.RemoveAll(e => e.AccountId == "acc2");
@@ -566,8 +498,6 @@ Dispatcher.UIThread.Invoke(() =>
     }
     if (Environment.GetEnvironmentVariable("GROG_SE_PROBE") == "1") {
         CloseOverlays(); Settle(6);
-        // The Select-everything button and its three states were removed with the scope-card rework;
-        // the probe keeps the manifest half, which is what it was actually used to debug.
         var mf=vm.Session.Manifest;
         var sc=mf?.Current.Scope;
         Console.WriteLine($"SE manifest.Scope null={sc is null} plats={sc?.Platforms.Count} chosen={sc?.PlatformsChosen} langs={sc?.Languages.Count}");
@@ -606,7 +536,7 @@ Dispatcher.UIThread.Invoke(() =>
         return;
     }
     if (Environment.GetEnvironmentVariable("GROG_STATS_PROBE") == "1") {
-        // Run-stats row (ELAPSED / SPEED / FILES LEFT / EST. TIME LEFT): does each value fit its column at 1366?
+        // Run-stats row (ELAPSED / SPEED / FILES LEFT / EST. TIME LEFT)
         CloseOverlays(); vm.Library.SelectedRow = null; Settle(6);
         foreach (var tb in win.GetVisualDescendants().OfType<Avalonia.Controls.TextBlock>())
             if (tb.FontSize == 20 && tb.Parent is Avalonia.Controls.StackPanel sp)
@@ -632,7 +562,7 @@ Dispatcher.UIThread.Invoke(() =>
         return;
     }
     if (Environment.GetEnvironmentVariable("GROG_SHOT_OOSCOPE") == "1") {
-        // A game whose installers are all outside a Linux-only scope: the "Out of scope installers" line.
+        // A game whose installers are all outside a Linux-only scope
         CloseOverlays(); vm.Library.SelectedRow = null; vm.NavigateCommand.Execute("Library"); Settle(4);
         var lt = vm.Library.GetType(); var bf = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
         var pf = lt.GetField("_platforms", bf)!;
@@ -650,7 +580,7 @@ Dispatcher.UIThread.Invoke(() =>
         return;
     }
     if (Environment.GetEnvironmentVariable("GROG_SHOT_DRIVEWAIT") == "1") {
-        // The storage-went-away card, both states. Fields set directly: the shot seeds no live run.
+        // The storage-went-away card, both states
         CloseOverlays(); vm.Library.SelectedRow = null;
         var sv = vm.Storage; var t = sv.GetType(); var bf = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
         var m = vm.Session.Manifest!.Current;
@@ -671,9 +601,6 @@ Dispatcher.UIThread.Invoke(() =>
         Shot("overview_moving_sorted", win); return;
     }
     if (Environment.GetEnvironmentVariable("GROG_SHOT_WONTFIT") == "1") {
-        // Won't-fit rows kept IN PLACE in the queue, in red, including one at the
-        // head; the pill is the first row that will actually move; the banner carries its two actions. The
-        // flag is the persisted entry's Fits (what Place / ReplanWholeQueue set); rows read it on every rebuild.
         CloseOverlays(); vm.Library.SelectedRow = null; vm.NavigateCommand.Execute("Overview"); Settle(8);
         if (vm.Session.Manifest is JsonManifestStore wfStore)
         {
@@ -687,12 +614,10 @@ Dispatcher.UIThread.Invoke(() =>
         else Console.WriteLine("WONTFIT: session manifest is not a JsonManifestStore");
         vm.QueueHasUnplaceable = true;
         vm.QueueUnplaceableLine = Grog.App.ViewModels.BackupLocationRow.FitsNowhereLine(398, 377_070_000_000L);
-        // The drag insertion line is a row flag: light one below row 1 for the shot.
         if (vm.Overview.DownloadTail.Count > 1 && vm.Overview.DownloadTail[1] is IDropTargetRow dt) dt.DropLineBelow = true;
         Settle(8);
         Shot("wontfit", win);
         if (vm.Overview.DownloadTail.Count > 1 && vm.Overview.DownloadTail[1] is IDropTargetRow dt2) dt2.DropLineBelow = false;
-        // The divider is open by default; Show me scrolls to it and the red rows follow in queue order.
         vm.Overview.ShowWontFitCommand.Execute(null); Settle(6);
         if (vm.Overview.DownloadTail.OfType<QueueRow>().FirstOrDefault(r => r.WontFit) is { } big) big.FileLimit = "FAT32";   // wording check: the over-the-ceiling row
         Settle(4);
@@ -708,13 +633,12 @@ Dispatcher.UIThread.Invoke(() =>
             Shot("wontfit_pulled", win); Settle(6);
             Console.WriteLine("WONTFIT pulled: persisted=" + string.Join(",", vm.Session.Manifest!.Current.Downloads.Snapshot().Select(q => q.Fits ? "f" : "R")) + " drawn=" + string.Join(",", vm.Overview.DownloadTail.Select(o => o is QueueRow q ? (q.WontFit ? "R" : "f") : "|")));
         }
-        // Drop mapping: each drawn tail index -> persisted queue index (fitting rows keep their own slot, the
-        // divider means "below the last fitting row", red rows keep theirs).
+        // Drop mapping
         Console.WriteLine("WONTFIT drop map: " + string.Join(" ", Enumerable.Range(0, vm.Overview.DownloadTail.Count).Select(i => $"{i}->{vm.Overview.PersistedIndexOfTailDrop(i, (QueueRow)vm.Overview.DownloadTail.OfType<QueueRow>().Last())}"))
             + " persisted=" + string.Join(",", vm.Session.Manifest!.Current.Downloads.Snapshot().Select(q => q.Fits ? "f" : "R")));
         if (Environment.GetEnvironmentVariable("GROG_SHOT_WONTFIT_ALL") == "1" && vm.Session.Manifest is JsonManifestStore allStore)
         {
-            // Every row red: NO pill (a won't-fit file is never the pill); the frame says nothing fits.
+            // Every row red
             foreach (var q in allStore.Current.Downloads.Snapshot()) allStore.Current.Downloads.SetPlacement(q.GogId, q.FileKey, q.TargetRootId, fits: false);
             vm.RecomputeActivity(); Settle(6);
             Console.WriteLine($"WONTFIT_ALL: pillState={vm.Overview.DownloadPillState} pillIdle={vm.Overview.DownloadPillIdle} idleText={vm.Overview.DownloadPillIdleText} divider={vm.Overview.DownloadTail.IndexOf(vm.Overview.WontFitDivider)} text={vm.Overview.WontFitDivider.Text} queue={allStore.Current.Downloads.Snapshot().Count}");
@@ -731,7 +655,6 @@ Dispatcher.UIThread.Invoke(() =>
         return;
     }
     if (Environment.GetEnvironmentVariable("GROG_SHOT_TOAST") == "1") {
-        // Both toast tiers, for size/legibility checks (the spill notice was too small to read).
         CloseOverlays(); vm.Library.SelectedRow = null;
         vm.Overview.ToastSeverity = 0; vm.Overview.ToastMessage = "Backing up to more than one storage.\nPrimary: 9.05 GB, 12 games\nSecondary: 478.4 GB, 640 games"; vm.Overview.ToastVisible = true; Settle(4);
         Shot("toast_info", win);
@@ -739,8 +662,6 @@ Dispatcher.UIThread.Invoke(() =>
         Shot("toast_error", win); return;
     }
     if (Environment.GetEnvironmentVariable("GROG_SETTINGS_MEASURE") == "1") {
-        // TEMP. Prints every Settings card's top/height in window space so the
-        // 1080p overflow is arithmetic instead of an eyeball. Revert when the budget is settled.
         CloseOverlays(); vm.Library.SelectedRow = null; vm.NavigateCommand.Execute("Settings"); Settle(10);
         foreach (var b in win.GetVisualDescendants().OfType<Avalonia.Controls.Border>())
         {
@@ -817,8 +738,7 @@ Dispatcher.UIThread.Invoke(() =>
     }
     if (Environment.GetEnvironmentVariable("GROG_SHOT_SETTINGS") == "1") {
         CloseOverlays(); vm.Library.SelectedRow = null; vm.NavigateCommand.Execute("Settings"); Settle(8);
-        // GROG_SHOT_UPDATE=1: seed a found update, so the row's amber version + View state renders --
-        // it is IsVisible-gated behind a live GitHub answer the harness will never get.
+        // GROG_SHOT_UPDATE=1
         if (Environment.GetEnvironmentVariable("GROG_SHOT_UPDATE") == "1")
         { vm.Settings.SeedGrogUpdate("0.2.0", "https://example.invalid/release"); Settle(8); }
         Shot("settings", win); return;
@@ -828,17 +748,12 @@ Dispatcher.UIThread.Invoke(() =>
         ApplyTheme(Grog.App.GrogTheme.OdeToGog); Settle(8);
         Shot("gogtheme", win); return;
     }
-    // The two stopped-move dialogs. They only appear after a real half-finished move, which is exactly the
-    // state that is painful to reproduce by hand -- so drive them directly.
-    // Hover state of the verdict click target. A pointer cannot be faked headlessly, so force the pseudo-class
-    // directly -- the styles are what we are checking, not the input plumbing.
+    // The two stopped-move dialogs
     if (Environment.GetEnvironmentVariable("GROG_SHOT_VERDICTHOVER") == "1") {
         CloseOverlays(); vm.Library.SelectedRow = null; vm.NavigateCommand.Execute("Overview"); Settle(8);
         var verdict = win.GetVisualDescendants().OfType<Avalonia.Controls.Button>()
                          .FirstOrDefault(b => b.Classes.Contains("verdict"));
         if (verdict is null) { Console.Error.WriteLine("VERDICTHOVER: no Button with class 'verdict' found."); return; }
-        // Avalonia refuses to let anything but the control set ':pointerover', so apply the SAME setters the
-        // hover style carries. This checks the look, not the input plumbing -- keep the two in step by hand.
         var hover = new Avalonia.Styling.Style(x => Avalonia.Styling.Selectors.Class(
             Avalonia.Styling.Selectors.OfType(x, typeof(Avalonia.Controls.TextBlock)), "ledehead"));
         if (Avalonia.Application.Current!.TryGetResource("AccentAmberHover", null, out var amber)
@@ -848,17 +763,14 @@ Dispatcher.UIThread.Invoke(() =>
         Settle(8);
         Shot("verdict_hover", win); return;
     }
-    // The first-run guide's spotlight. Rendered at whatever GROG_SHOT_SIZE says, which is the whole point:
-    // the hole must land on the rail item at any size, because it is measured from the control.
-    // MOCK: the inline first-scan panel, seeded mid-scan. Only reachable with a live GOG connection
-    // otherwise, which the container does not have.
+    // The first-run guide's spotlight
     if (Environment.GetEnvironmentVariable("GROG_SHOT_SCAN") == "1") {
         CloseOverlays(); vm.NavigateCommand.Execute("Library");
         vm.Library.SeedScanProgress(342, 1206, "Fetching The Witcher 3: Wild Hunt - Game of the Year Edition");
         Settle(10);
         Shot("scanpanel", win); return;
     }
-    // GROG_SHOT_WELCOME=1: the first-run welcome card. Mock-only knob.
+    // GROG_SHOT_WELCOME=1
     if (Environment.GetEnvironmentVariable("GROG_SHOT_WELCOME") == "1") {
         CloseOverlays();
         if (double.TryParse(Environment.GetEnvironmentVariable("GROG_SHOT_BG"), out var bgo)) vm.MockBgOpacity = bgo;
@@ -869,24 +781,17 @@ Dispatcher.UIThread.Invoke(() =>
 
     if (Environment.GetEnvironmentVariable("GROG_SHOT_GUIDE") == "1") {
         CloseOverlays();
-        // GROG_SHOT_GUIDE_VIEW=Library|Drives|Accounts|Settings: the page the window is on BEFORE the guide starts.
-        // Since the guide opens the stop's own page itself, so this is a "wrong starting page" knob.
+        // GROG_SHOT_GUIDE_VIEW=Library|Drives|Accounts|Settings
         if (Environment.GetEnvironmentVariable("GROG_SHOT_GUIDE_VIEW") is { Length: > 0 } gview)
             vm.NavigateCommand.Execute(gview);
-        // GROG_SHOT_GUIDE_STEP=<key>: pin one step, so all 14 can be swept regardless of seed state.
+        // GROG_SHOT_GUIDE_STEP=<key>
         if (Environment.GetEnvironmentVariable("GROG_SHOT_GUIDE_STEP") is { Length: > 0 } gstep)
             vm.Guide.GuideStepOverride = gstep;
-        // GROG_SHOT_GUIDE_SCAN=1: seed a scan in progress, to render the guide's own progress bar.
-        // The item-count step only exists while that dialog is up, so the shot has to raise it.
+        // GROG_SHOT_GUIDE_SCAN=1: seed a scan in progress
         if (Environment.GetEnvironmentVariable("GROG_SHOT_GUIDE_STEP") == "item-count")
             vm.Library.ShowCompositionModal = true;
         if (Environment.GetEnvironmentVariable("GROG_SHOT_GUIDE_SCAN") == "1")
             vm.Library.SeedScanProgress(17, 158, "Scanning library… 17/158");
-        // Settle HARD: the caption measures itself, which changes the placement, which relayouts. Ten
-        // passes captured a mid-convergence frame and made the bubble look like it overflowed the screen.
-        // GROG_SHOT_GUIDE_RESUME=<key>: the launch-mid-tour path. The persisted position is that stop and the
-        // guide is resumed, not started, from whatever page GROG_SHOT_GUIDE_VIEW parked (Overview by default is
-        // the WRONG page for every paged stop, which is the point: resume must open the right one).
         if (Environment.GetEnvironmentVariable("GROG_SHOT_GUIDE_RESUME") is { Length: > 0 } rkey)
         {
             var idx = Grog.Core.Guide.FirstRunTour.IndexOf(rkey);
@@ -904,9 +809,6 @@ Dispatcher.UIThread.Invoke(() =>
             var pt = c?.TranslatePoint(new Avalonia.Point(0,0), win);
             Console.WriteLine($"  {n,-18} at {(pt is {} q ? $"({q.X:F1},{q.Y:F1})" : "n/a")} size {c?.Bounds.Width:F1}x{c?.Bounds.Height:F1}");
         }
-        // WHO ACTUALLY RECEIVES A CLICK IN THE HOLE. The ring can be in the right place and the control still
-        // be unreachable, because something transparent-looking sits on top. Hit-test the hole center and print
-        // the chain: this is the only way to tell "spotlight is wrong" from "spotlight is right, overlay eats it".
         if (vm.Guide.GuideHasTarget)
         {
             var overlayC = win.GetVisualDescendants().OfType<Avalonia.Controls.Control>().FirstOrDefault(x => x.Name == "GuideOverlayRoot");
@@ -917,8 +819,7 @@ Dispatcher.UIThread.Invoke(() =>
             for (var v = hit as Avalonia.Controls.Control; v is not null; v = v.GetVisualParent() as Avalonia.Controls.Control)
                 Console.WriteLine($"    {v.GetType().Name} name={v.Name ?? "-"} bounds={v.Bounds} w={v.Width} h={v.Height} margin={v.Margin} hit={v.IsHitTestVisible}");
         }
-        // FITS-ON-SCREEN ASSERTION. The bubble's size depends on its text, so eyeballing one step proves
-        // nothing about the other eleven. Print the measured box and whether it is fully inside the viewport.
+        // FITS-ON-SCREEN ASSERTION
         {
             var box = win.GetVisualDescendants().OfType<Avalonia.Controls.Control>()
                          .FirstOrDefault(x => x.Name == "GuideCaptionBox");
@@ -931,15 +832,10 @@ Dispatcher.UIThread.Invoke(() =>
                                 + $"viewport {shotW:F0}x{shotH:F0} -> {(fits ? "FITS" : "OFF-SCREEN")}");
             }
         }
-        // IS THE STEP'S OWN ACTION INSIDE THE LIT HOLE? A ring around a card means nothing if the button the
-        // caption names sits outside the cut-out and is therefore dimmed and unclickable.
         foreach (var b in win.GetVisualDescendants().OfType<Avalonia.Controls.Button>())
         {
             var txt = b.Content as string ?? "";
             if (!txt.StartsWith("Change Folder")) continue;
-            // MUST translate into the OVERLAY, not the window: the hole is stored in overlay coordinates and
-            // the window extends under a 34px custom title bar. Comparing the two spaces reports a control
-            // as outside the hole when it is comfortably inside it.
             var overlayC2 = win.GetVisualDescendants().OfType<Avalonia.Controls.Control>()
                                .FirstOrDefault(x => x.Name == "GuideOverlayRoot");
             var bp = overlayC2 is null ? null : b.TranslatePoint(new Avalonia.Point(0,0), overlayC2);
@@ -960,10 +856,6 @@ Dispatcher.UIThread.Invoke(() =>
         vm.Library.ShowMarkNotBackedUpConfirm = true; Settle(6);
         Shot("markwarn", win); return;
     }
-    // The ConfirmDialog control's two non-default faces: the danger tier (red title/stroke, destructive verb,
-    // Cancel takes Enter) and the typed gate (confirm disabled until the word matches).
-    // The three schedule cards at the window's foot: countdown, first-unattended notice, overdue. One knob,
-    // three shots, so a rebinding of those cards is checked in every state they can take.
     if (Environment.GetEnvironmentVariable("GROG_SHOT_SCHEDCARDS") == "1") {
         CloseOverlays(); vm.NavigateCommand.Execute("Overview"); Settle(4);
         vm.Schedule.ShowScheduleCountdown = true; vm.Schedule.ScheduleCountdownText = "Starting in 5 seconds"; Settle(6);
@@ -982,23 +874,23 @@ Dispatcher.UIThread.Invoke(() =>
         vm.Settings.ShowFreshLibraryConfirm = true; Settle(6);
         Shot("dialog_typed", win);
         vm.Settings.ShowFreshLibraryConfirm = false; vm.NavigateCommand.Execute("Overview"); Settle(4);
-        // Three-button dialogs on the shared control: the red alternate, the secondary alternate, a content slot.
+        // Three-button dialogs on the shared control
         vm.Storage.ShowChangeFolderPrompt = true; Settle(6); Shot("dialog_alt_danger", win); vm.Storage.ShowChangeFolderPrompt = false;
         vm.Storage.AddIntentFolderName = "GOG Backup"; vm.Storage.PendingSameVolumeWarning = "This folder is on the same drive as your primary storage: a drive failure takes both.";
         vm.Storage.ShowAddIntent = true; Settle(6); Shot("dialog_alt", win); vm.Storage.ShowAddIntent = false;
         vm.Storage.ShowMoveStartedNotice = true; Settle(6); Shot("dialog_move_started", win); vm.Storage.ShowMoveStartedNotice = false;
         vm.ShowNoSpaceSummary = true; Settle(6); Shot("dialog_nospace", win); vm.ShowNoSpaceSummary = false;
-        // Fix It with BOTH corrupt and missing files seeded: the combined confirm.
+        // Fix It with BOTH corrupt and missing files seeded
         vm.Overview.LedeFixNowCommand.Execute(null); Settle(6);
         Shot("dialog_fixall", win); vm.Overview.CancelFixCommand.Execute(null);
         vm.NavigateCommand.Execute("Library"); Settle(4);
-        // The shared details file-row template on a game WITH extras, so the type chip face renders too.
+        // The shared details file-row template on a game WITH extras
         if (vm.Library.Games.FirstOrDefault(g => g.Item is { } it && it.Files.Any(f => f.Kind == Grog.Core.Models.FileKind.Extra)) is { } withExtras)
         {
             vm.Library.SelectedRow = withExtras; Settle(6);
             Shot("dialog_detail_extras", win);
         }
-        // The shared FilterPanel, opened on the extras column (the one with legend swatches).
+        // The shared FilterPanel
         if (win.GetLogicalDescendants().OfType<Avalonia.Controls.Primitives.Popup>().FirstOrDefault(x => x.Name == "ExtrasFilterPopup") is { } pop)
         {
             pop.PlacementTarget = win; pop.IsOpen = true; Settle(6);
@@ -1008,8 +900,6 @@ Dispatcher.UIThread.Invoke(() =>
     }
     if (Environment.GetEnvironmentVariable("GROG_SHOT_STOPMOVE") == "1") {
         CloseOverlays(); vm.Library.SelectedRow = null; vm.NavigateCommand.Execute("Overview");
-        // The ChangeFolder wording -- the only job type that can actually orphan files, and so the only one
-        // whose dialog needs checking for tone.
         vm.Storage.MoveStopWhat = "Moving files to Archive";
         vm.Storage.MoveStopSummary = "Moving files to Archive was stopped. 7 file(s) moved, and Grog is tracking them there.";
         vm.Storage.ShowMoveStopChoice = true; Settle(6);
@@ -1020,7 +910,6 @@ Dispatcher.UIThread.Invoke(() =>
         vm.Storage.ShowOrphanConfirm = true; Settle(6);
         Shot("stopmove_orphan", win);
         vm.Storage.ShowOrphanConfirm = false;
-        // The folder-move path: it reverts itself, and stopping THAT is the two-step.
         vm.Storage.MoveStopWhat = "Changing the location of the Primary folder";
         vm.Storage.RevertOldFolder = @"D:\GOG_Backup";
         vm.Storage.RevertNewFolder = @"F:\GOG_Backup";
@@ -1035,8 +924,7 @@ Dispatcher.UIThread.Invoke(() =>
         CloseOverlays(); vm.Library.SelectedRow = null; vm.NavigateCommand.Execute("About"); Settle(6);
         Shot("about", win); return;
     }
-    // GROG_SHOT_RAILWIDE=1: worst-case rail readouts (three-digit fractions on the longest label), to check
-    // the rail's minimum width against content it does not have today but could.
+    // GROG_SHOT_RAILWIDE=1
     if (Environment.GetEnvironmentVariable("GROG_SHOT_RAILWIDE") == "1") {
         CloseOverlays();
         vm.RailCollapsed = false;
@@ -1046,8 +934,7 @@ Dispatcher.UIThread.Invoke(() =>
         return;
     }
 
-    // GROG_SHOT_SIGNEDOUT=<view>: what a rail page looks like with NO account, which is now a real state
-    // rather than a takeover. GROG_SHOT_GATE=1 also raises the account gate.
+    // GROG_SHOT_SIGNEDOUT=<view>
     if (Environment.GetEnvironmentVariable("GROG_SHOT_SIGNEDOUT") is { Length: > 0 } sov) {
         CloseOverlays();
         vm.IsConnected = false;
@@ -1059,12 +946,8 @@ Dispatcher.UIThread.Invoke(() =>
 
     if (Environment.GetEnvironmentVariable("GROG_SHOT_LIB") == "1") {
         CloseOverlays(); AllChipsOn(); vm.Library.SelectedRow = null; vm.NavigateCommand.Execute("Library"); Settle(6);
-        // Kevin's library shows NINE chips (Localizations + Alt Versions are conditional and his library has
-        // both); the seed here has neither, so the responsive layout was never measured against his case.
         if (Environment.GetEnvironmentVariable("GROG_SHOT_ALLCHIPS") == "1") {
             foreach (var c in vm.Library.ExtraFilterChips) c.IsVisible = true;
-            // Each mode flip changes bounds, which triggers the next recompute - so convergence needs several
-            // layout passes, not one. Pump generously here or the capture lands mid-walk.
             Settle(20);
         }
         var scroll = win.GetVisualDescendants().OfType<Avalonia.Controls.ScrollViewer>().FirstOrDefault(x => x.Name == "PillScroll");
@@ -1072,8 +955,6 @@ Dispatcher.UIThread.Invoke(() =>
         if (Environment.GetEnvironmentVariable("GROG_PILL_PARTS") == "1") {
             vm.Library.PillMode = LibraryViewModel.PillDisplayMode.Full; Settle(10);
             var bar2 = win.GetVisualDescendants().OfType<Avalonia.Controls.Control>().FirstOrDefault(x => x.Name == "PillBar");
-            // Named control missing = the XAML moved or was renamed. Say so and stop, rather than NRE on a
-            // bare ! and leave whoever ran this guessing which of the twenty probes died.
             if (bar2 is null) { Console.Error.WriteLine("PILL_PARTS: no control named 'PillBar' in the visual tree."); return; }
             double tot = 0;
             foreach (var ch in bar2.GetVisualChildren().OfType<Avalonia.Controls.Control>()) {
@@ -1106,15 +987,13 @@ Dispatcher.UIThread.Invoke(() =>
     if (Environment.GetEnvironmentVariable("GROG_SHOT_FOLDERS") == "1") {
         CloseOverlays(); vm.Library.SelectedRow = null; vm.NavigateCommand.Execute("Drives"); Settle(6);
         if (vm.Storage.ShowMigratePrompt) vm.Storage.SkipMigrateCommand.Execute(null); Settle(3);
-        // GROG_SHOT_FOLDERS_EXPAND=1: every game open, with the first file of the primary selected (the
-        // virtualized grids must still show file rows and the selection tint - stress run).
+        // GROG_SHOT_FOLDERS_EXPAND=1
         if (Environment.GetEnvironmentVariable("GROG_SHOT_FOLDERS_EXPAND") == "1")
         {
             vm.Storage.PrimaryGrid.ExpandAllCommand.Execute(null); vm.Storage.SecondaryGrid.ExpandAllCommand.Execute(null); Settle(3);
             if (vm.Storage.PrimaryGrid.FileRows.Count > 0) { vm.Storage.ClickFile(vm.Storage.PrimaryGrid.FileRows[0], ctrl: false); Settle(3); }
         }
-        // GROG_SHOT_STORAGE_DIALOGS=1: every Storage-owned dialog, opened through its own request path where one
-        // exists (so the text fields fill) and by flag otherwise (S3.1: they bind to vm.Storage now).
+        // GROG_SHOT_STORAGE_DIALOGS=1
         if (Environment.GetEnvironmentVariable("GROG_SHOT_STORAGE_DIALOGS") == "1")
         {
             var st = vm.Storage;
@@ -1131,13 +1010,11 @@ Dispatcher.UIThread.Invoke(() =>
         }
         Shot("folders", win); return;
     }
-    // NO NavigateCommand here on purpose: Overview is the HOME page and is set directly on CurrentView, so
-    // navigating to it would run startup work that a real launch never runs. This shot must show the page as
-    // it actually appears on first paint.
+    // NO NavigateCommand here on purpose
     CloseOverlays(); vm.Library.SelectedRow = null; Settle(6);
     if (Environment.GetEnvironmentVariable("GROG_SHOT_EXPAND") == "1") { vm.Overview.GoneExpanded = true; vm.Overview.CorruptExpanded = true; Settle(4); }
     if (Environment.GetEnvironmentVariable("GROG_SHOT_MODAL") == "1") { vm.Overview.OpenIssuesCommand.Execute(null); Settle(4); }
-    // GROG_SHOT_FIXCONFIRM=1: the re-download confirm the lede's (Fix Now) opens.
+    // GROG_SHOT_FIXCONFIRM=1
     if (Environment.GetEnvironmentVariable("GROG_SHOT_FIXCONFIRM") == "1") { vm.Overview.LedeFixNowCommand.Execute(null); Settle(4); }
     Shot("status_issues" + issues, win);
 });

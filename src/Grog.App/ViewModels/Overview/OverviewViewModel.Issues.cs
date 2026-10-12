@@ -33,7 +33,6 @@ public sealed partial class OverviewViewModel
     [RelayCommand] private void OpenIssues()    => ShowIssuesModal = true;
     [RelayCommand] private void DismissIssues() => ShowIssuesModal = false;
 
-    /// <summary>The trigger's label: the count, in the words of the worst finding.</summary>
     public string IssuesTriggerText
     {
         get
@@ -49,8 +48,6 @@ public sealed partial class OverviewViewModel
         }
     }
 
-    /// <summary>The checks behind the verdict as a scannable list: always the same rows in the same order,
-    /// healthy or not, so "good" is confirmed by glancing down a column of values.</summary>
     public System.Collections.ObjectModel.ObservableCollection<HealthCheckRow> HealthChecks { get; } = new();
 
     // ---- The gap, end to end (Files & issues top section, owner-picked Option C): the queue's
@@ -75,7 +72,6 @@ public sealed partial class OverviewViewModel
         OnPropertyChanged(nameof(LibraryTotalLineText));
         OnPropertyChanged(nameof(GamesSizeText)); OnPropertyChanged(nameof(ExtrasSizeText));
     }
-    /// <summary>RefreshBackupLocations hands the live plan's fits-nowhere tally here.</summary>
     internal void SetUnplaceableQueue(int count, long bytes)
     {
         if (_unplaceableQueueCount == count && _unplaceableQueueBytes == bytes) return;
@@ -126,8 +122,6 @@ public sealed partial class OverviewViewModel
         else for (int i = 0; i < rows.Length; i++) if (HealthChecks[i] != rows[i]) HealthChecks[i] = rows[i];
     }
 
-    /// <summary>Tooltip on the verdict lines; differs by state so the affordance never promises a problem
-    /// list when there isn't one.</summary>
     public string HealthDetailTip => HealthOk
         ? "See the full breakdown of your backup's health."
         : "Click to see what is wrong and what you can do about it.";
@@ -183,9 +177,6 @@ public sealed partial class OverviewViewModel
 
     [RelayCommand] private void CancelFix() { ShowFixConfirm = false; _pendingFixKind = ""; }
 
-    /// <summary>Once the user has ADJUDICATED a finding (fixed or acknowledged), its startup-check line
-    /// leaves Recent errors: the strip flags failures awaiting a decision, and a decided
-    /// one lingering in red reads as an outstanding problem. The on-disk log keeps the full history.</summary>
     private void ClearResolvedErrorEntries(string kind)
     {
         var marker = kind == "corrupt" ? "failed verification" : "no longer on disk";
@@ -206,7 +197,6 @@ public sealed partial class OverviewViewModel
         if (kind is "all" or "missing") ClearResolvedErrorEntries("missing");
     }
 
-    /// <summary>Which files a fix of <paramref name="kind"/> touches: "corrupt", "missing", or "all" (both). </summary>
     private static Grog.Core.Runs.FixSelector FixSelectorFor(string kind) => kind switch
     {
         "corrupt" => Grog.Core.Runs.FixSelector.Corrupt,
@@ -217,15 +207,8 @@ public sealed partial class OverviewViewModel
     [RelayCommand] private void FixCorrupt() => RequestFix("corrupt");
     [RelayCommand] private void FixGone()    => RequestFix("missing");
 
-    /// <summary>"Fix It" on the Overview lede: one click opens the fix confirm without a detour through
-    /// Details, whenever anything is fixable. With both corrupt AND gone files in play it fixes both at once
-    /// (red text with no fix beside it is not a finding, it is a chore).</summary>
     public bool ShowLedeFixNow => HealthGoneCount > 0 || HealthCorruptCount > 0;
 
-    /// <summary>A finding is OFFERED, not left to be noticed: when the count of missing + corrupt
-    /// files RISES (startup check, a verify, an import's verify), the one fix dialog opens by itself with Fix It
-    /// Now / Dismiss. Dismiss changes nothing: the red line and its Fix It pill stay on the card until the files
-    /// are actually back. The watermark falls with the count, so a fixed file that breaks again is offered again.</summary>
     private int _problemsOffered;
     private void OfferFixForNewProblems()
     {
@@ -244,13 +227,6 @@ public sealed partial class OverviewViewModel
         else if (HealthCorruptCount > 0) RequestFix("corrupt");
     }
 
-    /// <summary>Fix flow for corrupt/gone files: mark them not-downloaded, re-queue AT THE TOP of the queue
-    /// (a fix the user just clicked outranks a backlog of hundreds), and start the download - unless the
-    /// queue is PAUSED, which the fix respects: it queues first and says so.</summary>
-    /// <summary>"Try Again" on the last run's failure: re-queue the files that failed (strikes reset, front of the
-    /// queue, handed to a live engine if one is running) and drop the failure record. It used to be bound to the
-    /// transport's primary command, which mid-run is PAUSE: the first click paused the run, the second resumed
-    /// it, and nothing was retried.</summary>
     [RelayCommand]
     private async Task RetryRunFailure()
     {
@@ -272,8 +248,6 @@ public sealed partial class OverviewViewModel
         RaiseHealth();
     }
 
-    /// <summary>Forget the last run's failure without retrying: the lede's own verb, so the transport's Clear
-    /// (which empties the queue) is never mistaken for it.</summary>
     [RelayCommand]
     private void DismissRunFailure() { ClearRunJournalFailure(); RaiseHealth(); }
 
@@ -303,8 +277,6 @@ public sealed partial class OverviewViewModel
         SyncRows(HealthGoneFiles, _healthGoneRows);
     }
 
-    /// <summary>Replace the collection's content with <paramref name="fresh"/> only when it differs (record
-    /// value equality, same order).</summary>
     private static void SyncRows(ObservableCollection<HealthFileRow> target, List<HealthFileRow> fresh)
     {
         if (target.Count == fresh.Count)
@@ -320,8 +292,6 @@ public sealed partial class OverviewViewModel
     [RelayCommand] private void AcknowledgeCorrupt() { AcknowledgeProblemFiles(f => f.State == FileState.Corrupt, "corrupt"); ClearResolvedErrorEntries("corrupt"); }
     [RelayCommand] private void AcknowledgeGone()    { AcknowledgeProblemFiles(f => f.State == FileState.Missing, "missing"); ClearResolvedErrorEntries("missing"); }
 
-    /// <summary>Acknowledge &amp; Clear: reset each file to pristine not-downloaded. Clearing
-    /// LocalRelativePath/RootId is essential -- the startup existence scan re-flags any file with a path.</summary>
     private void AcknowledgeProblemFiles(Func<GameFile, bool> pred, string label)
     {
         if (_manifest is null) return;
@@ -381,7 +351,6 @@ public sealed partial class OverviewViewModel
         T("Lede", RaiseLede);   // the headline reads the tally recomputed at the top of this method
     }
 
-    /// <summary>Copy the recent-error list to the clipboard for pasting into a bug report.</summary>
     [RelayCommand]
     private async Task CopyErrorLog()
     {

@@ -25,7 +25,6 @@ namespace Grog.App.ViewModels;
 // the scan summary modal (composition, new games, scope cost block) and Back Up New.
 public sealed partial class LibraryViewModel
 {
-    /// <summary>The guide's step or active flag moved (S3.2): the library-owned readouts that depend on it.</summary>
     internal void RaiseGuideDerived()
     {
         OnPropertyChanged(nameof(SyncBackupLabel));
@@ -36,7 +35,6 @@ public sealed partial class LibraryViewModel
 public sealed partial class LibraryViewModel
 {
     // ---- Catalog operations (library fetch, update check, cloud probe): mini bar under the CTA buttons ----
-    /// <summary>True while a lightweight catalog/metadata operation runs (not a content download).</summary>
     [ObservableProperty] private bool _catalogBusy;
     [ObservableProperty] private double _catalogProgress;
     [ObservableProperty] private bool _catalogIndeterminate = true;
@@ -61,7 +59,6 @@ public sealed partial class LibraryViewModel
         RaiseScanPanel();
         _root.RaiseBarState();
     }
-    /// <summary>The scan panel's readouts as ONE set (scan start + per-item progress both raise it).</summary>
     private void RaiseScanPanel()
     {
         OnPropertyChanged(nameof(CatalogCountText)); OnPropertyChanged(nameof(CatalogPercentText));
@@ -82,12 +79,9 @@ public sealed partial class LibraryViewModel
         // Status bar carries only pre-count connection narration; once counts exist progress lives on the object.
         Log(total <= 0 ? statusText : "");
     }
-    /// <summary>Preview rows, batched on a timer -- per-item inserts into a bound collection stutter the grid.
-    /// Nothing persists; the manifest writes once at the end, so a canceled scan drops these rows.</summary>
     private readonly List<Grog.Core.Models.LibraryItem> _previewPending = new();
     private bool _previewActive;
 
-    /// <summary>Shown only when the FIRST scan is canceled; a canceled re-scan keeps the catalog.</summary>
     [ObservableProperty] private bool _showFirstScanCanceled;
 
     [RelayCommand]
@@ -112,7 +106,6 @@ public sealed partial class LibraryViewModel
         lock (_previewPending) _previewPending.Add(item);
     }
 
-    /// <summary>Flush the batch into the grid, each row landing in TITLE order so nothing jumps around.</summary>
     internal void FlushPreview()
     {
         if (!_previewActive) return;
@@ -156,15 +149,11 @@ public sealed partial class LibraryViewModel
         OnPropertyChanged(nameof(ShowGuideScanPanel));
     }
 
-    /// <summary>Raw counts ("342 / 1,206"); empty until the total is known, so the panel spins.</summary>
     public string CatalogCountText => _catalogTotal > 0 ? $"{_catalogDone:N0} / {_catalogTotal:N0}" : "";
     public string CatalogPercentText => _catalogTotal > 0 ? $"{CatalogProgress:F0}%" : "";
-    /// <summary>The scan panel renders in exactly one of two hosts: the page normally, the guide overlay
-    /// while the guide runs (page content sits behind the scrim).</summary>
     public bool ShowScanPanel => CatalogBusy && !_root.Guide.GuideActive;
     public bool ShowGuideScanPanel => CatalogBusy && _root.Guide.GuideActive && _root.Guide.GuideHasTarget;
 
-    /// <summary>Assistant-only: drive the scan panel without a GOG connection for headless rendering.</summary>
     internal void SeedScanProgress(int done, int total, string detail)
     {
         BeginCatalog(detail);
@@ -173,15 +162,8 @@ public sealed partial class LibraryViewModel
 
     // ---- Multi-account scan: full-library scans go through the runner ----
 
-    /// <summary>Per-account outcome of the last full scan (null = single-account run or none yet);
-    /// feeds the scan summary's BY ACCOUNT line.</summary>
     internal volatile System.Collections.Generic.IReadOnlyList<Grog.Core.Sync.AccountSyncPass>? _lastScanPasses;   // written on the scan thread, read on the UI thread
 
-    /// <summary>False when the full scan just run stored NOTHING (every account pass failed or was
-    /// skipped). Gates EndCatalog's completed flag so CatalogScanned stays honest: a failed scan on an
-    /// empty library must leave the bar at "Scan GOG Library", never "Library Backed Up" (
-    /// , GOG 500 after a fresh-library reset). Single-account runs (null passes) throw on failure
-    /// and never reach EndCatalog, so null reads true.</summary>
     internal bool LastScanStoredAnything => _lastScanPasses is null || _lastScanPasses.Any(p => p.Result is not null);
 
     public bool ShowScanAccountsLine => _lastScanPasses is { Count: > 1 };
@@ -191,8 +173,6 @@ public sealed partial class LibraryViewModel
     // library that already had items; the ids come from the scan itself, not from a diff of the grid.
     private int _itemsBeforeScan;
     private bool _lastScanRan;
-    /// <summary>Called on the UI thread before a scan's RunBusy: the worker may already be appending to Items
-    /// by the time a posted BeginCatalog runs, so the "before" count is taken here, not there.</summary>
     internal void NoteScanStarting() { _itemsBeforeScan = _manifest?.Current.Items.Count ?? 0; }
     private System.Collections.Generic.List<long> _lastNewGameIds = new();
     private int _lastNewFiles;
@@ -205,11 +185,8 @@ public sealed partial class LibraryViewModel
             return $"{g} new {(g == 1 ? "game" : "games")} ({_lastNewFiles:N0} {(_lastNewFiles == 1 ? "file" : "files")}) since your last scan.";
         }
     }
-    /// <summary>The summary said "no games": a successful scan that returned an empty account. Said
-    /// plainly so an empty page after a scan never looks like a scan that did not run.</summary>
     public bool ShowScanEmptyLibrary => _lastScanRan && LastScanStoredAnything && (_manifest?.Current.Items.Count ?? 0) == 0;
 
-    /// <summary>Back up only what this scan added; everything already in the library stays as it is.</summary>
     [RelayCommand]
     private async Task BackUpNew()
     {
@@ -235,8 +212,6 @@ public sealed partial class LibraryViewModel
         }
     }
 
-    /// <summary>Write the scan report and open it. A FILE, not a panel: a diagnostic meant to be pasted
-    /// into a bug report, readable at 1,500 products as well as 158.</summary>
     [RelayCommand]
     private async Task ViewScanReport()
     {
@@ -258,7 +233,6 @@ public sealed partial class LibraryViewModel
         var opened = path;
         await Task.Run(() => Grog.App.Services.FileManager.Open(opened));
     }
-    /// <summary>The guide holds its step while this is up, so open/close must re-evaluate the tour.</summary>
     partial void OnShowCompositionModalChanged(bool value) => _root.Guide.Refresh();
 
     [RelayCommand] private void DismissComposition()
@@ -273,7 +247,6 @@ public sealed partial class LibraryViewModel
     private int _lastScanErrors;
     private System.Collections.Generic.List<long> _lastScanFailedIds = new();
 
-    /// <summary>The three rows MUST add up to what GOG reported; unreconciled numbers read as loss.</summary>
     public int ScanSeenCount => _lastProductsSeen;
     public int ScanNoFilesCount => _manifest?.Current.Excluded.Count ?? 0;
     public int ScanErrorCount => _lastScanErrors;
@@ -281,13 +254,10 @@ public sealed partial class LibraryViewModel
 
     // ---- Scope cost block: what the current selection costs against EVERYTHING, shown while fresh ----
     // The informed opt-out: languages default to the system pick, and this is where the user learns it.
-    /// <summary>"1,009 files, 750.4 GB" for the whole catalog, no narrowing at all.</summary>
     public string ScanEverythingLine =>
         _manifest is null ? "" : ScopeCostLine(Grog.Core.Sync.Scope.Both);
-    /// <summary>Same figure under the CURRENT scope.</summary>
     public string ScanSelectionLine =>
         _manifest is null ? "" : ScopeCostLine(EffectiveScope);
-    /// <summary>Names the current selection: "Selected: All Platforms, English Only".</summary>
     public string ScanSelectionLabel
     {
         get
@@ -300,7 +270,6 @@ public sealed partial class LibraryViewModel
             return $"Selected: {plat}, {lang}";
         }
     }
-    /// <summary>The subtraction's result, shown as its own row under a rule: Everything minus Selected.</summary>
     public string ScanSavingsLine
     {
         get
@@ -310,7 +279,6 @@ public sealed partial class LibraryViewModel
             return delta <= 0 ? "" : Grog.Core.Format.ByteFormat.Size(delta);
         }
     }
-    /// <summary>The savings sentence. Shown only when the delta is worth a decision (> 1 GB).</summary>
     public string ScanSavingsText
     {
         get
@@ -338,7 +306,6 @@ public sealed partial class LibraryViewModel
         return s.PresentBytes + s.GapBytes;
     }
 
-    /// <summary>Record scan results; raise the summary only for user-requested scans.</summary>
     internal void NoteScanResult(Grog.Core.Sync.SyncResult r, bool userAsked = true)
     {
         _lastScanErrors = r.ParseFailures;   // fetch-failed products live in the excluded bucket instead
@@ -378,8 +345,5 @@ public sealed partial class LibraryViewModel
         if (userAsked) ShowCompositionModal = true;
     }
 
-    /// <summary>Has the library ever been scanned? Splits *never-scanned* (-> "Scan my GOG library") from
-    /// *scanned-and-empty* (-> "Up to date"). Set true when a catalog scan completes or a scanned manifest
-    /// loads.</summary>
     [ObservableProperty] private bool _catalogScanned;
 }

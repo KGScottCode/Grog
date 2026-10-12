@@ -41,8 +41,6 @@ public class ExtrasPlacementTests
             M.Roots.Add(new BackupRoot { Id = "r2", Label = "Second", PathHint = R2 });
         }
 
-        /// <summary>One game with one soundtrack extra at <paramref name="rel"/> on <paramref name="rootId"/>,
-        /// written to disk so the planners can resolve it.</summary>
         public LibraryManifest WithExtra(string rel, string rootId = "r1")
         {
             var it = new LibraryItem { GogId = 1, Title = "Game", Slug = "game" };

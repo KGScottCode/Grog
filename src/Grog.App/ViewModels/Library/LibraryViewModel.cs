@@ -21,15 +21,6 @@ using Grog.App.Runtime;
 
 namespace Grog.App.ViewModels;
 
-/// <summary>
-/// The Library page's view model: the game rows and their filters (search, header dropdowns,
-/// content chips, quick filters), the hide / remove / rating scope, the multi-select and its actions, the
-/// detail pane and its art, the language / platform scope with the select-everything shortcut, and the scan
-/// panel with its summary modal. Split into partials by those topics. It owns the library-derived stats
-/// (<see cref="Stats"/>, <see cref="Rollup"/>) that the Overview page reads through the root; the session,
-/// the run machinery (RunBusy, DownloadFiltered, the primary action), navigation and the log stay on the
-/// shell and are reached through <c>_root</c>'s small internal surface.
-/// </summary>
 public sealed partial class LibraryViewModel : ObservableObject
 {
     private readonly MainWindowViewModel _root;
@@ -83,22 +74,17 @@ public sealed partial class LibraryViewModel : ObservableObject
     // gogId -> row, kept in step with _allGames, so per-tick "which row?" lookups are O(1).
     internal readonly Dictionary<long, GameRowViewModel> _gameById = new();
 
-    /// <summary>THE item lookup. O(1) through the row index when the
-    /// game has a row, else the manifest scan (packs/DLC have no row).</summary>
     internal LibraryItem? ItemById(long gogId)
         => _gameById.TryGetValue(gogId, out var g) && g.Item is not null ? g.Item
          : _manifest?.Current.ItemById(gogId);   // packs/DLC have no row; before RebuildRows nothing does
-    /// <summary>Item + file by the queue's identity (GogId, FileKey); either half null when unknown.</summary>
     internal (LibraryItem? Item, GameFile? File) Resolve(long gogId, string fileKey)
     {
         var item = ItemById(gogId);
         return (item, item?.Files.FirstOrDefault(f => f.FileKey == fileKey));
     }
 
-    /// <summary>The library rows across every filter (the grid shows <see cref="Games"/>).</summary>
     internal IReadOnlyList<GameRowViewModel> AllGames => _allGames;
     public bool HasPendingWork => PendingTaskCount > 0;
-    /// <summary>The Owner column shows only with more than one account (the grid's code-behind sizes it).</summary>
     public bool ShowOwnerColumn => OwnerBadges.Show;
 
     [ObservableProperty] private string _filterText = "";
@@ -107,12 +93,9 @@ public sealed partial class LibraryViewModel : ObservableObject
     // --- header-dropdown filters (multi-select, All/None) ---
     public ObservableCollection<FilterOption> TypeOptions { get; } = new();
     public ObservableCollection<FilterOption> StatusOptions { get; } = new();
-    /// <summary>Owner filter (accounts &gt; 1 only): all checked = no filter; a game is kept when its owners
-    /// contain any checked account, so a co-owned game shows in each owner's filtered view.</summary>
     public ObservableCollection<FilterOption> OwnerOptions { get; } = new();
     public bool OwnerFilterActive => OwnerOptions.Count > 0 && OwnerOptions.Any(o => !o.IsChecked);
 
-    /// <summary>Rebuilds badge registry + filter options when accounts change; checks survive by Value.</summary>
     internal void RebuildOwnerBadges(IReadOnlyList<(string Id, string Name)> accounts)
     {
         OwnerBadges.Rebuild(accounts);
@@ -131,13 +114,10 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     private void OnOwnerFilterChanged() { OnPropertyChanged(nameof(OwnerFilterActive)); ApplyFilter(); }
 
-    /// <summary>Folder filter: where a game's files live (Primary / Secondary / Split / no folder yet).</summary>
     public ObservableCollection<FilterOption> FolderOptions { get; } = new();
     public bool FolderFilterActive => FolderOptions.Any(o => !o.IsChecked);
     private void OnFolderFilterChanged() { OnPropertyChanged(nameof(FolderFilterActive)); ApplyFilter(); }
 
-    /// <summary>Extras COLUMN filter, distinct from the toolbar chips: keeps games having a checked extras
-    /// type, plus "No extras" for an empty column -- a different question from the chips.</summary>
     public ObservableCollection<FilterOption> ExtrasOptions { get; } = new();
     public bool ExtrasFilterActive => ExtrasOptions.Any(o => !o.IsChecked);
     private void OnExtrasFilterChanged() { OnPropertyChanged(nameof(ExtrasFilterActive)); ApplyFilter(); }
@@ -192,7 +172,6 @@ public sealed partial class LibraryViewModel : ObservableObject
         ? "1 game has files that are no longer on disk."
         : $"{GoneCount} games have files that are no longer on disk.";
 
-    /// <summary>Back up everything currently filtered as missing -- the "get them back" resolution.</summary>
     [RelayCommand]
     private async Task BackUpGone()
     {
@@ -201,8 +180,6 @@ public sealed partial class LibraryViewModel : ObservableObject
         await _root.DownloadFiltered(updatesOnly: false, onlyGameIds: ids);
     }
 
-    /// <summary>Accept the loss: these were deleted on purpose, so stop calling them missing --
-    /// changes the truth rather than hiding it.</summary>
     [RelayCommand]
     private async Task MarkGoneNotBackedUp()
     {
@@ -222,29 +199,18 @@ public sealed partial class LibraryViewModel : ObservableObject
     internal int _lastProductsSeen;      // raw owned product count from the last sync
 
     public int CompleteCount => _allGames.Count(g => g.Status == BackupStatus.Complete);
-    /// <summary>Games with outstanding FIRST-backup work (not updates). GAME-level, deliberately distinct
-    /// from the Status page's file-level <c>HealthGoneCount</c> -- they answer different questions.</summary>
     public int NeedsBackupCount => _allGames.Count(g => g.Status.NeedsFirstBackup());
     public int UpdatesCount => _allGames.Count(g => g.HasUpdate);
     public IBrush BackedUpColor => Palette.SuccessGreen; // always green: the goal
-    /// <summary>Updates -- yellow, distinct from Missing's action-amber ("available" vs "act now").</summary>
     public IBrush UpdatesColor => Palette.StrokeStronger;
-    /// <summary>Missing is the primary actionable metric -- full amber, matching the Sync button.</summary>
     public IBrush MissingColor => (PendingTaskCount > 0 ? Palette.AccentAmber : Palette.InkDim);
-    /// <summary>Backed-up completion 0-100 for the dashboard progress bar.</summary>
     public double BackedUpPercent => TotalCount == 0 ? 0 : 100.0 * CompleteCount / TotalCount;
     public string BackedUpPercentText => TotalCount == 0 ? "" : $"{BackedUpPercent:0}% backed up";
-    /// <summary>GAMES with work waiting, each counted ONCE. The sum of the two figures counted a game that is
-    /// both missing a file and holding an outdated one twice, so "Back up · N games" overshot.</summary>
     public int PendingTaskCount => _allGames.Count(g => g.Status.NeedsFirstBackup() || g.HasUpdate);
 
-    /// <summary>Owned GOG products that aren't backable games (bundles, promos, giveaway claims). Uses the
-    /// domain total (_stats.TotalProducts), never the live grid -- the grid empties mid-rebuild.</summary>
     public int NonGameCount => _lastProductsSeen > _stats.TotalProducts ? _lastProductsSeen - _stats.TotalProducts : 0;
     public bool HasNonGameItems => NonGameCount > 0;
 
-    /// <summary>The "N games, M non-downloadable" composition readouts as ONE set (dashboard refresh,
-    /// filter change and post-scan reconciliation all raise it).</summary>
     internal void RaiseComposition()
     {
         OnPropertyChanged(nameof(NonGameCount));
@@ -298,9 +264,7 @@ public sealed partial class LibraryViewModel : ObservableObject
         RaiseNewItems();   // a scan may have flagged or an auto-clear retired some
     }
 
-    /// <summary>Maps a game to its Status-filter bucket (matches the header dropdown's four options).</summary>
     private const string NotInScopeBucket = "Not in Scope";
-    /// <summary>The cross-cutting "New" bucket in the Status dropdown.</summary>
     internal const string NewBucket = "New";
 
     private static string StatusBucket(GameRowViewModel g)
@@ -407,11 +371,6 @@ public sealed partial class LibraryViewModel : ObservableObject
         _root.RaiseDashboard();
     }
 
-    /// <summary>Make <paramref name="col"/> match <paramref name="desired"/> in place by REFERENCE identity,
-    /// minimal remove/move/insert -- never Clear()+refill, which re-realizes every rendered container.</summary>
-    /// <summary>RebuildRows makes NEW row instances, and reconciling by reference removed every row and
-    /// inserted every row again: the grid dropped to the top after each landed file. Keyed by game, a row that is
-    /// still there is REPLACED in its slot (one Replace notification, scroll and sort untouched).</summary>
     private static void ReconcileRowsByGame(ObservableCollection<GameRowViewModel> col, IReadOnlyList<GameRowViewModel> desired)
     {
         var want = desired.Select(r => r.GogId).ToHashSet();
@@ -447,17 +406,10 @@ public sealed partial class LibraryViewModel : ObservableObject
         while (col.Count > desired.Count) col.RemoveAt(col.Count - 1);
     }
 
-    /// <summary>Domain-derived library counts -- the ONLY source of dashboard numbers. Recomputed with the
-    /// rows in RebuildRows so a count can never read a half-built grid.</summary>
     private Grog.Core.Sync.LibraryStats _stats = Grog.Core.Sync.LibraryStats.Empty;
 
-    /// <summary>Byte-weighted library progress from the Core rollup module. Unlike _stats it counts in-flight
-    /// bytes, so the top cards + whole-library bar climb smoothly during a sync. Recomputed in RebuildRows
-    /// and on download progress.</summary>
     private Grog.Core.Sync.LibraryRollup _rollup;
 
-    /// <summary>LocalSave of what the live engine has received per in-flight file, as an InFlightBytes
-    /// lookup for the rollups. Empty (all zero) when nothing is downloading.</summary>
     private Grog.Core.Sync.Rollups.InFlightBytes CurrentInFlight()
     {
         var eng = _liveEngine;
@@ -510,9 +462,6 @@ public sealed partial class LibraryViewModel : ObservableObject
         _rbGDone = gD; _rbGTotal = gT; _rbXDone = xD; _rbXTotal = xT; _rollupBaseValid = true;
     }
 
-    /// <summary>Recompute the library rollup and notify the cards + whole-library bar. On a byte tick (the
-    /// hot path) this is O(in-flight) via the cached base; a full re-walk happens only when the base is
-    /// invalid (after a state transition / rebuild / scope change).</summary>
     internal void RaiseLibraryProgress(System.Collections.Generic.IReadOnlyList<(GameFile File, long Live)>? inflight = null)
     {
         if (_manifest is null) return;
@@ -538,7 +487,6 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     // ---- The root's small surface onto the library (S3.2) ----
 
-    /// <summary>The library-derived readouts the 1 Hz dashboard pass raises (counts, colors, scope labels).</summary>
     internal void RaiseDashboardReadouts()
     {
         OnPropertyChanged(nameof(TotalCount));
@@ -561,13 +509,10 @@ public sealed partial class LibraryViewModel : ObservableObject
         RaiseDetailWidth();
     }
 
-    /// <summary>The detail pane's width pair, raised with the dashboard and on navigation.</summary>
     internal void RaiseDetailWidth() { OnPropertyChanged(nameof(DetailColumnWidth)); OnPropertyChanged(nameof(DetailMinWidth)); }
 
-    /// <summary>Fresh Library: hidden ids name games that no longer exist, so they go too.</summary>
     internal void ClearHiddenIds() { _hiddenIds.Clear(); InvalidateHidden(); _settings.HiddenIds = new(); }
 
-    /// <summary>Fresh Library: every scan-derived readout starts over.</summary>
     internal void ResetScanRecord()
     {
         _lastProductsSeen = 0; _settings.LastProductsSeen = 0;
@@ -575,8 +520,6 @@ public sealed partial class LibraryViewModel : ObservableObject
         CatalogScanned = false;
     }
 
-    /// <summary>RunBusy's finally: a canceled/errored scan threw before EndCatalog, so end it here as NOT
-    /// completed and drop the preview rows (never in the manifest); the first scan's cancel gets its card.</summary>
     internal void EndAbandonedScan()
     {
         bool abandonedFirstScan = CatalogBusy && _previewActive;
@@ -585,14 +528,12 @@ public sealed partial class LibraryViewModel : ObservableObject
         if (abandonedFirstScan && TotalCount == 0) ShowFirstScanCanceled = true;
     }
 
-    /// <summary>Tray hide: free decoded cover art and the detail banner (covers re-decode lazily on show).</summary>
     internal void ReleaseArt()
     {
         foreach (var g in _allGames) g.DropCover();
         OnPropertyChanged(nameof(DetailLogoBitmap)); OnPropertyChanged(nameof(HasDetailArt));
     }
 
-    /// <summary>Tray restore: re-arm lazy cover decoding.</summary>
     internal void ReloadArt()
     {
         foreach (var g in _allGames) g.RaiseCover();

@@ -10,21 +10,14 @@ namespace Grog.Core.Runs;
 
 using Grog.Core.Scheduling;
 
-/// <summary>
-/// Crash-survivable record of one long run, written to disk as it happens. Two files: runs/run-&lt;stamp&gt;.jsonl
-/// (append-only, one event per line -- a crash can only damage the last line) and runs/current.json (live
-/// summary, replaced atomically via temp+rename). Every method is best-effort and swallows IO errors: a journal
-/// must never be the reason a backup fails.
-/// </summary>
 public sealed class RunJournal : IDisposable
 {
-    /// <summary>How many finished run files to keep; older runs are pruned on start.</summary>
     private const int KeepRuns = 20;
 
     private static readonly JsonSerializerOptions Line = new()
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        WriteIndented = false,   // one event per line; indenting would break the append-only contract
+        WriteIndented = false,   // one event per line
     };
     private static readonly JsonSerializerOptions Pretty = new()
     {
@@ -39,21 +32,15 @@ public sealed class RunJournal : IDisposable
     private readonly DateTimeOffset _startedAt;
     private readonly string _command;
     private int _completed, _failed, _total;
-    // "failed" is a count of FILES, not of strikes: a file that fails twice in one run (re-added by Try
-    // Again, or retried after a drive wait) is one failed file, and one that fails and then lands is none.
     private readonly HashSet<(long, string)> _failedKeys = new();
     private string _state = "running";
     private string? _currentFile;
     private bool _closed;
-    // A settle pass writes many lines at once: batched, one append + one fsync + one current.json per pass
-    // instead of two file writes and an fsync per file (a queue-sized cancel paid that on the calling thread).
     private int _batchDepth;
     private System.Text.StringBuilder? _pending;
     private bool _currentDirty;
 
-    /// <summary>Absolute path of this run's event log, surfaced so the CLI can tell the user where to look.</summary>
     public string EventsPath => _eventsPath;
-    /// <summary>Absolute path of the live-summary file; stable across runs so a watcher polls one path.</summary>
     public string CurrentPath => _currentPath;
     public string RunId { get; }
 
@@ -64,14 +51,10 @@ public sealed class RunJournal : IDisposable
         _total = total;
         _startedAt = startedAt;
         RunId = runId;
-        // The command rides in the name so pruning keeps a history PER command: twenty per-file clicks
-        // in the App must not rotate the nightly backup runs out of the folder.
         _eventsPath = Path.Combine(dir, $"run-{runId}-{Safe(command)}.jsonl");
         _currentPath = Path.Combine(dir, "current.json");
     }
 
-    /// <summary>Opens a journal under &lt;configDir&gt;/runs and writes the opening event. Returns null if the
-    /// folder can't be created; callers treat null as "journalling off" and carry on.</summary>
     public static RunJournal? Start(string configDir, string command, int total, string? note = null)
     {
         try
@@ -88,9 +71,6 @@ public sealed class RunJournal : IDisposable
         catch { return null; }
     }
 
-    /// <summary>Records a file that ended without landing and without FAILING: stopped by the user, refused by
-    /// GOG (Unavailable), or skipped because no owner is signed in. Written for the record, never counted in
-    /// <c>failed</c>: Health reads that number as "files that failed in the last run", and none of these did.</summary>
     public void FileNotCounted(string name, string kind, long bytes, string? state = null, string? reason = null)
     {
         lock (_lock)
@@ -113,8 +93,6 @@ public sealed class RunJournal : IDisposable
         }
     }
 
-    /// <summary>Records one finished file. <paramref name="ok"/> false means it FAILED (an error or a condemned
-    /// file); a stop, a refusal or a skip goes through <see cref="FileNotCounted"/>.</summary>
     public void File(string name, bool ok, long bytes, string? state = null, string? error = null, string? kind = null,
                      long gogId = 0, string? fileKey = null)
     {
@@ -144,16 +122,12 @@ public sealed class RunJournal : IDisposable
         }
     }
 
-    /// <summary>Closes the run with an outcome in the schedule vocabulary. A journal without this line is how
-    /// a reader detects a hard crash: the run started, files landed, it never finished.</summary>
     public void Finish(ScheduleRunOutcome outcome, string? error = null)
     {
         lock (_lock)
         {
             if (_closed) return;
-            // A batch still open here is flushed first, so the closing line is always the last one on disk.
             if (_batchDepth > 0) { _batchDepth = 0; if (_pending is { Length: > 0 } text) { _pending = null; WriteLines(text.ToString()); } _currentDirty = false; }
-            // Lowercase on disk is the journal's file format; ParseState reads it back case-insensitively.
             _state = outcome.ToString().ToLowerInvariant();
             Append(new
             {
@@ -172,10 +146,8 @@ public sealed class RunJournal : IDisposable
         }
     }
 
-    /// <summary>Open a batch: lines and the summary are buffered until the matching <see cref="EndBatch"/>.</summary>
     public void BeginBatch() { lock (_lock) _batchDepth++; }
 
-    /// <summary>Close a batch: every buffered line in one append with one fsync, then current.json once.</summary>
     public void EndBatch()
     {
         lock (_lock)
@@ -193,13 +165,9 @@ public sealed class RunJournal : IDisposable
         WriteLines(line);
     }
 
-    // One stream for the run: opening, appending and fsyncing per batch cost a file open and a disk sync per settle
-    // pass. The writer flushes each batch to the OS at once (a reader polling the file sees it); the disk sync
-    // runs at most every FsyncEvery and on Finish, so a hard kill loses at most that window.
     private FileStream? _events;
     private StreamWriter? _eventsWriter;
     private DateTime _lastFsyncUtc = DateTime.MinValue;
-    /// <summary>Test seam: the longest a written line waits for its disk sync.</summary>
     internal TimeSpan FsyncEvery { get; set; } = TimeSpan.FromSeconds(2);
 
     private void WriteLines(string text)
@@ -209,7 +177,6 @@ public sealed class RunJournal : IDisposable
         {
             if (_eventsWriter is null)
             {
-                // Shared for read, write and delete: a reader polls it, a torn-tail test appends to it, a prune may remove it.
                 _events = new FileStream(_eventsPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
                 _eventsWriter = new StreamWriter(_events);
             }
@@ -221,7 +188,6 @@ public sealed class RunJournal : IDisposable
         catch { /* journalling must never break the run */ }
     }
 
-    /// <summary>The closing sync: every line reaches the disk and the stream is released.</summary>
     private void CloseEvents()
     {
         try
@@ -232,8 +198,6 @@ public sealed class RunJournal : IDisposable
         finally { _eventsWriter = null; _events = null; }
     }
 
-    /// <summary>Version of current.json and the events file. Documented in docs/CLI.md; a
-    /// parser can refuse or adapt on a value it does not know. 1 = the shapes shipped in v0.1.0.</summary>
     public const int JournalSchema = 1;
 
     private void WriteCurrent()
@@ -248,7 +212,7 @@ public sealed class RunJournal : IDisposable
         {
             var doc = JsonSerializer.Serialize(new
             {
-                schema = JournalSchema,   // the automation contract's version: bump on any shape change
+                schema = JournalSchema,  
                 runId = RunId,
                 command = _command,
                 state = _state,
@@ -261,7 +225,6 @@ public sealed class RunJournal : IDisposable
                 eventsFile = Path.GetFileName(_eventsPath),
             }, Pretty);
 
-            // Temp + rename: a polling reader sees either the old file or the new one, never a torn one.
             var tmp = _currentPath + ".tmp";
             System.IO.File.WriteAllText(tmp, doc);
             System.IO.File.Move(tmp, _currentPath, overwrite: true);
@@ -276,8 +239,6 @@ public sealed class RunJournal : IDisposable
         return sb.Length == 0 ? "run" : sb.ToString();
     }
 
-    /// <summary>Keeps the newest <see cref="KeepRuns"/> journals per command. Legacy stamp-only names count
-    /// under this journal's command, so a pre- folder still thins out.</summary>
     private void Prune(string dir)
     {
         try
@@ -291,13 +252,12 @@ public sealed class RunJournal : IDisposable
                 var cmd = parts.Length >= 4 ? string.Join("-", parts, 3, parts.Length - 3) : mine;
                 if (cmd == mine) files.Add(f);
             }
-            files.Sort(StringComparer.Ordinal);   // stamped names sort chronologically
+            files.Sort(StringComparer.Ordinal);   
             for (int i = 0; i < files.Count - (KeepRuns - 1); i++)
                 try { System.IO.File.Delete(files[i]); } catch { /* in use / locked */ }
         }
         catch { /* best-effort */ }
     }
 
-    /// <summary>Closes an unfinished run as Interrupted; a hard kill leaves no finish line at all, by design.</summary>
     public void Dispose() => Finish(ScheduleRunOutcome.Interrupted);
 }

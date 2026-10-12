@@ -1,4 +1,4 @@
-<!-- Column-header filter popup body (see Controls/FilterPanel.cs). -->
+
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:ctl="using:Grog.App.Controls"
@@ -16,7 +16,7 @@
                 <DataTemplate x:DataType="vm:FilterOption">
                   <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" Margin="4,1" Padding="6,0,0,0">
                     <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
-                      <!-- The extras column's legend square; collapsed for options without one. -->
+
                       <Border Width="10" Height="10" CornerRadius="2" Background="{Binding Swatch}" IsVisible="{Binding HasSwatch}" VerticalAlignment="Center"/>
                       <TextBlock Text="{Binding Label}" Foreground="{StaticResource InkPrimary}" VerticalAlignment="Center"/>
                     </StackPanel>

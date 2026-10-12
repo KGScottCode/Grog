@@ -15,11 +15,6 @@ using Grog.Core.Storage;
 using Grog.Core.Sync;
 using Grog.Core.Tests.Framework;
 
-/// <summary>
-/// The per-account session engine (multi-account step 4). Locked down here: the download picker
-/// chooses the FIRST authenticated owner and skips signed-out or auth-failed accounts; the sync
-/// runner skips signed-out accounts with a reason instead of popping a login or dying.
-/// </summary>
 [NewBatch]
 [Trait("accounts")]
 public sealed class AccountSessionsTests
@@ -33,7 +28,7 @@ public sealed class AccountSessionsTests
         var paths = GrogPaths.Resolve(_root);
         var store = new JsonManifestStore(paths);
         store.LoadAsync().GetAwaiter().GetResult();
-        store.Current.Accounts.Add(new GrogAccount { Id = "kevin", Username = "kevin" });
+        store.Current.Accounts.Add(new GrogAccount { Id = "acct", Username = "acct" });
         store.Current.Accounts.Add(new GrogAccount { Id = "kids", Username = "kidsaccount" });
         return (new AccountSessions(store, paths, new HttpClient()), store, paths);
     }
@@ -55,43 +50,43 @@ public sealed class AccountSessionsTests
     public void Picker_chooses_the_first_owner_in_registration_order()
     {
         var (s, _, _) = Setup();
-        SignIn(s, "kevin"); SignIn(s, "kids");
-        Assert.Equal("kevin", s.FirstAuthenticatedOwner(File("kevin", "kids")), "first-registered owner serves when both can");
+        SignIn(s, "acct"); SignIn(s, "kids");
+        Assert.Equal("acct", s.FirstAuthenticatedOwner(File("acct", "kids")), "first-registered owner serves when both can");
     }
 
     [Test]
     public void Picker_falls_through_to_the_second_owner_when_the_first_is_signed_out()
     {
-        // The resilience the owners list exists for: kevin signed out, kids still feeds the backup.
+        // The resilience the owners list exists for: acct signed out, kids still feeds the backup.
         var (s, _, _) = Setup();
         SignIn(s, "kids");
-        Assert.Equal("kids", s.FirstAuthenticatedOwner(File("kevin", "kids")), "the signed-in co-owner serves");
+        Assert.Equal("kids", s.FirstAuthenticatedOwner(File("acct", "kids")), "the signed-in co-owner serves");
     }
 
     [Test]
     public void Picker_returns_null_when_every_owner_is_signed_out_and_names_them()
     {
         var (s, _, _) = Setup();
-        Assert.True(s.FirstAuthenticatedOwner(File("kevin", "kids")) is null, "no key to the door today");
-        Assert.Equal("kevin, kidsaccount", s.OwnerNames(File("kevin", "kids")), "the log line can name them");
+        Assert.True(s.FirstAuthenticatedOwner(File("acct", "kids")) is null, "no key to the door today");
+        Assert.Equal("acct, kidsaccount", s.OwnerNames(File("acct", "kids")), "the log line can name them");
     }
 
     [Test]
     public void Picker_skips_an_account_whose_auth_failed_this_run_until_marked_ok()
     {
         var (s, _, _) = Setup();
-        SignIn(s, "kevin"); SignIn(s, "kids");
-        s.MarkAuthFailed("kevin");
-        Assert.Equal("kids", s.FirstAuthenticatedOwner(File("kevin", "kids")), "a lapsed session stops serving");
-        s.MarkAuthOk("kevin");
-        Assert.Equal("kevin", s.FirstAuthenticatedOwner(File("kevin", "kids")), "and serves again after re-login");
+        SignIn(s, "acct"); SignIn(s, "kids");
+        s.MarkAuthFailed("acct");
+        Assert.Equal("kids", s.FirstAuthenticatedOwner(File("acct", "kids")), "a lapsed session stops serving");
+        s.MarkAuthOk("acct");
+        Assert.Equal("acct", s.FirstAuthenticatedOwner(File("acct", "kids")), "and serves again after re-login");
     }
 
     [Test]
     public void Picker_never_picks_a_non_owner_however_connected()
     {
         var (s, _, _) = Setup();
-        SignIn(s, "kevin"); SignIn(s, "kids");
+        SignIn(s, "acct"); SignIn(s, "kids");
         Assert.Equal("kids", s.FirstAuthenticatedOwner(File("kids")), "kids-only file needs kids");
     }
 
@@ -101,16 +96,16 @@ public sealed class AccountSessionsTests
         // The App's interactive session is bound to the first account's token file; reusing it here means one
         // GogAuthService per token file, so two instances never race on a rotated refresh token.
         var (s, _, _) = Setup();
-        var auth = new GogAuthService(s.Http, new FileTokenStore(s.TokenPathFor("kevin")), new NonInteractiveLoginProvider());
+        var auth = new GogAuthService(s.Http, new FileTokenStore(s.TokenPathFor("acct")), new NonInteractiveLoginProvider());
         var api = new Grog.Core.Api.GogApiClient(s.Http, auth);
-        var before = s.ApiFor("kevin");
-        s.Adopt("kevin", auth, api);
-        Assert.True(ReferenceEquals(auth, s.AuthFor("kevin")), "the adopted auth replaces the built chain");
-        Assert.True(ReferenceEquals(api, s.ApiFor("kevin")), "and the adopted api");
-        Assert.False(ReferenceEquals(before, s.ApiFor("kevin")), "the previously built chain is dropped");
+        var before = s.ApiFor("acct");
+        s.Adopt("acct", auth, api);
+        Assert.True(ReferenceEquals(auth, s.AuthFor("acct")), "the adopted auth replaces the built chain");
+        Assert.True(ReferenceEquals(api, s.ApiFor("acct")), "and the adopted api");
+        Assert.False(ReferenceEquals(before, s.ApiFor("acct")), "the previously built chain is dropped");
         Assert.False(ReferenceEquals(auth, s.AuthFor("kids")), "other accounts keep their own chain");
-        s.Invalidate("kevin");
-        Assert.False(ReferenceEquals(auth, s.AuthFor("kevin")), "Invalidate rebuilds from disk as before");
+        s.Invalidate("acct");
+        Assert.False(ReferenceEquals(auth, s.AuthFor("acct")), "Invalidate rebuilds from disk as before");
     }
 
     [Test]
@@ -133,7 +128,7 @@ public sealed class AccountSessionsTests
         // "No key to the door today": no owner can serve, so the engine must not attempt, not fail,
         // not count a retry strike -- Skipped with a reason naming the accounts, file left untouched.
         var (s, _, _) = Setup();   // no token files
-        var file = File("kevin", "kids");
+        var file = File("acct", "kids");
         var engine = new Grog.Core.Download.DownloadEngine(null!, null!) { Sessions = s, MaxConcurrent = 1 };
         var task = new DownloadTask { File = file, GameTitle = "Doom" };
         engine.Enqueue(task);
@@ -141,7 +136,7 @@ public sealed class AccountSessionsTests
         await engine.RunToCompletionAsync();
 
         Assert.Equal(DownloadTaskState.Skipped, task.State, "skipped, not failed");
-        Assert.True(task.SkipReason!.Contains("kevin") && task.SkipReason.Contains("kidsaccount"),
+        Assert.True(task.SkipReason!.Contains("acct") && task.SkipReason.Contains("kidsaccount"),
             "the reason names the signed-out owners");
         Assert.True(task.Error is null && task.UnavailableReason is null, "no error, no refusal recorded");
         Assert.Equal(0, file.FailedAttempts, "a skip is not a strike");
@@ -153,7 +148,7 @@ public sealed class AccountSessionsTests
         // One unservable file must not poison the run: the queue drains and each task settles alone.
         var (s, _, _) = Setup();
         var engine = new Grog.Core.Download.DownloadEngine(null!, null!) { Sessions = s, MaxConcurrent = 1 };
-        var a = new DownloadTask { File = File("kevin", "kids"), GameTitle = "A" };
+        var a = new DownloadTask { File = File("acct", "kids"), GameTitle = "A" };
         var bFile = File("kids"); bFile.GameGogId = 2;   // a different file: the engine keeps one live task per (game, key)
         var b = new DownloadTask { File = bFile, GameTitle = "B" };
         engine.EnqueueRange(new[] { a, b });

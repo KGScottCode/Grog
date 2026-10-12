@@ -13,12 +13,6 @@ using Grog.Core.Storage;
 using Grog.Core.Sync;
 using Grog.Core.Tests.Framework;
 
-/// <summary>
-/// Per-file owners (Grog_MultiAccount_Design.md). One shared library; accounts are overlapping views.
-/// The rules locked down here: a second account scanning an owned game ADDS itself to the files' owners
-/// (no duplicate record, no re-queue), attribution is first-sync and never stolen, a regional file owned
-/// by one account carries only that owner, and a pre-owners manifest seeds owners from AccountId on load.
-/// </summary>
 [NewBatch]
 [Trait("owners")]
 public class OwnershipTests
@@ -67,7 +61,7 @@ public class OwnershipTests
     [Test]
     public void A_file_offered_to_one_account_only_carries_only_that_owner()
     {
-        // The regional extra: kids' scan returns a bonus file kevin's never did. It joins the game with
+        // The regional extra: kids' scan returns a bonus file acct's never did. It joins the game with
         // kids as its ONLY owner, while the shared file gains both.
         var existing = Game(1, "", ("setup.exe", new[] { "" }));
         var incoming = Incoming(1, "setup.exe", "regional-bonus.zip");

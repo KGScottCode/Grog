@@ -8,27 +8,9 @@ using Grog.Core.Tests.Framework;
 
 namespace Grog.Core.Tests;
 
-/// <summary>
-/// The guide names its spotlight targets as STRING LITERALS in Core, and the controls they name live in
-/// MainWindow.axaml. Nothing in either project references the other, so a rename or a dead-name sweep on
-/// the view can silently unhook every step: resolution returns null, no ring is drawn, and the caption
-/// falls to its no-target corner on top of the very content it is describing.
-///
-/// <para>That is not hypothetical. Commit d49d139 ("49 orphan selectors and dead name entries deleted")
-/// removed ELEVEN of these x:Names as unused, because a grep over the view found no references -- the
-/// references were string literals in Grog.Core. Ten of the twenty steps lost their spotlight and nothing
-/// failed. This test is the missing link between the two halves.</para>
-///
-/// <para>Reads the .axaml as TEXT rather than referencing Grog.App, following CliKnownFlagsTests: it keeps
-/// the check in the container suite, where the App-bound tests cannot run.</para>
-/// </summary>
 [Trait("guide")]
 public sealed class GuideTargetNamesTests
 {
-    /// <summary>Walk up to the repo root (Grog.slnx) from either the binary or the working directory --
-    /// same reason as CliKnownFlagsTests: the container runs from a scratch folder outside the repo.</summary>
-    /// <para>Since the page split the targets live in MainWindow.axaml AND Views/Pages/*.axaml; the
-    /// guide resolves them through the logical tree, so every view file under Views counts.</para>
     private static string ReadAllViewXaml()
     {
         foreach (var start in new[] { AppContext.BaseDirectory, Directory.GetCurrentDirectory() })

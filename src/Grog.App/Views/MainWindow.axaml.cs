@@ -18,9 +18,6 @@ namespace Grog.App.Views;
 
 public partial class MainWindow : Window
 {
-    /// <summary>Named-control lookup that crosses page boundaries. The pages are UserControls
-    /// with their own name scopes, so <c>FindControl</c> on the window no longer sees LibraryGrid or the
-    /// queue lists; the logical tree does. Null until the page exists, exactly as before.</summary>
     private T? Find<T>(string name) where T : class
         => this.GetLogicalDescendants().OfType<T>().FirstOrDefault(c => (c as StyledElement)?.Name == name);
 

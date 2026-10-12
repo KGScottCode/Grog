@@ -16,7 +16,6 @@ using Grog.Core.Format;
 
 namespace Grog.App.ViewModels;
 
-/// <summary>One language the library actually contains, with what it costs.</summary>
 public partial class LanguageOption : ObservableObject
 {
     public LanguageOption(string name, int fileCount, long bytes, bool isChecked, bool isPrimary = false, bool isLocked = false)
@@ -25,18 +24,13 @@ public partial class LanguageOption : ObservableObject
     public string Name { get; }
     public int FileCount { get; }
     public long Bytes { get; }
-    /// <summary>Not a choice: files with no language tag are always kept. Checked, disabled, and stated
-    /// with its cost so the flyout's entries sum to the side's total.</summary>
     public bool IsLocked { get; }
     public bool IsEnabled => !IsLocked;
-    /// <summary>What adding this language costs. Framed as a price, not a loss: with one language seeded,
-    /// the others are additions you opt into. The locked entry is not an addition, so no "+".</summary>
     public string SizeText => IsLocked
         ? $"{Grog.Core.Format.ByteFormat.Size(Bytes)} · {FileCount} files"
         : $"+{Grog.Core.Format.ByteFormat.Size(Bytes)} · {FileCount} files";
     public System.Action? Changed { get; init; }
 
-    /// <summary>The seeded language (yours). Always shown; the rest hide behind "Show other languages".</summary>
     public bool IsPrimary { get; }
     private bool _othersShown;
     public bool IsVisible => IsPrimary || _othersShown;
@@ -48,8 +42,6 @@ public partial class LanguageOption : ObservableObject
 
     [ObservableProperty] private bool _isChecked;
     partial void OnIsCheckedChanged(bool value) { OnPropertyChanged(nameof(ItemOpacity)); Changed?.Invoke(); }
-    /// <summary>The full language list is shown expanded; the unselected "extras you can opt into" read dimmed,
-    /// and selecting one brightens it. Primary (seeded) language starts checked, so it's bright by default.</summary>
     public double ItemOpacity => IsLocked ? 0.55 : IsChecked ? 1.0 : 0.5;
 }
 
@@ -57,7 +49,6 @@ public partial class FilterOption : ObservableObject
 {
     public string Label { get; init; } = "";
     public string Value { get; init; } = "";
-    /// <summary>Legend color square shown beside the label in a dropdown (extras types); null = no square.</summary>
     public IBrush? Swatch { get; init; }
     public bool HasSwatch => Swatch is not null;
     public Action? Changed { get; init; }
@@ -66,12 +57,9 @@ public partial class FilterOption : ObservableObject
     private bool _suppress;
     partial void OnIsCheckedChanged(bool value) { if (!_suppress) Changed?.Invoke(); }
 
-    /// <summary>Set without firing Changed (caller re-applies the filter once for a batch).</summary>
     public void SetCheckedQuiet(bool value) { _suppress = true; IsChecked = value; _suppress = false; }
 }
 
-/// <summary>Small vector glyphs (MDI, 24x24 viewbox) giving each filter chip a face for its content type,
-/// rendered white inside the chip's colored tile.</summary>
 public static class ChipIcons
 {
     private static readonly Dictionary<string, string> Paths = new(StringComparer.OrdinalIgnoreCase)
@@ -107,8 +95,6 @@ public partial class FilterChip : ObservableObject
     public IBrush? Swatch { get; init; }            // the color square (Game = live accent, extras = fixed hue)
     public Geometry? Icon { get; init; }            // white glyph shown inside the colored tile (per content type)
     public Action? Changed { get; init; }
-    /// <summary>Per-chip callback carrying the chip itself: a device grid needs to know WHICH type toggled,
-    /// and its options are rebuilt with the inventory, so this one is settable rather than init-only.</summary>
     public Action<FilterChip>? Changed2 { get; set; }
     [ObservableProperty] private bool _isActive = true;   // Model A: chips start lit (= everything shown)
     // Conditional chips (Localizations, Alt versions) hide when their content isn't in scope; most chips stay true.
@@ -133,8 +119,6 @@ public partial class FilterChip : ObservableObject
     public IBrush ChipBorder => IsActive ? (Swatch ?? Palette.StrokeStronger) : Palette.StrokeStronger;
     public IBrush ChipForeground => IsActive && Rgb is { } c ? new SolidColorBrush(Color.FromArgb(0xFF, c.R, c.G, c.B)) : Palette.InkMuted;
 
-    /// <summary>Re-raise the derived color properties (after IsActive flips, or after a theme swap re-tints
-    /// the accent brush the Game chip points at).</summary>
     public void RaiseColors()
     {
         OnPropertyChanged(nameof(ChipBackground));

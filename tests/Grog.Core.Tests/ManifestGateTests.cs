@@ -11,8 +11,6 @@ using Grog.Core.Models;
 using Grog.Core.Storage;
 using Grog.Core.Tests.Framework;
 
-/// <summary>The manifest gate: mutators and the store's serialize share one door, so a save never
-/// sees a torn graph and never has to retry or give up.</summary>
 [Trait("manifest")]
 public class ManifestGateTests
 {

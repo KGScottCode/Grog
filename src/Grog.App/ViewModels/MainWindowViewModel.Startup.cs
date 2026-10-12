@@ -13,8 +13,6 @@ namespace Grog.App.ViewModels;
 // Shell startup (S3.1): the launch sequence, first-run welcome, connection flag, and the rail-navigation raises.
 public partial class MainWindowViewModel
 {
-    /// <summary>Page-visibility facts BOTH RaiseState and RaiseNav must raise; a single list, because two
-    /// copies drifting apart is a page that shows under one trigger and not the other.</summary>
     private void RaiseSharedNav()
     {
         OnPropertyChanged(nameof(ShowDashboard));
@@ -47,17 +45,13 @@ public partial class MainWindowViewModel
 
     }
 
-    /// <summary>Set by the view so the login broker can find the owner window at call time.</summary>
     public Func<Avalonia.Controls.TopLevel?>? OwnerWindowResolver { get; set; }
 
     // --- connection state (drives S0/S1 and the state-aware primary button) ---
     [ObservableProperty] private bool _isConnected;
 
-    /// <summary>True until StartAsync has determined what to show (grid vs onboarding), so the main
-    /// pane stays blank (rail only) instead of flashing the welcome screen on load.</summary>
     [ObservableProperty] private bool _initializing = true;
 
-    /// <summary>Completes once the content pane is visible; the launch checks that stat disk and rescan GOG wait on it.</summary>
     private readonly TaskCompletionSource _initialized = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private async Task StartAsync()
@@ -67,8 +61,6 @@ public partial class MainWindowViewModel
             try { await EnsureServicesAsync(); }
             catch (Exception ex) when (ex is Grog.Core.Manifest.ManifestTooNewException or Grog.Core.Manifest.ManifestLockedException)
             {
-                // A newer Grog wrote this profile, or another program holds it open: say so and stop
-                // short of touching it. The wizard would bind a fresh library over the real one.
                 Log(ex.Message, isError: true);
                 Storage.ShowLocationError(ex.Message);
                 Initializing = false;
@@ -76,14 +68,10 @@ public partial class MainWindowViewModel
             }
             catch { /* services retry when the wizard starts; don't skip the welcome */ }
 
-            // Core seam hookup (GrogPaths.PortableFallbackReason): a portable GrogData that cannot be written fell back to the profile folder; say so once.
             if (Grog.Core.Storage.GrogPaths.PortableFallbackReason is { } fallback)
                 Log($"GrogData is read-only; using the profile folder at {_configDir} ({fallback}).");
 
             string? remembered = null;
-            // Resolved through GrogPaths: a portable copy remembers its root as "{portable}/..." so a
-            // drive-letter change re-anchors here instead of reading as a missing folder (and then,
-            // catastrophically, as a first run that binds a fresh Documents default).
             try { remembered = Grog.Core.Storage.GrogPaths.ResolvePath(_settings.ChosenRoot ?? ""); }   // the live settings, not a second Load()
             catch { remembered = null; }
 
@@ -91,16 +79,10 @@ public partial class MainWindowViewModel
             bool hasRemembered = !string.IsNullOrWhiteSpace(remembered);
             if (_servicesReady && hasRemembered)
             {
-                // Bind the REMEMBERED root even if it is not reachable right now (an unplugged external
-                // drive, a NAS that is asleep): the storage page then says "not connected". It must never
-                // fall through to the first-run branch below, which would silently re-home the library
-                // to Documents and overwrite ChosenRoot - the path to the real backup would be gone.
                 try { await BindToRootAsync(remembered!); rootBound = true; }
                 catch (Exception ex) { Log($"Backup storage {remembered} is not reachable right now: {ex.Message}", isError: true); }
             }
 
-            // First run = NO remembered root at all. Auto-apply the default backup folder so the ONLY
-            // remaining prerequisite is connecting an account.
             bool firstRun = !rootBound && !hasRemembered && _servicesReady;
             if (firstRun)
             {
@@ -118,10 +100,6 @@ public partial class MainWindowViewModel
                 }
                 catch { /* if the default can't be created/bound, the welcome overlay still guides them */ }
             }
-            // Welcome FIRST and once, then the guide; never both on screen (the welcome scrim is hit-testable
-            // and swallows every click in the guide's spotlight hole). FirstRunGuideDone (set by Exit or
-            // completion) is the ONLY re-arm gate -- never re-arm on "setup looks unfinished", or a deliberate
-            // exit gets the tour on every launch. A restart mid-tour resumes the guide directly.
             if (!_settings.WelcomeShown && !_settings.FirstRunGuideDone) ShowWelcomeOverlay = true;
             else if (!_settings.FirstRunGuideDone) Guide.Resume();
         }
@@ -132,12 +110,8 @@ public partial class MainWindowViewModel
         }
     }
 
-    /// <summary>First-run welcome overlay (scrim over the app; defaults already applied). Its CTA sends
-    /// the user to the Accounts tab; the secondary link just dismisses to the app.</summary>
     [ObservableProperty] private bool _showWelcomeOverlay;
 
-    /// <summary>"Skip for now": dismiss to the full app. Also sets <c>FirstRunGuideDone</c> -- declining is a
-    /// deliberate "leave me alone"; Settings carries "Show me around" for a full re-run.</summary>
     [RelayCommand]
     private void SkipToApp()
     {
@@ -146,23 +120,17 @@ public partial class MainWindowViewModel
         MarkWelcomeShown();
         _settings.FirstRunGuideDone = true;
         _settings.SaveSoon();
-        // scaffolding creates folders on the backup drive: off the dispatcher
-        // (best-effort, same as ScaffoldChosenFolder's own catch). The dashboard raise does not depend on it.
         var manifestSk = _manifest; var rootSk = _backupRoot;   // skipping the tour still accepts the default folder
         if (manifestSk is not null && !string.IsNullOrWhiteSpace(rootSk))
             _ = Task.Run(() => { try { new Grog.Core.Volumes.BackupLayout(manifestSk.Current, rootSk).ScaffoldCategoryFolders(); } catch { } });
         RaiseDashboard();
     }
 
-    /// <summary>"Show me around": hand off to the guide WITHOUT navigating first -- jumping ahead would
-    /// perform the step the user is about to be shown.</summary>
     [RelayCommand]
     private void WelcomeGetStarted()
     {
         ShowWelcomeOverlay = false;
         MarkWelcomeShown();
-        // Re-entered by the guide's own Back: RESUME at the same stop. StartGuide is a genuine re-run and
-        // resets the tour; walking back to the welcome and forward again must lose nothing.
         if (Guide.WelcomeReopenedFromGuide)
         {
             Guide.WelcomeReopenedFromGuide = false;

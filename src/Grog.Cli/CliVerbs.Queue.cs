@@ -1,8 +1,5 @@
 // Grog - GOG.com library backup tool
 // Licensed under GPL-3.0-or-later
-//
-// The queue's Paused fact from the command line (pause / resume), the saved scope (scope show / set), and the
-// one re-plan every storage slot change ends with -- the same steps the App's Storage page takes.
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,17 +10,14 @@ namespace Grog.Cli;
 
 internal static partial class CliVerbs
 {
-    /// <summary>`pause`: set the manifest's Paused flag. `backup` refuses to start until `resume` (or --ignore-pause).</summary>
     internal static Task<int> Pause(CliContext ctx) => SetPaused(ctx, true);
 
-    /// <summary>`resume`: clear the manifest's Paused flag. Nothing downloads here; the next `backup` does.</summary>
     internal static Task<int> Resume(CliContext ctx) => SetPaused(ctx, false);
 
     private static async Task<int> SetPaused(CliContext ctx, bool paused)
     {
         var manifest = ctx.Manifest;
         await manifest.LoadAsync();
-        // Same field the App's SetDownloadPaused writes: LibraryManifest.Downloads.Paused, under the gate.
         manifest.Mutate(m => m.Downloads.Paused = paused);
         await manifest.SaveAsync();
         var command = paused ? "pause" : "resume";
@@ -32,8 +26,6 @@ internal static partial class CliVerbs
         return Continue;
     }
 
-    /// <summary>`scope [show]` prints the saved scope; `scope set` writes it (the same manifest field the App's
-    /// Settings page writes) and re-plans the queue so files the new scope excludes leave it.</summary>
     internal static async Task<int> Scope(CliContext ctx)
     {
         var args = ctx.Args;
@@ -68,13 +60,11 @@ internal static partial class CliVerbs
                 if (os is not null && os.Any(p => p is not ("windows" or "mac" or "linux")))
                     return Fail("scope", Grog.Core.Cli.ExitCode.UsageError, "usage", "--os takes windows, mac, linux (comma-separated). 'all' clears the filter.");
 
-                // "all" on either axis stores an empty list: no narrowing, matching the App. Core is the one writer.
                 Grog.Core.Sync.SavedScope.Set(manifest,
                     includeGames: Has("--games") ? true : Has("--no-games") ? false : null,
                     includeExtras: Has("--with-extras") ? true : Has("--installers-only") ? false : null,
                     languages: lang is null ? null : lang.Contains("all") ? new List<string>() : lang,
                     platforms: os is null ? null : os.Contains("all") ? new List<string>() : os);
-                // Queued files the new scope excludes leave the queue (the same Core prune the App runs).
                 int pruned = Grog.Core.Sync.SavedScope.PruneQueuedOutOfScope(manifest).Count;
                 int changed = ReplanAfterChange(ctx);
                 await manifest.SaveAsync();
@@ -111,9 +101,6 @@ internal static partial class CliVerbs
         Out.Dim("Per-run flags (--os, --lang, --installers-only ...) narrow further; --ignore-saved-scope lifts this.");
     }
 
-    /// <summary>The re-plan every slot or scope change ends with (the App's AfterSlotChangeAsync): rebuild the
-    /// layout against the roots as they stand, probe the devices, and re-decide every queued file's target and
-    /// fit. No engine: the CLI has no live run while a writer verb holds the profile. Returns the changed count.</summary>
     internal static int ReplanAfterChange(CliContext ctx)
     {
         var manifest = ctx.Manifest;

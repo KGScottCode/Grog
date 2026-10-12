@@ -14,7 +14,6 @@ public partial class App : Application
 
     private Views.MainWindow? _mainWindow;
 
-    /// <summary>The app menu's "About Grog" (macOS): surface the window and open the in-app About page.</summary>
     private void OnAboutMenuClick(object? sender, System.EventArgs e)
     {
         if (_mainWindow is null) return;

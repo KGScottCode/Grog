@@ -23,15 +23,9 @@ using Grog.Core.Volumes;
 
 namespace Grog.Core.Tests;
 
-/// <summary>
-/// The whole backup sequence in Core (scan -> select -> place -> run -> settle -> verify -> outcome) against a
-/// fake GOG that answers both the catalog and the CDN. Written as the net under moving the sequence
-/// out of the App and the CLI; it is what makes "what works in the App works in the CLI" a tested claim.
-/// </summary>
 [Trait("run")]
 public sealed class BackupRunTests
 {
-    /// <summary>Catalog + CDN in one handler: owned ids, listing, mod tags, gameDetails, downlink, the file, its checksum.</summary>
     private sealed class FakeGog : HttpMessageHandler
     {
         public List<long> Owned = new() { 1, 2 };

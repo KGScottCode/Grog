@@ -16,8 +16,6 @@ using Grog.Core.Tests.Framework;
 using Grog.Core.Verify;
 using Grog.Core.Volumes;
 
-/// <summary>The one import sequence: register, defer on an empty library, run the deferred
-/// imports after a scan, adopt on a populated one.</summary>
 [NewBatch]
 [Trait("import")]
 public class ImportRunTests
@@ -46,7 +44,6 @@ public class ImportRunTests
             BackupLayout.EnsurePrimary(Store.Current, Path.Combine(Dir, "primary"));
         }
 
-        /// <summary>A library item whose one installer is 100 bytes.</summary>
         public LibraryItem Item(long id, string title, string slug)
         {
             var it = new LibraryItem { GogId = id, Title = title, Slug = slug };
@@ -55,7 +52,6 @@ public class ImportRunTests
             return it;
         }
 
-        /// <summary>An old backup folder holding a game folder with a GOG-named installer of 100 bytes.</summary>
         public string OldBackup(string name, string slug)
         {
             var dir = Path.Combine(Dir, name);
@@ -173,9 +169,6 @@ public class ImportRunTests
         Assert.True(rig.Host.Logged.Any(l => l.Contains("not reachable")), "said so");
     }
 
-    /// <summary>THE DEFAULT PRIMARY OWES AN IMPORT. It is the one root the user is
-    /// never asked about, so it used to be the one root never walked: a library already sitting in the
-    /// default path before Grog's first run read as entirely Not Backed Up and would be re-downloaded.</summary>
     [Test]
     void DefaultPrimary_IsMarkedPending_SoTheFirstScanWalksIt()
     {
@@ -209,8 +202,6 @@ public class ImportRunTests
         Assert.True(rig.Host.Logged.Any(l => l.Contains("Verified adopted files") && l.Contains("1 verified") && l.Contains("1 corrupt")), "and the log says so");
     }
 
-    /// <summary>Re-adding a DETACHED drive's folder with "Scan and Add" reattaches it and must not
-    /// re-adopt the records already on it: Verified stays Verified, Outdated keeps Sync's signal.</summary>
     [Test]
     async Task ReAddingADetachedRoot_ReattachesIt_AndDoesNotRestampItsRecords()
     {
@@ -233,9 +224,6 @@ public class ImportRunTests
         Assert.Equal(FileState.Verified, f.State, "a record already holding bytes here is not re-adopted");
         Assert.Equal(1, rig.Store.Current.Items.Sum(i => i.Files.Count), "no duplicate records");
     }
-    /// <summary>A storage back under another path (a re-lettered stick): "Scan and Add" on the new folder
-    /// recognises it by its files and re-points the SAME root there; no second root, nothing re-adopted, the old
-    /// path forgotten. The folder itself carries nothing of Grog's.</summary>
     [Test]
     async Task ScanAndAdd_OnAStorageAtANewPath_RepointsTheExistingRoot()
     {
@@ -266,8 +254,6 @@ public class ImportRunTests
         Assert.Null(ImportRun.MatchExistingRoot(rig.Store, other), "the root is live at its own path: another folder with the same files is not it");
     }
 
-    /// <summary>The CLI's --verify-checksums: an adopted file with no checksum on record asks GOG for one and
-    /// hashes against it, so it lands Verified rather than size-only. Off by default, and no fetcher means no fetch.</summary>
     [Test]
     async Task VerifyChecksumsOption_FetchesTheMissingChecksum_AndVerifiesAgainstIt()
     {

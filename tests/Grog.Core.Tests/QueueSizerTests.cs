@@ -12,8 +12,6 @@ using Grog.Core.Tests.Framework;
 
 namespace Grog.Core.Tests;
 
-/// <summary>The background sizer prices queued files at their real byte count, once each, in queue order,
-/// skipping what the engine is transferring, and stops on a dead connection.</summary>
 [Trait("runs")]
 public sealed class QueueSizerTests
 {

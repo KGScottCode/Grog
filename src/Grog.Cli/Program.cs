@@ -14,48 +14,35 @@ using Grog.Cli;
 using static Grog.Cli.CliVerbs;
 using Grog.Core.Format;
 
-// Global flags may precede the command (`grog --json report`); rotate them behind it so args[0] is the
-// command. See ArgOrder -- everything below scans argv positionally-agnostic, so the rotation is invisible.
 args = ArgOrder.CommandFirst(args);
 var command = args.Length > 0 ? args[0].ToLowerInvariant() : "help";
-// --version / version: answer before any storage or session work so it runs on a bare machine.
+
 if (command == "version" || args.Contains("--version", StringComparer.OrdinalIgnoreCase))
 {
     Console.WriteLine($"grogcli {CliVersion.Current()}");
     return (int)Grog.Core.Cli.ExitCode.Success;
 }
 try { Console.OutputEncoding = System.Text.Encoding.UTF8; } catch { /* redirected output */ }
-bool browserFlag = args.Contains("--browser", StringComparer.OrdinalIgnoreCase);
+
 
 using var http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
 http.DefaultRequestHeaders.UserAgent.ParseAdd("Grog/0.1 (+https://github.com/)");
 
-// Resolve storage: explicit --root, else GROG_BACKUP_ROOT, else the exe's own dir (portable).
-// Grog's own state (manifest, tokens) lives in <root>/.grog; content folders sit beside it.
 var paths = Grog.Core.Storage.GrogPaths.Resolve(GetArgValue(args, "--root"));
 var rootFlag = paths.BackupRoot;   // explicit --root only (empty when not given -- no env/exe fallback)
-
-// --silent: scheduled/headless mode. Quiets stdout + progress, never prompts; failures still hit stderr
-// and every notable line lands in <config>/logs/grog.log. --non-interactive is a back-compat alias.
 bool silent = args.Contains("--silent", StringComparer.OrdinalIgnoreCase);
 bool jsonOut = args.Contains("--json", StringComparer.OrdinalIgnoreCase);
 CliText.JsonMode = jsonOut;   // the static Fail() helper reads this (top-level locals are invisible to static locals)
 Out.Silent = silent || jsonOut;   // --json also suppresses human chatter, so stdout carries ONLY the JSON
 Out.ConfigureLog(paths.ConfigDir);
-// Belt-and-suspenders: null stdout entirely in silent mode so even raw Console.WriteLine content (list
-// rows, tables) is suppressed -- not just the Out.* helpers. stderr (failures) and the log are untouched.
-// --json keeps stdout open (the JSON is the output); its human chatter is suppressed via Out.Silent above.
+
 if (silent && !jsonOut) Console.SetOut(System.IO.TextWriter.Null);
 
 
 var manifest = new JsonManifestStore(paths);
 await manifest.LoadAsync();
-// Upgrade a pre-multi-account install before any session binds: the unnamed slot becomes an ordinary
-// account and its bare tokens.json is renamed into the per-account scheme.
 try { await new Grog.Core.Auth.AccountService(manifest, paths).MigrateLegacyPrimaryAsync(); } catch { }
 
-// The default session is the FIRST registered account's; `login` on a fresh install writes to a scratch
-// file that gets adopted on registration, same as the GUI. --account (below) rebinds to a named account.
 var firstAccount = manifest.Current.Accounts.FirstOrDefault();
 var defaultTokenPath = firstAccount is null
     ? System.IO.Path.Combine(paths.ConfigDir, "tokens-connect.tmp.json")
@@ -64,25 +51,16 @@ var tokenStore = new FileTokenStore(defaultTokenPath);
 bool nonInteractive = silent || args.Contains("--non-interactive", StringComparer.OrdinalIgnoreCase);
 IInteractiveLoginProvider loginProvider =
     nonInteractive ? new NonInteractiveLoginProvider()
-    : browserFlag ? new BrowserLoginProvider()
-    : new CredentialLoginProvider(fallback: new BrowserLoginProvider());
+    : new BrowserLoginProvider();
 var auth = new GogAuthService(http, tokenStore, loginProvider);
 var api = new GogApiClient(http, auth);
 api.OnThrottle = msg => Out.Warn(msg);   // 429/5xx backoff waits are said out loud, not silent stalls
 
-// Multi-account step 4: the per-account session cache. Lazy per account, non-interactive by design
-// (a secondary account's lapsed session must never pop a login mid-run -- it skips with a log line).
-// Commands use it whenever named accounts exist; a legacy single-account setup keeps the plain `api`.
 var sessions = new Grog.Core.Auth.AccountSessions(manifest, paths, http) { OnThrottle = msg => Out.Warn(msg) };
-
-// ContentRoot() and the lazy Layout() moved onto CliContext with the verb split.
-
-// Reject unknown/mistyped options up front: a typo like `--primry` fails loud with a suggestion, never
-// silently ignored. CliKnownFlagsTests asserts this set contains every double-dash literal in this file.
 {
     var knownFlags = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        "--account","--all","--blacklist","--browser","--client","--concurrency","--confirm","--debug","--depth","--details",
+        "--account","--all","--blacklist","--client","--concurrency","--confirm","--debug","--depth","--details",
         "--diag","--download","--dry-run","--export","--extra-type","--extras-only","--force","--full","--help","--id",
         "--ignore-saved-scope","--installers-only","--json","--label","--lang","--largest","--limit","--limit-mbps","--local","--mode",
         "--move","--moved","--no-dlc","--no-verify","--non-interactive","--os","--os-fallback","--parallel",
@@ -108,9 +86,6 @@ var sessions = new Grog.Core.Auth.AccountSessions(manifest, paths, http) { OnThr
     }
 }
 
-// --account <id>: point the session verbs (whoami / refresh / logout) at ONE named account's token
-// file instead of the tokens.json slot. Non-interactive on purpose -- inspecting or refreshing a
-// secondary account must never pop a login; signing one in is `account add <id>`.
 if (GetArgValue(args, "--account") is { } accountArg)
 {
     if (command is not ("whoami" or "status" or "refresh" or "logout"))
@@ -155,30 +130,23 @@ try
         ["changes"] = CliVerbs.Changes,
         ["changelog"] = CliVerbs.Changelog,
         ["account"] = CliVerbs.Account,
-        // (S2.1) `cloudsaves --all` / `cloudsaves prune` route to the Core CloudSaveRun verbs; anything else is the
-        // per-game verb as before.
         ["cloudsaves"] = ctx => ctx.Args.Skip(1).Any(a => a.Equals("prune", StringComparison.OrdinalIgnoreCase)) ? CliVerbs.CloudsavesPrune(ctx)
                              : ctx.Args.Contains("--all", StringComparer.OrdinalIgnoreCase) ? CliVerbs.CloudsavesAll(ctx)
                              : CliVerbs.Cloudsaves(ctx),
         ["show"] = CliVerbs.Show,
         ["runs"] = CliVerbs.Runs,
         ["report"] = CliVerbs.Report,
-        // (S2.1) `reorg layout` = the guided flat-layout migration on Core's LayoutMigrationRun.
         ["reorg"] = ctx => ctx.Args.Skip(1).Any(a => a.Equals("layout", StringComparison.OrdinalIgnoreCase)) ? CliVerbs.ReorgLayout(ctx) : CliVerbs.Reorg(ctx),
         ["fix"] = CliVerbs.Fix,
         ["mark-missing"] = CliVerbs.MarkMissing,
         ["clear-new"] = CliVerbs.ClearNew,   // 
         ["backup"] = CliVerbs.Backup,
-        // `sync` already dates what it can; this is the catch-up verb for a library
-        // that predates the feature, plus --force to re-walk every order page.
         ["dates"] = CliVerbs.Dates,
-        // The queue's Paused fact and the saved scope, from the command line (writer verbs: they take the lock).
         ["pause"] = CliVerbs.Pause,
         ["resume"] = CliVerbs.Resume,
         ["scope"] = CliVerbs.Scope,
     };
-    // Research verbs: API probes and render demos used while building Grog. Reachable with
-    // GROG_DEV_VERBS=1, never listed in help, never in a scheduled caller's way.
+
     if (Environment.GetEnvironmentVariable("GROG_DEV_VERBS") == "1")
     {
         verbs["resolvenames"] = CliVerbs.Resolvenames;
@@ -189,9 +157,7 @@ try
         verbs["mark-new"] = CliVerbs.MarkNew;         // replay the New badge in testing
         verbs["ordersprobe"] = CliVerbs.Ordersprobe;  // research: does order history carry purchase dates?
     }
-    // The App has priority over the profile: a verb that can write the manifest refuses while Grog is
-    // open, says so on stderr / the JSON envelope, in BOTH logs (the CLI's and the App's grog.log, for anything
-    // parsing them) and leaves a note the App turns into a toast. Read-only verbs run regardless.
+
     var readOnlyVerbs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         { "help", "status", "whoami", "list", "show", "runs", "report", "health", "delisted", "changes", "changelog",
           "orphans", "resolve", "resolvenames", "serials", "extratypes", "artprobe", "cloudprobe", "ordersprobe", "renderdemo", "policy" };
@@ -207,8 +173,6 @@ try
         if (jsonOut) EmitJsonError(command, "AppRunning", msg, (int)Grog.Core.Cli.ExitCode.AppRunning);
         return (int)Grog.Core.Cli.ExitCode.AppRunning;
     }
-    // Two writer CLIs on one profile would race the manifest: the second refuses with the same code the App
-    // path uses. A lock the filesystem cannot take leaves no holder note and runs (fail open, as TryHold says).
     if (presence is { Held: false }
         && Grog.Core.Storage.ProcessPresence.Holder(paths.ConfigDir, Grog.Core.Storage.ProcessPresence.CliLockName) is { } other)
     {
@@ -217,16 +181,14 @@ try
         if (jsonOut) EmitJsonError(command, "AppRunning", msg, (int)Grog.Core.Cli.ExitCode.AppRunning);
         return (int)Grog.Core.Cli.ExitCode.AppRunning;
     }
-    var ctx = new CliContext(args, command, http, paths, rootFlag, silent, jsonOut, nonInteractive, browserFlag,
+    var ctx = new CliContext(args, command, http, paths, rootFlag, silent, jsonOut, nonInteractive,
                              loginProvider, manifest, tokenStore, auth, api, sessions, firstAccount, defaultTokenPath);
     var code = await (verbs.TryGetValue(command, out var verb) ? verb : CliVerbs.Help)(ctx);
     if (code != CliVerbs.Continue) return code;
-    // A command that reported a usage/argument problem exits 2 (scriptable), not 0.
     return Out.HadUsageError ? (int)Grog.Core.Cli.ExitCode.UsageError : 0;
 }
 catch (Grog.Core.Auth.AuthExpiredException ex)
 {
-    // Distinct, quiet signal for schedulers: the session lapsed and needs a one-time re-login.
     if (jsonOut) EmitJsonError(command, "AuthExpired", ex.Message, (int)Grog.Core.Cli.ExitCode.AuthExpired);
     else Console.Error.WriteLine(ex.Message);
     return (int)Grog.Core.Cli.ExitCode.AuthExpired;
@@ -234,15 +196,13 @@ catch (Grog.Core.Auth.AuthExpiredException ex)
 catch (Exception ex)
 {
     var code = (int)Grog.Core.Cli.CliExit.ForException(ex);
-    if (jsonOut) EmitJsonError(command, ex.GetType().Name, Grog.Core.Api.GogError.Describe(ex), code);
-    else Console.Error.WriteLine($"error: {Grog.Core.Api.GogError.Describe(ex)}");
+    var described = Grog.Core.Format.UrlRedaction.Scrub(Grog.Core.Api.GogError.Describe(ex));
+    if (jsonOut) EmitJsonError(command, ex.GetType().Name, described, code);
+    else Console.Error.WriteLine($"error: {described}");
     return code;
 }
 
 
-/// <summary>Fixed-width download progress (apt/nuget style): [NN/NN] name [####----] PCT got/total speed.
-/// The name column is fixed (longest queued label, capped) so all rows align; completed files keep a
-/// permanent 100% line while the active file's live line finalizes in place.</summary>
 internal sealed class DownloadRenderer
 {
     private readonly int _total;
@@ -250,17 +210,15 @@ internal sealed class DownloadRenderer
     private readonly object _lock = new();
     private readonly Dictionary<Guid, DownloadTask> _active = new();
     private int _completed, _failed, _skipped;
-    private int _liveLines;   // height of the live block currently on screen (one line per in-flight file)
+    private int _liveLines;  
     private long _lastDraw;
-    private bool _blockMode = true;   // false = demoted to the single-line view because the console is slow
-    private const int RedrawMs = 120;   // ~8 fps: smooth to the eye, cheap on the console
+    private bool _blockMode = true;
+    private const int RedrawMs = 120;
     private readonly bool _interactive = !Console.IsOutputRedirected && !Out.Silent;
 
     private void WriteColored(string prefix, string name, string bracket, string stats, ConsoleColor barColor)
     {
-        // Quiet runs get their pulse from QuietProgress on stderr; nothing here may touch a --json stdout.
         if (Out.Silent) return;
-        // prefix (gray) + name (default) + bracket/percent (state color) + size (default).
         Out.Segment(prefix, ConsoleColor.DarkGray);
         Console.Write(name);
         Out.Segment(bracket, barColor);
@@ -268,7 +226,7 @@ internal sealed class DownloadRenderer
     }
 
     private const int MaxName = 64;
-    private const int RightWidth = 16; // "  82%  71.5/87.0 MB"
+    private const int RightWidth = 16;
 
     public DownloadRenderer(int total, int nameCol)
     {
@@ -280,14 +238,9 @@ internal sealed class DownloadRenderer
     public int FailedCount => _failed;
     public int SkippedCount => _skipped;
 
-    /// <summary>Every task that did not finish, kept so --json can report WHICH files failed and why --
-    /// not just how many. The console view prints each failure as it happens and then forgets it.</summary>
     private readonly List<(string File, string State, string? Error)> _failures = new();
     public IReadOnlyList<(string File, string State, string? Error)> Failures => _failures;
 
-    /// <summary>Quiet runs (--silent, --json, piped) still need a pulse: a 20 GB file with no output looks
-    /// exactly like a hang. One STDERR line per finished file and one heartbeat every
-    /// <see cref="HeartbeatMs"/> while bytes move; stdout stays untouched for the JSON document.</summary>
     private const int HeartbeatMs = 10_000;
     private long _lastBeat = Environment.TickCount64;
     private void QuietProgress(DownloadTask t, bool terminal, bool starting = false)
@@ -320,10 +273,10 @@ internal sealed class DownloadRenderer
                 bool completed = t.State == DownloadTaskState.Completed;
                 bool skippedNoOwner = t.State == DownloadTaskState.Skipped;
                 if (completed) _completed++;
-                else if (skippedNoOwner) _skipped++;   // no owner signed in: not done, but NOT a failure
+                else if (skippedNoOwner) _skipped++;   // no owner signed in
                 else
                 {
-                    _failed++;   // Failed OR Canceled -- either way it did not finish, so it counts as not-done
+                    _failed++;   
                     _failures.Add((Label(t), t.State.ToString(), t.Error));
                 }
 
@@ -357,9 +310,6 @@ internal sealed class DownloadRenderer
             {
                 bool isNew = !_active.ContainsKey(t.Id);
                 _active[t.Id] = t;
-                // Throttle progress repaints. Byte-progress events fire far faster than anyone can read, and
-                // each repaint rewrites the whole block; redrawing on every one is what makes a parallel run
-                // feel sluggish. A file ENTERING the block always redraws immediately -- that is news.
                 QuietProgress(t, terminal: false, starting: isNew);
                 var now = Environment.TickCount64;
                 if (!isNew && now - _lastDraw < RedrawMs) return;
@@ -369,8 +319,6 @@ internal sealed class DownloadRenderer
         }
     }
 
-    /// <summary>Redraw the live block: ONE LINE PER IN-FLIGHT FILE, ordered by queue Index so lines do
-    /// not jump around as throughput fluctuates.</summary>
     private void DrawActive()
     {
         if (!_interactive) return;
@@ -380,15 +328,13 @@ internal sealed class DownloadRenderer
         var prefix = $"[{_completed + _failed:00}/{_total:00}] ";
         var blank = new string(' ', prefix.Length);
         var live = _active.Values.OrderBy(x => x.Index).ToList();
-        // Demoted (see EraseLiveBlock): show only the furthest-along file, on one line, as before.
+
         if (!_blockMode) live = live.OrderByDescending(x => x.BytesReceived).Take(1).ToList();
         for (int i = 0; i < live.Count; i++)
         {
             var t = live[i];
             bool starting = !(t.BytesReceived > 0 && t.BytesTotal is > 0);
             var (name, bracket, stats) = BuildParts(t, done: false);
-            // Only the first line carries the N/total counter; the rest indent under it, so the block reads
-            // as one group rather than repeating a count that is identical on every line.
             WriteColored(i == 0 ? prefix : blank, name, bracket, stats,
                          starting ? ConsoleColor.DarkGray : ConsoleColor.Yellow);
             Console.WriteLine();
@@ -396,17 +342,11 @@ internal sealed class DownloadRenderer
         _liveLines = live.Count;
     }
 
-    /// <summary>Wipe the live block and put the cursor back at its first line, so the next thing written
-    /// (a completed-file line, or the next redraw) starts where the block was. Best-effort: cursor moves can
-    /// throw on an odd console, and a failed redraw must never take the download down with it.</summary>
     private void EraseLiveBlock()
     {
         if (!_interactive || _liveLines == 0) return;
         try
         {
-            // ONE cursor read and two moves for the whole block, not two per line: on some terminals each
-            // CursorTop read costs a round-trip cursor-position query, and at parallel-download event rates
-            // that traffic is enough to stall the render.
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var pad = new string(' ', Math.Max(0, GetWidth() - 1));
             int start = Math.Max(0, Console.CursorTop - _liveLines);
@@ -414,16 +354,12 @@ internal sealed class DownloadRenderer
             for (int i = 0; i < _liveLines; i++) Console.WriteLine(pad);
             Console.SetCursorPosition(0, start);
 
-            // Self-demotion: Update() runs on the download worker threads, and some terminals answer each
-            // cursor move with a ~tens-of-ms query -- if repainting is that costly, drop to the single-line
-            // view for the rest of the run so the render is never a brake on the backup.
             if (sw.ElapsedMilliseconds > 50) _blockMode = false;
         }
         catch { /* console without cursor addressing - the block just stays on screen */ }
         _liveLines = 0;
     }
 
-    /// <summary>Returns the line split into (name, bracket+percent, size) so each can be colored.</summary>
     private (string name, string bracket, string stats) BuildParts(DownloadTask t, bool done)
     {
         var name = PadName(Label(t)) + " ";
@@ -444,23 +380,19 @@ internal sealed class DownloadRenderer
         return (name, bar, stats);
     }
 
-    /// <summary>"71.5/87.0 MB" -- shared unit, single suffix (the renderer's fixed right column).</summary>
     private static string SizePair(long got, long total) => ByteFormat.CompactPair(got, total);
 
-    /// <summary>Progress bar growing an arrow: "" -> "--->" -> "###--->". The ">" tip rides the leading
-    /// edge with up to 3 dashes behind it; empty at 0%, solid "#" at 100%.</summary>
     private static string Bar(double pct, int width)
     {
         int fill = Math.Clamp((int)Math.Round(pct / 100 * width), 0, width);
-        if (fill >= width) return new string('#', width);   // 100%: solid
-        if (fill <= 0) return new string(' ', width);        // 0%: empty
-        int dashes = Math.Min(3, fill - 1);                  // arrow body behind the ">" tip
-        int solid = fill - dashes - 1;                       // "#" filled in behind the arrow
-        int spaces = width - fill;                           // blank ahead
+        if (fill >= width) return new string('#', width);   
+        if (fill <= 0) return new string(' ', width);       
+        int dashes = Math.Min(3, fill - 1);                 
+        int solid = fill - dashes - 1;                      
+        int spaces = width - fill;                          
         return new string('#', solid) + new string('-', dashes) + ">" + new string(' ', spaces);
     }
 
-    /// <summary>"----*** STARTING ***----" centered to fill the bar width.</summary>
     private static string StartingBanner(int width)
     {
         const string core = "*** STARTING ***";
@@ -473,8 +405,6 @@ internal sealed class DownloadRenderer
     private int BarWidth()
     {
         int w = GetWidth();
-        // prefix "[NN/NN] " = 9, name col, " [" + "] " = 4, right stats, + 2 safety margin so the
-        // full line stays under the console width and never wraps.
         int bar = w - 9 - _nameCol - 4 - RightWidth - 2;
         return Math.Clamp(bar, 8, 30);
     }
@@ -514,10 +444,6 @@ internal sealed class DownloadRenderer
 
 }
 
-/// <summary>
-/// Live console progress: a spinner (proves the process is alive even when one API call
-/// stalls), a bar, percentage, count, and a rolling ETA. Redraws in place on one line.
-/// </summary>
 internal sealed class ConsoleProgress
 {
     private static readonly char[] Spinner = { '|', '/', '-', '\\' };
@@ -533,7 +459,7 @@ internal sealed class ConsoleProgress
         double frac = total == 0 ? 0 : (double)completed / total;
         int pct = (int)(frac * 100);
 
-        // ETA from average time per completed item.
+        // ETA from average time per completed item
         string eta = "";
         if (completed > 0 && completed < total)
         {
@@ -546,8 +472,6 @@ internal sealed class ConsoleProgress
 
         if (_redirected)
         {
-            // Non-interactive (piped/CI) or quiet (--silent/--json): occasional milestones, no carriage
-            // returns, and on STDERR so a --json stdout stays one document.
             if (completed == total || completed % 25 == 0)
                 Console.Error.WriteLine($"  synced {completed}/{total} ({pct}%)");
             return;
@@ -569,47 +493,6 @@ internal sealed class ConsoleProgress
 }
 
 // ---- login providers ----
-
-internal sealed class CredentialLoginProvider(IInteractiveLoginProvider fallback) : IInteractiveLoginProvider
-{
-    public async Task<string> AcquireAuthorizationCodeAsync(Uri loginUrl, CancellationToken ct = default)
-    {
-        Console.Write("GOG username (email): ");
-        var username = Console.ReadLine() ?? "";
-        Console.Write("GOG password (typing hidden): ");
-        var password = ReadHidden();
-        try
-        {
-            return await GogFormLogin.LoginAsync(username, password, PromptTwoFactorAsync, ct);
-        }
-        catch (Exception ex) when (ex is CaptchaRequiredException or LoginFlowChangedException)
-        {
-            Console.WriteLine();
-            Console.WriteLine($"{ex.Message}");
-            Console.WriteLine("Falling back to browser login…");
-            return await fallback.AcquireAuthorizationCodeAsync(loginUrl, ct);
-        }
-    }
-
-    private static Task<string> PromptTwoFactorAsync(CancellationToken ct)
-    {
-        Console.Write("GOG emailed you a 4-character security code. Enter it: ");
-        return Task.FromResult(Console.ReadLine()?.Trim() ?? "");
-    }
-
-    private static string ReadHidden()
-    {
-        var chars = new List<char>();
-        while (true)
-        {
-            var key = Console.ReadKey(intercept: true);
-            if (key.Key == ConsoleKey.Enter) { Console.WriteLine(); break; }
-            if (key.Key == ConsoleKey.Backspace) { if (chars.Count > 0) chars.RemoveAt(chars.Count - 1); continue; }
-            if (!char.IsControl(key.KeyChar)) chars.Add(key.KeyChar);
-        }
-        return new string(chars.ToArray());
-    }
-}
 
 internal sealed class BrowserLoginProvider : IInteractiveLoginProvider
 {
@@ -649,7 +532,6 @@ internal sealed class BrowserLoginProvider : IInteractiveLoginProvider
     }
 }
 
-/// <summary>The `--version` readout, from this assembly.</summary>
 internal static class CliVersion
 {
     public static string Current()
@@ -661,15 +543,10 @@ internal static class CliVersion
     }
 }
 
-/// <summary>Text helpers shared by the top-level verbs and the renderer classes (a top-level local function
-/// is invisible inside a class, which is how Trunc came to exist twice).</summary>
 internal static class CliText
 {
-    /// <summary>MAJOR.MINOR.PATCH from the assembly's informational version: build metadata and a fourth
-    /// build-counter part are dropped, the same trim the App shows.</summary>
     public static string TrimVersion(string? info, string? fallback) => Grog.Core.Format.VersionText.Trim3(info, fallback);
 
-    /// <summary>--json was passed: failures go to stderr as JSON (Fail) and human chatter is suppressed.</summary>
     public static bool JsonMode;
     public static string Trunc(string s, int n) => s.Length <= n ? s : s[..(n - 1)] + "…";
 }

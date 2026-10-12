@@ -12,7 +12,6 @@ using Grog.Core.Models;
 using Grog.Core.Runs;
 using Grog.Core.Tests.Framework;
 
-/// <summary>The one fix sequence behind the App's Fix / Try again / Re-download and `grogcli fix`.</summary>
 [NewBatch]
 [Trait("run")]
 public class FixRunTests
@@ -30,9 +29,6 @@ public class FixRunTests
         => new() { GameGogId = gogId, FileKey = key, Name = key, Kind = FileKind.Installer, State = state, FailedAttempts = failed,
                    LocalRelativePath = state == FileState.NotBackedUp ? null : $"Games/g{gogId}/{key}" };
 
-    /// <summary>Two products covering every state the predicate must sort: a strike on a gap (retryable), a
-    /// strike on a Corrupt (verify's verdict, not a retry), Unavailable (never), a present file with old
-    /// strikes (healed), a plain Missing with no strikes (a fix, not a retry), and one queued already.</summary>
     private static MemoryStore Library()
     {
         var s = new MemoryStore();

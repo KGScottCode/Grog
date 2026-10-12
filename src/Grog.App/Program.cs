@@ -10,8 +10,12 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        // One Grog per user: if another instance is already running (likely hidden in the tray), tell it to
-        // come to the foreground and exit this launch instead of spawning a duplicate.
+        if (args.Length > 0 && args[0] == Services.GtkBackendGuard.ProbeArg)
+        {
+            Environment.ExitCode = Services.GtkBackendGuard.RunProbe();
+            return;
+        }
+        // One Grog per user
         if (!SingleInstance.TryAcquire())
         {
             SingleInstance.SignalExisting();
@@ -25,12 +29,6 @@ internal static class Program
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
-            // macOS: the bundled Inter lacks the UI glyphs (carets, completeness pips, status marks - the
-            // half-circle U+25D0 rendered as stacked bars) and Avalonia's implicit
-            // per-codepoint fallback does not kick in for a custom default font there the way DirectWrite
-            // does on Windows. Explicit fallbacks are consulted for codepoints the current font cannot
-            // shape; Apple Symbols ONLY - it carries the geometric/technical glyphs and next to no Latin,
-            // so even an eager fallback match can never hijack body text.
             .With(OperatingSystem.IsMacOS()
                 ? new Avalonia.Media.FontManagerOptions
                 {
@@ -40,7 +38,5 @@ internal static class Program
                     }
                 }
                 : new Avalonia.Media.FontManagerOptions())
-            // XAML hot reload in Debug comes from HotAvalonia's auto-enable weaver (see Grog.App.csproj);
-            // an explicit .UseHotReload() here would be a duplicate and Fody warns about it.
             .LogToTrace();
 }

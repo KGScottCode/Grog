@@ -105,7 +105,6 @@ public class ThroughputMeterTests
 
     // ---- the two-term ETA model: per-file overhead + per-byte cost, smoothed finish time ----
 
-    /// <summary>Drive one file through the meter: start at t, bytes arrive linearly, done at t+secs.</summary>
     private static void RunFile(ThroughputMeter m, ref double t, ref long cum, long bytes, double secs)
     {
         var id = Guid.NewGuid();

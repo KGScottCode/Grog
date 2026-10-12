@@ -7,12 +7,6 @@ using System.ComponentModel;
 
 namespace Grog.App.Services;
 
-/// <summary>
-/// An ObservableCollection that can swap its whole content with ONE change notification. The device grids
-/// held ~7,500 rows at 1,500 games and rebuilt them with Clear + Add per row: thousands of CollectionChanged
-/// events, each re-laid out by the ItemsControl (680 ms per rebuild in the view model and
-/// seconds in layout).
-/// </summary>
 public sealed class BulkObservableCollection<T> : ObservableCollection<T>
 {
     public void ReplaceAll(IEnumerable<T> items)

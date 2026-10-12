@@ -7,13 +7,6 @@ using Avalonia.Threading;
 
 namespace Grog.App.Services;
 
-/// <summary>
-/// Measures the UI thread instead of guessing about it ("the graph freezes every 3-5 s").
-/// <see cref="Time"/> wraps the named UI passes and records any that run longer than <see cref="SlowMs"/>;
-/// a 200 ms heartbeat notices when the dispatcher itself was blocked and logs the stall with the slow
-/// passes seen since the previous beat - or "no timed pass", which means the block came from somewhere
-/// not yet wrapped. Diagnostic-only: it decides nothing.
-/// </summary>
 public static class UiWatch
 {
     public const int SlowMs = 50;
@@ -40,10 +33,8 @@ public static class UiWatch
         _timer.Start();
     }
 
-    /// <summary>Every timed pass, slow or not: the headless stress harness records the distribution per name.</summary>
     public static Action<string, double>? OnTimed;
 
-    /// <summary>Record a named cost measured elsewhere (the manifest gate wait), when it happened on the UI thread.</summary>
     public static void Note(string name, long ms)
     {
         if (ms >= SlowMs && Dispatcher.UIThread.CheckAccess()) _slow.Add($"{name} {ms} ms");

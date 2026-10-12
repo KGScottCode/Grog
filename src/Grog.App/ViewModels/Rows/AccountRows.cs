@@ -16,11 +16,8 @@ using Grog.Core.Format;
 
 namespace Grog.App.ViewModels;
 
-/// <summary>One owner disc in the grid's Owner column: the account's color + shortest unique initials.</summary>
 public sealed record AccountBadge(string OwnerId, string Name, string Initials, IBrush Fill, IBrush Ink);
 
-/// <summary>The account-to-badge registry. COLOR is the identity: a stable color per account, avoiding the
-/// status hues; initials extend to the shortest disambiguating prefix. Static: changes only when accounts do.</summary>
 public static class OwnerBadges
 {
     private static readonly (Color Fill, Color Ink)[] Palette =
@@ -36,7 +33,6 @@ public static class OwnerBadges
     public static IReadOnlyDictionary<string, AccountBadge> Map { get; private set; }
         = new Dictionary<string, AccountBadge>();
 
-    /// <summary>Ownership chrome exists only when accounts &gt; 1 (badge the exception, not the rule).</summary>
     public static bool Show { get; private set; }
 
     public static void Rebuild(IReadOnlyList<(string Id, string Name)> accounts)
@@ -54,8 +50,6 @@ public static class OwnerBadges
         Show = accounts.Count > 1;
     }
 
-    /// <summary>Shortest prefix of THIS name that no other account's name shares (case-insensitive),
-    /// capped at 3 characters -- past that the color has to carry it and the tooltip has the rest.</summary>
     private static string InitialsFor(string display, IReadOnlyList<(string Id, string Name)> accounts, int self)
     {
         for (var len = 1; len <= Math.Min(3, display.Length); len++)
@@ -74,11 +68,8 @@ public static class OwnerBadges
         return display[..Math.Min(3, display.Length)].ToUpperInvariant();
     }
 
-    /// <summary>When the Owner FILTER is narrowing the grid, only the checked accounts' discs render.
-    /// Null = no narrowing, every owner shows. Set by ApplyFilter alongside the row filter.</summary>
     public static IReadOnlySet<string>? VisibleOwners { get; set; }
 
-    /// <summary>Badges for a file/game owner list, in registry (registration) order -- primary first.</summary>
     public static IReadOnlyList<AccountBadge> For(IEnumerable<string> ownerIds)
     {
         if (!Show) return Array.Empty<AccountBadge>();
@@ -91,22 +82,10 @@ public static class OwnerBadges
     }
 }
 
-/// <summary>One account row in the account panel.</summary>
-/// <param name="Connected">Whether this account has a live session; drives the card's state text and the
-/// Log Out / Log In button flip.</param>
-/// <param name="BacksInteractiveSession">True for the account whose token file the in-memory _auth session
-/// reads and writes (the FIRST registered account, RebindInteractiveSession). Log-out/remove of THIS row
-/// must also drop the live session; every other row only touches its own file.</param>
-/// <param name="BackedUpGames">Games of this owner with any local copy; -1 = not computed (segment omitted).
-/// </param>
-/// <param name="LastChecked">Manifest LastSyncCompleted as relative text; null = never / unknown (segment omitted).
-/// </param>
 public sealed record AccountRow(string Id, string Name, int ItemCount, bool Visible, bool Connected = true,
     bool BacksInteractiveSession = false, int BackedUpGames = -1, string? LastChecked = null)
 {
     public string CountText => Connected ? $"{ItemCount} items" : $"{ItemCount} items - signed out";
-    /// <summary>The row's subline: "{N} items · {M} games backed up · last checked {ago}", with a
-    /// trailing "signed out" when the session is gone. Segments whose figure is unavailable are omitted.</summary>
     public string StatsText
     {
         get
@@ -118,13 +97,9 @@ public sealed record AccountRow(string Id, string Name, int ItemCount, bool Visi
             return string.Join(" \u00B7 ", parts);
         }
     }
-    /// <summary>This account's grid disc, shown on its card too - the Accounts page is the LEGEND for
-    /// "which disc is which". Null until the registry knows this account.</summary>
     public AccountBadge? Badge => OwnerBadges.Map.TryGetValue(Id, out var b) ? b : null;
     public bool HasBadge => Badge is not null;
     public string ActionText => Connected ? "Log Out" : "Log In";
-    /// <summary>Signed out: Log In is the row's remedy and must not read as a quiet verb, but every
-    /// signed-out row taking the filled tier would breach one-filled-primary. Amber ghost tier for all.</summary>
     public bool ActionIsPrimary => false;
     public bool ActionIsAttn => !Connected;
     public string ActionTip => Connected

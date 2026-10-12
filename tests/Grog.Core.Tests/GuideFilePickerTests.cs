@@ -7,12 +7,6 @@ using Grog.Core.Models;
 using Grog.Core.Sync;
 using Grog.Core.Tests.Framework;
 
-/// <summary>
-/// The guide's example-file pick, now Core-owned. The rule under test: smallest non-patch GAME file in the
-/// library, ties broken alphabetically by game then file, extras never picked, only actionable states, only
-/// in-scope files, only positive sizes. Deterministic on any library - GOG rounds sizes to whole megabytes,
-/// so ties are the NORMAL case, not the edge case.
-/// </summary>
 [NewBatch]
 [Trait("guide")]
 public class GuideFilePickerTests

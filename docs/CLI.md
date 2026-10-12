@@ -7,7 +7,7 @@ scheduled jobs. It ships with every install; the install guides for [Windows](in
 ## Quick start
 
 ```
-grogcli login              # sign in (browserless; --browser uses the system browser)
+grogcli login              # sign in on GOG's page in your browser
 grogcli sync               # fetch your library from GOG
 grogcli download           # fetch everything missing or outdated
 grogcli verify --full      # re-check every file against GOG's checksums
@@ -39,7 +39,7 @@ Enough for pass/fail alerting.
 | 2 | Usage / bad arguments |
 | 3 | Not configured (no backup folder) |
 | 4 | Auth expired - needs a one-time interactive login |
-| 5 | Login blocked (captcha / 2FA) |
+| 5 | Reserved (no longer returned) |
 | 6 | Network |
 | 7 | Out of space - nothing fits, **or some files were held back for space** (what fit was still fetched) |
 | 8 | Integrity failed - corrupt or missing files, **or a download that did not finish everything** |

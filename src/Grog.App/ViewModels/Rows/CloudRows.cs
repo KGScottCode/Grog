@@ -29,8 +29,6 @@ public sealed partial class CloudGameRow : ObservableObject
         AccountId = accountId;
     }
 
-    /// <summary>The account whose container this row shows (saves are per-account facts). "" = the
-    /// tokens.json slot. Downloads for the row go through THIS account's session.</summary>
     public string AccountId { get; }
     public long GogId { get; }
     public string Title { get; }
@@ -52,7 +50,6 @@ public sealed partial class CloudGameRow : ObservableObject
     public bool CanExpand => HasBackup;
     public string ExpandGlyph => IsExpanded ? "▾" : "▸";
     public string ExpandTip => IsExpanded ? "Hide local saves" : "Show local saves";
-    /// <summary>True once we've looked and found nothing on disk -- drives the empty-history note.</summary>
     public bool ShowEmptyHistory => LocalSavesLoaded && LocalSaves.Count == 0;
     partial void OnIsExpandedChanged(bool value)
     {
@@ -62,8 +59,6 @@ public sealed partial class CloudGameRow : ObservableObject
     partial void OnLocalSavesLoadedChanged(bool value) => OnPropertyChanged(nameof(ShowEmptyHistory));
 
     public bool HasBackup => LocalSaveCount > 0;
-    /// <summary>Up to date only with a COMPLETE backup of the CURRENT cloud state: every file captured, no
-    /// server-side change since (change timestamp, else size+file-count). Uncertainty = "update available".</summary>
     // Core's rule (CloudSaveRun.IsUpToDate), over this row's immutable facts; computed once.
     private bool? _upToDate;
     public bool IsUpToDate => _upToDate ??= Grog.Core.Runs.CloudSaveRun.IsUpToDate(new Grog.Core.Models.CloudAccountSave
@@ -76,9 +71,7 @@ public sealed partial class CloudGameRow : ObservableObject
 
     // ---- Cloud row "online -> local" compare: the SAVE's last-changed time on GOG next to OUR last backup
     //      time; the gap between them IS the status, so New/Update/Up-to-date reads at a glance.
-    /// <summary>Status as one colored pill: New (never backed up) / Update available / Up to date.</summary>
     public string StatusPillText => !HasBackup ? "New" : IsUpToDate ? "Up to date" : "Update available";
-    /// <summary>New + Update available are AMBER (an action: you don't hold the current save); Up to date is green.</summary>
     public IBrush StatusPillFg => IsUpToDate ? Palette.SuccessGreen : Palette.AccentAmberSoft;
     public IBrush StatusPillBg => RowBrushes.Translucent(StatusPillFg, 0x22);
     public IBrush StatusPillBorder => RowBrushes.Translucent(StatusPillFg, 0x55);
@@ -112,12 +105,8 @@ public sealed partial class CloudGameRow : ObservableObject
     public bool HasEvidenceTail => EvidenceTail.Length > 0;
     public bool HasEvidenceDatum2 => EvidenceDatum2.Length > 0;
 
-    /// <summary>Staleness phrased as an AGE ("4 days old"), not a point in time ("4 days ago"): the behind-row
-    /// reads "your backup is 4 days old", which is the reason to act rather than another date to compare.</summary>
     private static string AgeShort(System.DateTimeOffset t) => Grog.Core.Format.RelativeTime.Old(t);
 
-    /// <summary>The exact stamps, parked on hover: the glance is relative, the precision is on demand. Both
-    /// sides appear together here, which is where a behind-row comparison belongs.</summary>
     public string StampTooltip
     {
         get
@@ -128,8 +117,6 @@ public sealed partial class CloudGameRow : ObservableObject
         }
     }
 
-    /// <summary>Size (+ local save count once we hold one), parenthesised and dim beside the title: context for
-    /// the row, never its headline.</summary>
     public string SizeSnapText => HasBackup
         ? $"({F(SizeBytes)} · {LocalSaveCount} local save{(LocalSaveCount == 1 ? "" : "s")})"
         : $"({F(SizeBytes)})";
@@ -138,8 +125,6 @@ public sealed partial class CloudGameRow : ObservableObject
     private static string RelativeShort(System.DateTimeOffset t) => Grog.Core.Format.RelativeTime.Ago(t);
 }
 
-/// <summary>An account section header on the Cloud Saves page (only when more than one account holds
-/// saves). Carries the account's disc, name and rollup, and expands/collapses its games.</summary>
 public sealed partial class CloudAccountHeaderRow : ObservableObject
 {
     public CloudAccountHeaderRow(string accountId, string name, int games, long sizeBytes, bool expanded)

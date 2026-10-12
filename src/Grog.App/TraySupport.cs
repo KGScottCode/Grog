@@ -5,10 +5,6 @@ using System.Linq;
 
 namespace Grog.App;
 
-/// <summary>Best-effort check for a system tray Grog can minimize to; picks the first-run default for the
-/// Minimize-to-tray setting.</summary>
-/// <remarks>Heuristic on XDG_CURRENT_DESKTOP: bare GNOME lacks StatusNotifierItem, so it counts as unsupported
-/// to avoid defaulting anyone into a hidden-and-unreachable window. Tray creation still has its own fallback.</remarks>
 public static class TraySupport
 {
     public static bool IsLikelySupported()

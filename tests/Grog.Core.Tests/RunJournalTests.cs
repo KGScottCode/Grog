@@ -10,10 +10,6 @@ using System.Text.Json;
 using Grog.Core.Runs;
 using Grog.Core.Tests.Framework;
 
-/// <summary>
-/// The journal exists to survive a hard kill, so these tests care about one thing above all: what is ON DISK
-/// at each moment, not what the object returns. Every assertion re-reads the files.
-/// </summary>
 [NewBatch]
 public class RunJournalTests
 {

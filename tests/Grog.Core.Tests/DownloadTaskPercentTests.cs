@@ -6,8 +6,6 @@ using Grog.Core.Download;
 using Grog.Core.Models;
 using Grog.Core.Tests.Framework;
 
-/// <summary>PercentComplete is CAPPED at 100: GOG under-reports some file lengths, and a file
-/// receiving past its advertised total must not render 104% while the tail arrives.</summary>
 [NewBatch]
 [Trait("downloadpct")]
 public class DownloadTaskPercentTests

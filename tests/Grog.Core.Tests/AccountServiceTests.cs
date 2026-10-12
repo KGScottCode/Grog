@@ -11,12 +11,6 @@ using Grog.Core.Manifest;
 using Grog.Core.Storage;
 using Grog.Core.Tests.Framework;
 
-/// <summary>
-/// Account registration. The bug these exist for: Grog has TWO paths that register the signed-in user, and
-/// they keyed the same person differently -- an id-less registration derives its id from the username
-/// tokens.json), while Add-account stores Id = the GOG username. Doing both put the same account on the
-/// Accounts page twice.
-/// </summary>
 [NewBatch]
 [Trait("accounts")]
 public class AccountServiceTests
@@ -65,25 +59,25 @@ public class AccountServiceTests
         // Seen live: seven "" attributions survived the sweep because every one was a DLC --
         // Dlcs holds nested items with the same fields, and the first sweep only walked the top level.
         var (svc, store) = NewSetup();
-        await svc.AddOrUpdateAsync("kevin", "kevin", "kevin");
-        var game = new Grog.Core.Models.LibraryItem { GogId = 1, Title = "Base", AccountId = "kevin" };
+        await svc.AddOrUpdateAsync("acct", "acct", "acct");
+        var game = new Grog.Core.Models.LibraryItem { GogId = 1, Title = "Base", AccountId = "acct" };
         var dlc = new Grog.Core.Models.LibraryItem { GogId = 2, Title = "DLC", AccountId = "" };
         dlc.Files.Add(new Grog.Core.Models.GameFile { GameGogId = 2, FileKey = "d", OwnerIds = { "" } });
         game.Dlcs.Add(dlc);
         store.Current.Items.Add(game);
 
         Assert.False(await svc.MigrateLegacyPrimaryAsync(), "already migrated");
-        Assert.Equal("kevin", dlc.AccountId, "the DLC's attribution heals too");
-        Assert.Equal("kevin", dlc.Files[0].OwnerIds[0], "and its file ownership");
+        Assert.Equal("acct", dlc.AccountId, "the DLC's attribution heals too");
+        Assert.Equal("acct", dlc.Files[0].OwnerIds[0], "and its file ownership");
     }
 
     [Test]
     async Task Migration_is_a_no_op_on_an_already_migrated_manifest()
     {
         var (svc, store) = NewSetup();
-        await svc.AddOrUpdateAsync("kevin", "kevin", "kevin");
+        await svc.AddOrUpdateAsync("acct", "acct", "acct");
         Assert.False(await svc.MigrateLegacyPrimaryAsync(), "nothing to migrate");
-        Assert.Equal("kevin", store.Current.Accounts[0].Id, "and nothing changed");
+        Assert.Equal("acct", store.Current.Accounts[0].Id, "and nothing changed");
     }
 
     [Test]
@@ -92,14 +86,14 @@ public class AccountServiceTests
         // Crash window: the token was copied and the manifest committed, but the delete never ran.
         var (svc, store) = NewSetup();
         var paths = GrogPaths.Resolve(_root);
-        await svc.AddOrUpdateAsync("kevin", "kevin", "kevin");
+        await svc.AddOrUpdateAsync("acct", "acct", "acct");
         Directory.CreateDirectory(Path.GetDirectoryName(paths.TokensPath)!);
-        File.WriteAllText(svc.TokenPathFor("kevin"), "{}");
+        File.WriteAllText(svc.TokenPathFor("acct"), "{}");
         File.WriteAllText(paths.TokensPath, "{}");   // the stale original
 
         Assert.False(await svc.MigrateLegacyPrimaryAsync(), "no unnamed slot left to migrate");
         Assert.False(File.Exists(paths.TokensPath), "but the stale credential copy is cleaned up");
-        Assert.True(File.Exists(svc.TokenPathFor("kevin")), "and the live token is untouched");
+        Assert.True(File.Exists(svc.TokenPathFor("acct")), "and the live token is untouched");
     }
 
     [Test]
@@ -276,12 +270,12 @@ public class AccountServiceTests
     [Test]
     async Task Ids_are_lowercased_so_token_filenames_agree_across_filesystems()
     {
-        // tokens-the owner.json and tokens-kevin.json are ONE file on Windows and TWO on Linux, and the
+        // tokens-the owner.json and tokens-acct.json are ONE file on Windows and TWO on Linux, and the
         // config travels between them. One identity must be one file everywhere.
         var (svc, store) = NewSetup();
-        await svc.AddOrUpdateAsync("Kevin", "SomeUser", "SomeUser");
-        Assert.Equal("kevin", store.Current.Accounts[0].Id, "the id is stored lowercase");
-        Assert.Equal(svc.TokenPathFor("Kevin"), svc.TokenPathFor("kevin"),
+        await svc.AddOrUpdateAsync("Acct", "SomeUser", "SomeUser");
+        Assert.Equal("acct", store.Current.Accounts[0].Id, "the id is stored lowercase");
+        Assert.Equal(svc.TokenPathFor("Acct"), svc.TokenPathFor("acct"),
             "any casing of the id resolves to the same token file");
     }
 }

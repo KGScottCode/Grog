@@ -10,30 +10,18 @@ using Grog.Core.Manifest;
 
 namespace Grog.Core.Sync;
 
-/// <summary>One account's slice of a multi-account scan: what ran, what it found, or why it didn't.</summary>
 public sealed record AccountSyncPass(string AccountId, string Name, bool Skipped, string? SkipReason,
                                      SyncResult? Result, Exception? Error);
 
-/// <summary>
-/// Scans ALL connected accounts sequentially (signed-out accounts skip with a log line), one
-/// LibrarySyncService per account with AccountId set so owner merge and attribution do the rest.
-/// Sequential ON PURPOSE: the per-IP rate budget is one body, and interleaved scans would also
-/// interleave their backoff gates.
-/// </summary>
 public sealed class MultiAccountSync
 {
     private readonly AccountSessions _sessions;
     private readonly IManifestStore _manifest;
 
-    /// <summary>Host hook to dress each account's service (art fetch, Discovered preview, Progress
-    /// forwarding) before it runs. The GUI wires its usual hooks here; the CLI wires console output.</summary>
     public Action<LibrarySyncService, Grog.Core.Models.GrogAccount>? Configure { get; set; }
 
-    /// <summary>One line per account: "Scanning kevin...", "Skipped kids-account - signed out".</summary>
     public Action<string>? Log { get; set; }
 
-    /// <summary>Cloud-save discovery rides the scan. On by default; a host that must not touch the cloud
-    /// endpoints (tests, a scoped tool) turns it off.</summary>
     public bool IncludeCloudSaves { get; set; } = true;
 
     public MultiAccountSync(AccountSessions sessions, IManifestStore manifest)
@@ -45,8 +33,6 @@ public sealed class MultiAccountSync
     public async Task<IReadOnlyList<AccountSyncPass>> RunAsync(CancellationToken ct = default)
     {
         var passes = new List<AccountSyncPass>();
-        // Snapshot: a pass may save the manifest; iterating the live list while promotion or dedupe
-        // mutates it is the kind of surprise this file exists to not have.
         var accounts = new List<Grog.Core.Models.GrogAccount>(_sessions.Accounts);
         foreach (var acct in accounts)
         {
@@ -61,9 +47,6 @@ public sealed class MultiAccountSync
             }
 
             Log?.Invoke($"Scanning {name}'s library…");
-            // The per-service delisted sweep is OFF: one account's library is not the whole shared
-            // library, and each account's sweep would flag every game the others own. ONE sweep runs
-            // after the loop, over the union of what every scanned account saw.
             var svc = new LibrarySyncService(_sessions.ApiFor(acct.Id), _manifest)
                 { AccountId = acct.Id, HostOwnsReconcile = true };
             Configure?.Invoke(svc, acct);
@@ -76,24 +59,18 @@ public sealed class MultiAccountSync
             catch (OperationCanceledException) { throw; }
             catch (AuthExpiredException ex)
             {
-                // The token file exists but no longer refreshes. ONE account's problem: mark it so
-                // the download picker stops offering it this run, say so, carry on with the rest.
                 _sessions.MarkAuthFailed(acct.Id);
                 Log?.Invoke($"Skipped {name} - session expired, sign in again from the Accounts page");
                 passes.Add(new AccountSyncPass(acct.Id, name, true, "session expired", null, ex));
             }
             catch (Exception ex)
             {
-                // A mid-scan failure for one account must not abort the others; the pass records it
-                // and the host decides how loudly to say it.
                 Log?.Invoke($"Scan failed for {name}: {Api.GogError.Describe(ex)}");
                 passes.Add(new AccountSyncPass(acct.Id, name, false, null, null, ex));
             }
         }
 
-        // OWNER NARROWING, per scanned account: a COMPLETED full scan that never saw a game means the
-        // account is not entitled to it, so the account leaves that game's owner lists. Skipped or failed
-        // accounts narrow NOTHING: their entitlements are unknown today, not absent.
+        // OWNER NARROWING, per scanned account
         bool changed = false;
         using (_manifest.Gate.Enter())   // the run's whole-library writes, under the manifest gate
         {
@@ -101,9 +78,6 @@ public sealed class MultiAccountSync
             if (p.Result is { } pr)
                 changed |= NarrowOwnersForScannedAccount(_manifest.Current, p.AccountId, pr.SeenIds) > 0;
 
-        // The run's ONE whole-library reconcile (delisted sweep + Excluded rebuild), over the union of
-        // every scanned account's results -- and only when EVERY registered account actually scanned,
-        // because "unseen" says nothing when an account's slice of the library was never fetched.
         if (passes.Count > 0 && passes.All(p => p.Result is not null))
         {
             var seen = new HashSet<long>();
@@ -121,8 +95,6 @@ public sealed class MultiAccountSync
         }
         }
 
-        // Cloud saves are per-account facts, never merged. Replacement is per scanned account, so partial
-        // knowledge is safe: a signed-out account keeps its section as it was; no full-knowledge gate.
         if (IncludeCloudSaves && passes.Any(p => p.Result is not null))
         {
             var (byAccount, complete) = await ListCloudContainersByAccountAsync(ct);
@@ -139,9 +111,6 @@ public sealed class MultiAccountSync
         return passes;
     }
 
-    /// <summary>Every connected account's cloud-save containers, kept per account for the reconciler.
-    /// Complete = every registered account answered; a partial result is still applied (per-account
-    /// replacement), the flag only shapes the log/status line.</summary>
     public async Task<(IReadOnlyList<(string AccountId, IReadOnlyList<CloudSaves.CloudContainer> Containers)> ByAccount, bool Complete)>
         ListCloudContainersByAccountAsync(CancellationToken ct = default)
     {
@@ -173,9 +142,6 @@ public sealed class MultiAccountSync
         return (result, complete && result.Count > 0);
     }
 
-    /// <summary>One scanned account's owner narrowing (see RunAsync). Pure and static so the rule is
-    /// testable without a network: remove <paramref name="accountId"/> from the owner lists of every
-    /// game its completed scan did not see. Returns how many files lost the owner.</summary>
     public static int NarrowOwnersForScannedAccount(LibraryManifest manifest, string accountId,
                                                     IReadOnlyCollection<long> seenIds)
     {

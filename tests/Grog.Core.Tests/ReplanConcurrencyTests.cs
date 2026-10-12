@@ -14,20 +14,6 @@ using Grog.Core.Volumes;
 
 namespace Grog.Core.Tests;
 
-/// <summary>The re-plan added on the sort path runs on the UI thread while download
-/// workers are settling on their own threads. Both failures it shipped with were of exactly that shape and
-/// neither was reachable by a single-threaded test: a lock-order deadlock against RunSettler, then a
-/// duplicate enqueue in the window where a task is Completed but its queue entry is not yet removed.
-///
-/// These drive a REAL RunSettler against a REAL engine while the re-plan runs, and assert that a file is
-/// never in the engine twice and that nothing still owed is lost.
-///
-/// NOT covered here: the deadlock. A two-thread test for it was written and then DELETED, because
-/// reintroducing the bug (holding the gate across the engine calls) did not fail it -- it never reproduced
-/// the contention it claimed to test. A test that passes with the bug present is worse than no test, because
-/// it certifies the untested path as covered. The deadlock is guarded instead by the deterministic property
-/// test in ReplanOnSortTests: the manifest gate is never held while the engine raises an event. That one DOES
-/// fail when the bug is reintroduced.</summary>
 [NewBatch]
 [Trait("placement")]
 public sealed class ReplanConcurrencyTests
@@ -63,8 +49,6 @@ public sealed class ReplanConcurrencyTests
     private static int DuplicateFileKeys(DownloadEngine e)
         => e.Snapshot.GroupBy(t => (t.File.GameGogId, t.File.FileKey)).Count(g => g.Count() > 1);
 
-    /// <summary>THE DUPLICATE. A task that has completed stays in the engine's queue until the settler removes
-    /// its manifest entry. Re-planning inside that window must not enqueue the file again.</summary>
     [Test]
     public void Re_planning_while_tasks_complete_never_enqueues_a_file_twice()
     {
@@ -104,10 +88,6 @@ public sealed class ReplanConcurrencyTests
         }
     }
 
-    /// <summary>An engine call from the UI thread ran the settle pass INLINE and waited behind a worker's
-    /// notify (a drive probe on a busy stick): 5 to 24 s frozen. The settler now owns one worker; the caller only
-    /// signals it. Held here with a host that blocks in TaskSettled: a queue-sized cancel must still return at once,
-    /// and nothing the blocked settler owed is lost once it is released.</summary>
     [Test]
     public async Task An_engine_call_never_waits_for_the_settler()
     {
@@ -136,8 +116,6 @@ public sealed class ReplanConcurrencyTests
         Assert.Equal(0, host.OnCallerThread, "no settle ever ran on the caller's thread");
     }
 
-    /// <summary>Interleaving a re-plan with settling must not lose queue entries either. Whatever is neither
-    /// completed nor settled is still owed, and the run must still know about it.</summary>
     [Test]
     public void Re_planning_never_drops_a_file_that_is_still_owed()
     {

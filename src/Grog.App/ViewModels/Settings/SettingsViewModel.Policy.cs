@@ -20,7 +20,6 @@ public sealed partial class SettingsViewModel
     /// secondary column and the policy line dropped the WHERE.</para>
     public bool ShowExtrasLocation => _library.IncludeExtras && ExtrasCard.ShowStorageRow;
 
-    /// <summary>True when extras route to a folder other than the primary (the "separate folder" pick).</summary>
     public bool ExtrasSeparateLocation
     {
         get
@@ -34,20 +33,15 @@ public sealed partial class SettingsViewModel
 
     // ---- Settings "Which folder holds the Extras" row: aliases over the routing above so there is ONE
     //      source of truth; RaisePolicyState raises these alongside the underlying properties. ----
-    /// <summary>Show the "Which folder holds the Extras" choice: same gate as the folder preview.</summary>
     public bool ShowExtrasFolderChoice => ShowExtrasLocation;
-    /// <summary>The "Primary (with games)" pill is selected.</summary>
     public bool ExtrasOnPrimary => ExtrasWithGames;
-    /// <summary>The "Secondary folder" pill is selected.</summary>
     public bool ExtrasOnSecondary => ExtrasSeparateLocation;
 
-    /// <summary>Sub-label stating where extras land under the current pick, naming the secondary folder.</summary>
     // Kept SHORT: it sits inline beside its label, and a long hint wraps and crowds the pills.
     public string ExtrasFolderHint => ExtrasSeparateLocation
         ? $"In {SecondaryFolderLabel}."
         : "With the games.";
 
-    /// <summary>Display label for the non-primary folder ("Secondary" if it has no name yet).</summary>
     // ONE secondary lookup, the card's: this was a second copy of "first location that is not
     // the primary", free to disagree with the card it sits beside.
     private string SecondaryFolderLabel => ExtrasCard.SecondaryName ?? "the secondary storage";
@@ -78,10 +72,8 @@ public sealed partial class SettingsViewModel
     // disabled (the dimmed state explains itself; no note).
     public bool ExtrasRoutingEnabled => ExtrasSeparateTreeActive;
 
-    /// <summary>Tells the folder preview + policy strip there is more than one folder.</summary>
     public bool ShowModePicker => _root.Storage.BackupLocations.Count >= 2;
 
-    /// <summary>Just the preview: the staged card moved, nothing is committed yet.</summary>
     internal void RaiseFolderPreview()
     {
         OnPropertyChanged(nameof(FolderPreviewPrimary)); OnPropertyChanged(nameof(FolderPreviewSecondary));
@@ -114,11 +106,8 @@ public sealed partial class SettingsViewModel
                                         && ExtrasCard.StagedPlacement != Grog.Core.Models.ExtrasPlacement.WithGame;
     public string FolderPreviewCaption => PolicySummaryText;
 
-    /// <summary>The preview's eyebrow. While the card is staged the tree below is a PROPOSAL, and calling
-    /// it "folder preview" in that state is what let the old UI describe a layout the disk never got.</summary>
     public string FolderPreviewEyebrow => ExtrasCard.IsDirty ? "AFTER APPLY" : "FOLDER PREVIEW";
 
-    /// <summary>One preview line; Accent renders it amber (the extras the layout choice moves).</summary>
     public sealed record PreviewLine(string Text, bool Accent);
 
     public IReadOnlyList<PreviewLine> FolderPreviewPrimary => BuildFolderPreview().primary;
@@ -181,7 +170,6 @@ public sealed partial class SettingsViewModel
         return (pri, sec);
     }
 
-    /// <summary>One-line what/where/how policy summary shown on the Backups page.</summary>
     public string PolicySummaryText
     {
         get

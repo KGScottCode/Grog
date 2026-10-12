@@ -67,7 +67,6 @@ public static class TestRunner
     const string ConfigDirVar = "GROG_CONFIG_DIR";
     const int DefaultTimeoutSeconds = 120;
 
-    /// <summary>The per-test limit: the attribute, else GROG_TEST_TIMEOUT, else 120 s.</summary>
     internal static int TimeoutFor(TestAttribute attr)
     {
         if (attr.TimeoutSeconds > 0) return attr.TimeoutSeconds;
@@ -144,7 +143,6 @@ public static class TestRunner
         return Summarize(results);
     }
 
-    /// <summary>Tasks of tests that timed out and are still running; drained once, bounded, before the summary.</summary>
     static readonly List<(string Name, Task Work)> _overrun = new();
 
     static void WaitForTimedOut()
@@ -157,9 +155,6 @@ public static class TestRunner
             Console.WriteLine($"{still.Count} test(s) still running at exit: {string.Join(", ", still)}");
     }
 
-    /// <summary>Runs the test on its own Task and races it against the limit. A test that overruns is a FAIL
-    /// ("timed out after N s"); its Task is left running (no thread abort) and the runner moves on with the
-    /// real console restored, so the dashboard keeps printing.</summary>
     static Result RunOneWithTimeout(Type type, MethodInfo m, MethodInfo? setup, MethodInfo? teardown, string testName, int timeoutSeconds)
     {
         var realOut = Console.Out;

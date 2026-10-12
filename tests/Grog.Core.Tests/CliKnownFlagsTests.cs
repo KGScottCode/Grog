@@ -9,11 +9,6 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Grog.Core.Tests.Framework;
 
-/// <summary>
-/// The CLI's unknown-flag validator is a hand-maintained literal set, and twice a shipped flag was missing
-/// from it (--help, --retry-failed) - so the app's own validator rejected its own flags. This pins the set
-/// to the source: every "--x" literal in Program.cs must appear in knownFlags.
-/// </summary>
 [NewBatch]
 [Trait("cli")]
 public class CliKnownFlagsTests

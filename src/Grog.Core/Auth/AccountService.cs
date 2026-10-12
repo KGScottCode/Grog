@@ -12,9 +12,6 @@ using Grog.Core.Storage;
 
 namespace Grog.Core.Auth;
 
-/// <summary>Manages the set of GOG accounts Grog syncs from. Multiple accounts merge into ONE combined
-/// library (items tagged by AccountId); volumes, routing policy, and scope stay GLOBAL. Each account has
-/// its own token file (tokens-&lt;id&gt;.json) and no account is special.</summary>
 public sealed class AccountService
 {
     private readonly IManifestStore _manifest;
@@ -28,8 +25,6 @@ public sealed class AccountService
 
     public IReadOnlyList<GrogAccount> Accounts => _manifest.Current.Accounts;
 
-    /// <summary>The token file for an account: tokens-&lt;id&gt;.json, every account alike. An empty id here
-    /// is a caller bug -- MigrateLegacyPrimary retires the unnamed slot on load.</summary>
     public string TokenPathFor(string accountId)
     {
         if (string.IsNullOrEmpty(accountId))
@@ -37,9 +32,6 @@ public sealed class AccountService
         return Path.Combine(_paths.ConfigDir, $"tokens-{Sanitize(accountId)}.json");
     }
 
-    /// <summary>Migrates the pre-multi-account layout (unnamed account, bare tokens.json) to an ordinary
-    /// account: id from username, token file renamed, "" attributions rewritten. Crash-safe order -- COPY the
-    /// token, commit the manifest, only then delete the original. Re-entrant across interrupted runs.</summary>
     public async Task<bool> MigrateLegacyPrimaryAsync(CancellationToken ct = default)
     {
         await Gate.WaitAsync(ct);
@@ -50,15 +42,11 @@ public sealed class AccountService
             var legacyToken = _paths.TokensPath;
             if (legacy is null)
             {
-                // Manifest already migrated; a leftover tokens.json is a stale copy from an interrupted
-                // run. Finishing the delete is credential cleanup.
                 if (File.Exists(legacyToken)
                     && m.Accounts.Any(a => File.Exists(TokenPathFor(a.Id))))
                 {
                     try { File.Delete(legacyToken); } catch { }
                 }
-                // Heal any stray "" attributions: they belong to the first account, same as the
-                // migration itself would have assigned.
                 bool healed;
                 using (_manifest.Gate.Enter())   // 
                     healed = m.Accounts.FirstOrDefault()?.Id is { Length: > 0 } firstId && RewriteEmptyAttributions(m, firstId);
@@ -87,12 +75,8 @@ public sealed class AccountService
         finally { Gate.Release(); }
     }
 
-    /// <summary>Register a new account (or update an existing one's display fields). Id should be a
-    /// short stable slug the user picks (e.g. "main", "kids"); we sanitize it for filesystem use.</summary>
     public async Task<GrogAccount> AddOrUpdateAsync(string id, string username, string login, CancellationToken ct = default)
     {
-        // STATIC gate, because callers construct a NEW AccountService per call -- an instance lock would
-        // guard nothing.
         await Gate.WaitAsync(ct);
         try
         {
@@ -103,9 +87,6 @@ public sealed class AccountService
         finally { Gate.Release(); }
     }
 
-    /// <summary>Serializes registration across ALL AccountService instances. A check-then-act across an await
-    /// is not atomic: the gate must be held across the whole read-modify-save or overlapping registrations
-    /// produce duplicate account rows.</summary>
     private static readonly SemaphoreSlim Gate = new(1, 1);
 
     private static bool RewriteEmptyAttributions(Grog.Core.Manifest.LibraryManifest m, string id)
@@ -125,8 +106,6 @@ public sealed class AccountService
                 if (f.OwnerIds[i] == "") { f.OwnerIds[i] = id; changed = true; }
         foreach (var c in item.CloudByAccount)
             if (c.AccountId == "") { c.AccountId = id; changed = true; }
-        // Dlcs holds nested items with the same attribution fields; a sweep that skips them leaves
-        // exactly the strays it exists to heal.
         foreach (var d in item.Dlcs)
             changed |= RewriteItem(d, id);
         return changed;
@@ -135,12 +114,8 @@ public sealed class AccountService
     private GrogAccount AddOrUpdateCore(string id, string username, string login)
     {
         id = Sanitize(id);
-        // No unnamed slot: registering without an id derives one from the username, so every account is
-        // ordinary from the moment it exists.
         if (id.Length == 0) id = Sanitize(username);
         if (id.Length == 0) throw new ArgumentException("An account needs an id or a username.", nameof(id));
-        // Username is the identity; the id is just its filesystem-safe form. Matching id first covers a
-        // rename, the username fallback covers the same person arriving under a differently-derived id.
         using (_manifest.Gate.Enter())   // 
         {
             _manifest.Gate.AssertHeld();
@@ -162,9 +137,6 @@ public sealed class AccountService
         }
     }
 
-    /// <summary>Collapses rows that are the same GOG account (username is the identity, case-insensitive) and
-    /// reports how many went. The survivor is the row whose token file exists, ties to earliest registration;
-    /// item attribution is preserved.</summary>
     public async Task<int> DedupeAsync(CancellationToken ct = default)
     {
         await Gate.WaitAsync(ct);
@@ -179,8 +151,6 @@ public sealed class AccountService
                          .Where(g => g.Count() > 1)
                          .ToList())
             {
-                // The survivor is the row whose token file actually exists (that is the login the app can
-                // still use); ties go to the earliest registration.
                 var keep = group.FirstOrDefault(a => !string.IsNullOrEmpty(a.Id) && File.Exists(TokenPathFor(a.Id)))
                            ?? group.First();
                 foreach (var dup in group.Where(a => !ReferenceEquals(a, keep)).ToList())
@@ -196,9 +166,6 @@ public sealed class AccountService
         finally { Gate.Release(); }
     }
 
-    /// <summary>Log OUT of an account: forget its stored token so it stops syncing until the user signs
-    /// back in. The registration, its library items and every downloaded byte stay -- Remove is the one
-    /// that unregisters. Returns true when a token was actually forgotten.</summary>
     public bool LogOut(string id)
     {
         id = Sanitize(id);
@@ -211,9 +178,6 @@ public sealed class AccountService
         return false;
     }
 
-    /// <summary>Removes an account: stops future syncs and deletes its token file, but NEVER deletes its
-    /// already-synced library items (owned backups; they keep their AccountId tag as attribution).
-    /// No promotion: every account runs on its own token file, so the rest keep syncing unchanged.</summary>
     public async Task<bool> RemoveAsync(string id, CancellationToken ct = default)
     {
         id = Sanitize(id);
@@ -237,10 +201,6 @@ public sealed class AccountService
     }
 
 
-    /// <summary>Per-account item counts for display. OWNERS-BASED: a co-owned game counts for every owner
-    /// (DOOM is in both accounts' libraries and both cards should say so), so the columns can sum to more
-    /// than the library total -- cards answer "how many games does THIS account have", not "who contributed
-    /// what". Falls back to legacy AccountId via the OwnerIds union's own fallback.</summary>
     public Dictionary<string, int> ItemCountsByAccount()
     {
         var counts = new Dictionary<string, int>();
@@ -250,8 +210,6 @@ public sealed class AccountService
         return counts;
     }
 
-    /// <summary>Ids become FILENAMES (tokens-&lt;id&gt;.json) and the config can travel between case-insensitive
-    /// and case-sensitive disks; lowercasing at the gate keeps one identity = one file on every OS.</summary>
     private static string Sanitize(string id)
     {
         var cleaned = (id ?? "").Trim().ToLowerInvariant();

@@ -138,16 +138,15 @@ public class CloudSaveTests
     [Test]
     void ParseContainers_ReadsLiveMasterList()
     {
-        // Verbatim from a live /v2/users/{id}/containers capture (6 cloud-save games).
         const string json = """
         { "pagination": { "page": 1, "limit": 50, "pages": 1 },
           "items": [
-            { "games": [ { "id": 1612002354, "quota": 209715200 } ], "container": { "size": 341060, "files": 1, "space_id": "58342960733154355", "quota": 209715200 } },
-            { "games": [ { "id": 1418669891, "quota": 209715200 } ], "container": { "size": 58573, "files": 4, "space_id": "52025746126771922", "quota": 209715200 } },
-            { "games": [ { "id": 1158113613, "quota": 209715200 } ], "container": { "size": 5062, "files": 2, "space_id": "58812467486876255", "quota": 209715200 } },
-            { "games": [ { "id": 1207659066, "quota": 209715200 } ], "container": { "size": 793, "files": 1, "space_id": "49903592519473549", "quota": 209715200 } },
-            { "games": [ { "id": 1706049527, "quota": 209715200 } ], "container": { "size": 29, "files": 1, "space_id": "51909715004502048", "quota": 209715200 } },
-            { "games": [ { "id": 1207658959, "quota": 209715200 } ], "container": { "size": 21, "files": 1, "space_id": "49903590898113770", "quota": 209715200 } }
+            { "games": [ { "id": 1612002354, "quota": 209715200 } ], "container": { "size": 341060, "files": 1, "space_id": "10000000000000000", "quota": 209715200 } },
+            { "games": [ { "id": 1418669891, "quota": 209715200 } ], "container": { "size": 58573, "files": 4, "space_id": "10000000000000001", "quota": 209715200 } },
+            { "games": [ { "id": 1158113613, "quota": 209715200 } ], "container": { "size": 5062, "files": 2, "space_id": "10000000000000002", "quota": 209715200 } },
+            { "games": [ { "id": 1207659066, "quota": 209715200 } ], "container": { "size": 793, "files": 1, "space_id": "10000000000000003", "quota": 209715200 } },
+            { "games": [ { "id": 1706049527, "quota": 209715200 } ], "container": { "size": 29, "files": 1, "space_id": "10000000000000004", "quota": 209715200 } },
+            { "games": [ { "id": 1207658959, "quota": 209715200 } ], "container": { "size": 21, "files": 1, "space_id": "10000000000000005", "quota": 209715200 } }
           ] }
         """;
         var list = Grog.Core.CloudSaves.CloudSaveService.ParseContainers(json);
@@ -156,7 +155,7 @@ public class CloudSaveTests
         Assert.Equal(1612002354L, re0.ProductId, "product id maps to library GogId");
         Assert.Equal(341060L, re0.SizeBytes, "container size");
         Assert.Equal(1, re0.Files, "file count");
-        Assert.Equal("58342960733154355", re0.SpaceId, "space id");
+        Assert.Equal("10000000000000000", re0.SpaceId, "space id");
         Assert.Equal(209715200L, re0.QuotaBytes, "200 MB quota");
     }
 
@@ -262,7 +261,6 @@ public class CloudSaveTests
     }
 }
 
-/// <summary>A save body cut short by the connection was renamed into place as the save (F7).</summary>
 [Trait("cloud")]
 public class CloudSaveDownloadLengthTests
 {

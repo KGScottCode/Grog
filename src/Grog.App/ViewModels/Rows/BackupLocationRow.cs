@@ -16,34 +16,20 @@ using Grog.Core.Format;
 
 namespace Grog.App.ViewModels;
 
-/// <summary>One backup location card: capacity + how much Grog holds there.</summary>
 public sealed record BackupLocationRow(
     string RootId, string Label, string Path, bool IsPrimary, bool IsOnline,
     long GrogBytes, long FreeBytes, long TotalBytes, int FileCount, string FitColor)
 {
-    /// <summary>Which content roles this device holds (By-content mode). Highlights the role chips.</summary>
-    /// <summary>The card's take-out button: the primary cannot be detached, so it says Forget; every other
-    /// storage says Detach. The dialog it opens uses the same word.</summary>
     public string DetachLabel => IsPrimary ? "Forget…" : "Detach…";
-    /// <summary>The user's name for the drive (root.Label), shown before the path only when it is not just
-    /// the folder name. Set by the builder.</summary>
     public string Name { get; init; } = "";
     public bool ShowName { get; init; }
     public string NameInParens => $"({Name})";
-    /// <summary>The drive by its own name (custom label or folder name), never the slot word: for log lines
-    /// about a slot change, where "Secondary is now the primary" says nothing once the roles have moved.</summary>
     public string DriveName => string.IsNullOrEmpty(Name) ? Label : Name;
     public string RenameTip => ShowName ? $"Rename {Name}" : "Name this storage";
     public bool HoldsGames { get; init; }
     public bool HoldsExtras { get; init; }
-    /// <summary>What Grog put here, by bucket, normalized to Grog's OWN content -- NOT to the drive
-    /// (splitting the capacity bar by type gives invisible hairlines). This bar answers "what's on it".</summary>
     public IReadOnlyList<ExtraTypeSegment> Composition { get; init; } = Array.Empty<ExtraTypeSegment>();
     public bool HasComposition => Composition.Count > 1;   // one bucket = a solid bar saying nothing
-    /// <summary>The card's "nothing here yet" placeholder keys on FILES, not on the bar's own visibility:
-    /// with exactly one content bucket the bar hides (solid bar says nothing) but files ARE here, and
-    /// borrowing !HasComposition made the card claim "Nothing backed up here yet" under a header counting
-    /// 1 game / 33 MB.</summary>
     public bool NothingBackedUpHere => FileCount == 0;
 
     // Fixed slots, because a proportional bar needs star-sized grid columns and those can't be generated
@@ -64,41 +50,21 @@ public sealed record BackupLocationRow(
     // Distinct from the composition bar above, which normalizes to Grog's own content. This one answers
     // "how full is this drive, and where will the queue leave it": other data, what Grog holds, what the
     // queue plans to add, then what is left.
-    /// <summary>Queued bytes the planner assigned to THIS root. Never exceeds its free space: files with
-    /// nowhere to go get no root at all, which is what <see cref="HasUnplaceableQueue"/> reports.</summary>
     public long QueuedBytes { get; init; }
-    /// <summary>Somewhere in the library, queued files fit on no device. A drive-level bar cannot show this
-    /// (the bytes were never assigned here), so it colors the bar instead of adding a phantom segment.</summary>
     public bool HasUnplaceableQueue { get; init; }
-    /// <summary>How much of the queue fits on no device at all. Named in the warning, because "some of it
-    /// won't fit" is ignorable and "18.2 GB won't fit" is not.</summary>
     public long UnplaceableBytes { get; init; }
-    /// <summary>How many queued files that shortfall is made of - the count leads so the warning opens
-    /// with the scale ("41 files / 170.8 GB"), not just an abstract byte figure.</summary>
     public int UnplaceableCount { get; init; }
     public string UnplaceableLine => FitsNowhereLine(UnplaceableCount, UnplaceableBytes);
-    /// <summary>THE fits-nowhere sentence (Storage row + Overview copy): count leads, bytes follow.</summary>
     public static string FitsNowhereLine(int count, long bytes)
         => $"{count} file{(count == 1 ? "" : "s")} / "
          + $"{Grog.Core.Format.ByteFormat.Size(bytes)} won't fit and will not download.";
-    /// <summary>The queued segment turns red once part of the queue has no home: the bar is packed to the
-    /// rim and that is a problem, not a snug fit.</summary>
     public IBrush QueuedSegmentBrush => HasUnplaceableQueue
         ? Palette.ErrorRed
         : RowBrushes.Translucent(Palette.AccentAmber, 0x80);
 
     public bool ShowCapacityBar => IsOnline && TotalBytes > 0;
-    /// <summary>Grog bytes held by OTHER backup folders on the SAME physical volume. Two folders on one drive
-    /// share Free and Total, so "used" (Total - Free) contains BOTH folders' Grog data; subtracting only this
-    /// row's own would report the sibling's backups as somebody else's files. Zero for a drive holding one
-    /// backup folder, which is why the error hid until a second folder was added to the same drive.</summary>
     public long SiblingGrogBytes { get; init; }
-    /// <summary>Data on this volume that is not Grog's. Everything Grog holds here comes out, whichever
-    /// folder it sits in.</summary>
     public long OtherBytes => Math.Max(0, TotalBytes - FreeBytes - GrogBytes - SiblingGrogBytes);
-    /// <summary>The bar's used + free equal Explorer's; the split is ours. When "other" is under 1% of the
-    /// volume on a drive that holds Grog, it is the filesystem's own bookkeeping (MFT, logs, recycle bin), which
-    /// Explorer folds into used without a name - name it, or the user hunts for files that do not exist.</summary>
     public bool OtherIsOverhead => IsOnline && TotalBytes > 0 && OtherBytes * 100 < TotalBytes;
     public string BarToolTip
     {
@@ -125,8 +91,6 @@ public sealed record BackupLocationRow(
     public Avalonia.Controls.GridLength CapFreeCol   => Slice(FreeAfterQueue);
     public bool HasQueuedSegment => QueuedShown > 0;
 
-    /// <summary>One line under the bar: what is free now, what the queue will take, and the shortfall when
-    /// some of it fits nowhere.</summary>
     public string CapacityCaption
     {
         get
@@ -141,28 +105,16 @@ public sealed record BackupLocationRow(
         }
     }
 
-    /// <summary>Where new files land, stated plainly. Policy, not a rule with exceptions: you can always move.</summary>
     public string PolicyLine { get; init; } = "";
     public bool IsViewing { get; init; }
 
-    /// <summary>User-declared: this device detaches (USB / external). When it's unplugged its files read
-    /// "Disconnected" (safe), not "Missing".</summary>
     public bool Removable { get; init; }
-    /// <summary>Set briefly (~2s) when a removable drive comes back, for the green "Reconnected" flash.</summary>
     public bool JustReattached { get; init; }
-    /// <summary>True once the drive state is trustworthy (services up + a real backup location). Until then
-    /// the card shows NO status at all -- better nothing briefly than a wrong status corrected later.</summary>
     public bool StatusKnown { get; init; } = true;
-    /// <summary>Offline BUT removable = safely detached, not a problem. Suppressed until status is known.</summary>
     public bool IsDisconnected => StatusKnown && !IsOnline && Removable;
     public string StatusWord => !StatusKnown ? "" : JustReattached ? "Reconnected" : IsOnline ? "Connected" : Removable ? "Disconnected" : "Offline";
-    /// <summary>"Verifying 37 / 192" while this storage's adopted files are being checked; "" otherwise. A verify
-    /// defers moves and showed nowhere before (a queued move "waits for the current scan or verify" over
-    /// a card that read plain Connected).</summary>
     public string VerifyText { get; init; } = "";
     public bool IsVerifying => VerifyText.Length > 0;
-    /// <summary>Calm, reassuring notice shown on a disconnected removable card: this is expected, the files
-    /// are remembered, and plugging the drive back in restores access. NOT the red "problem" treatment.</summary>
     public string DisconnectedNotice =>
         "This removable drive is unplugged. The files below are what was on it last time - reconnect it to back up or move them. Nothing is lost.";
     public string RemovableButtonText => Removable ? "✓ Removable" : "Mark as Removable";
@@ -171,8 +123,6 @@ public sealed record BackupLocationRow(
         : "Mark this folder's drive as removable (USB / external) so its files aren't flagged Missing when it's unplugged.";
 
     private static string F(long b) => Grog.Core.Format.ByteFormat.Size(b);
-    /// <summary>Set by the view model, which alone sees the whole library; UsageLine falls back to the
-    /// bare quantity when unset.</summary>
     public string CoverageLine { get; init; } = "";
     public string UsageLine => CoverageLine.Length > 0
         ? CoverageLine
@@ -182,10 +132,6 @@ public sealed record BackupLocationRow(
     // Split halves so the VALUES stay white and the connecting words go dim (value outweighs label).
     public string CapacityFreeText  => F(FreeBytes);
     public string CapacityTotalText => F(TotalBytes);
-    /// <summary>What Grog holds IN THIS FOLDER, as a size. It replaced a percentage of
-    /// the DRIVE in the Storage Status row: on a 952 GB volume holding 252 MB that percentage rounded to
-    /// "0.0%", so the row announced nothing was here while 22 files sat in the folder. A folder-scoped
-    /// quantity beside a drive-scoped capacity is the honest pairing; the percentage was neither.</summary>
     public string GrogSizeText => F(GrogBytes);
     public double GrogPercent => IsOnline && TotalBytes > 0 ? Math.Clamp(100.0 * GrogBytes / TotalBytes, 0, 100) : 0;
     public double UsedPercent => IsOnline && TotalBytes > 0 ? Math.Clamp(100.0 * (TotalBytes - FreeBytes) / TotalBytes, 0, 100) : 0;
@@ -198,8 +144,6 @@ public sealed record BackupLocationRow(
     private double QueuedPercent => TotalBytes <= 0 ? 0 : Math.Min(100 - UsedPercent, (double)QueuedShown / TotalBytes * 100);
     public Avalonia.Controls.GridLength QueuedCol => new(Math.Max(0, QueuedPercent), Avalonia.Controls.GridUnitType.Star);
     public Avalonia.Controls.GridLength FreeCol => new(Math.Max(0.0001, 100 - UsedPercent - QueuedPercent), Avalonia.Controls.GridUnitType.Star);
-    /// <summary>A fixed drive that should be present isn't (offline and NOT user-marked removable) -- the
-    /// device error state the rail dot + red card surface; an unplugged removable is IsDisconnected.</summary>
     public bool IsProblem => StatusKnown && !IsOnline && !Removable;
     // Green = connected; muted = safely disconnected (removable, unplugged); red = offline and NOT removable.
     // Neutral gray until status is known, so a card never opens on a red/orange claim it has to walk back.

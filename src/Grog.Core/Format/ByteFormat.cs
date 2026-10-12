@@ -4,14 +4,8 @@ using System;
 
 namespace Grog.Core.Format;
 
-/// <summary>Formats raw byte and rate values for display. One place, so units read consistently
-/// everywhere (S0 reference-don't-repeat, S5 units scale with 1-2 decimals).</summary>
 public static class ByteFormat
 {
-    /// <summary>THE byte formatter (every other one forwards here). E.g. 1610612736 -> "1.50 GB",
-    /// 357564416 -> "341.00 MB", 8192 -> "8.00 KB", 2 TB -> "2.000 TB". Two decimals at every scale
-    /// above bytes (mixing precisions reads as a bug), THREE at TB (at two the last
-    /// digit only moves per ~10 GB and a creeping figure looks stuck).</summary>
     public static string Size(long bytes)
     {
         if (bytes < 1024) return $"{bytes} B";
@@ -24,8 +18,6 @@ public static class ByteFormat
         return $"{gb / 1024.0:F3} TB";
     }
 
-    /// <summary>The narrow "got/total" form for a fixed-width progress column, e.g. "71.5/87.0 MB", "112/512 KB":
-    /// one shared unit chosen by the total, one decimal, none when the value is whole.</summary>
     public static string CompactPair(long got, long total)
     {
         (double val, string unit) Scale(long b) =>
@@ -38,13 +30,10 @@ public static class ByteFormat
         return $"{Fmt(gv)}/{Fmt(tv)} {unit}";
     }
 
-    /// <summary>E.g. "have / total" -> "1.20 / 4.00 GB".</summary>
     public static string Progress(long done, long total) => $"{Size(done)} / {Size(total)}";
 
-    /// <summary>E.g. 13000000 -> "12.4 MB/s".</summary>
     public static string Rate(double bytesPerSecond) => bytesPerSecond <= 0 ? "--" : $"{Size((long)bytesPerSecond)}/s";
 
-    /// <summary>E.g. 4530 -> "1h 15m", 620 -> "10m 20s", 45 -> "45s".</summary>
     public static string Duration(TimeSpan t)
     {
         if (t.TotalSeconds < 1) return "0s";

@@ -12,7 +12,6 @@ using Grog.Core.Models;
 
 namespace Grog.Core.Verify;
 
-/// <summary>What import does with matches. Chosen BEFORE the scan runs.</summary>
 public enum ImportMode
 {
     Preview,                 // report only; touch nothing
@@ -20,18 +19,14 @@ public enum ImportMode
     AdoptAndReportOrphans,   // adopt + write a list of folders/files that matched nothing
 }
 
-/// <summary>One on-disk file matched to a manifest file entry.</summary>
 public sealed record ImportFileMatch(string DiskPath, long Size, string FileKey, string EntryName, FileKind Kind);
 
-/// <summary>A folder confidently matched to a library item, with its adoptable files.</summary>
 public sealed record MatchedFolder(
     string Path, long GogId, string Title, string Reason,
     IReadOnlyList<ImportFileMatch> Files, int UnmatchedFileCount);
 
-/// <summary>A folder that matched more than one library item (needs a human).</summary>
 public sealed record AmbiguousFolder(string Path, IReadOnlyList<(long GogId, string Title)> Candidates);
 
-/// <summary>The result of scanning a source tree against the manifest. Pure; adoption is separate.</summary>
 public sealed class ImportPlan
 {
     public List<MatchedFolder> Matched { get; } = new();
@@ -40,17 +35,11 @@ public sealed class ImportPlan
     public List<string> OrphanFolders { get; } = new();          // scanned but no installer found
     public int FoldersScanned { get; set; }
     public int AdoptedFiles { get; set; }                        // filled in by ApplyAsync
-    /// <summary>The records ApplyAsync re-pointed, so the run can verify exactly those.</summary>
     public List<(long GogId, string FileKey)> AdoptedKeys { get; } = new();
 
     public int MatchedFileCount => Matched.Sum(m => m.Files.Count);
 }
 
-/// <summary>
-/// Folder-first importer for adopting a pre-existing GOG backup: walks a chosen folder to a small depth,
-/// stops at anything that looks like a game folder, and matches it to a library item by installer slug then
-/// year-stripped folder name. ApplyAsync re-points the manifest; nothing on disk is moved or deleted.
-/// </summary>
 public sealed class ImportPlanner
 {
     private readonly IManifestStore _manifest;
@@ -64,7 +53,6 @@ public sealed class ImportPlanner
         RootId = rootId;
     }
 
-    /// <summary>Backup root adopted files are stamped with (capacity tracking); null leaves RootId untouched.</summary>
     public string? RootId { get; }
 
     private static readonly string[] InstallerExts = { ".exe", ".bin", ".sh", ".dmg", ".pkg" };
@@ -72,18 +60,11 @@ public sealed class ImportPlanner
     private static bool IsInstallerFile(string path)
         => InstallerExts.Contains(Path.GetExtension(path).ToLowerInvariant());
 
-    /// <summary>A folder "is a game folder" if it directly contains at least one installer-looking file, or
-    /// carries Grog's own <c>Extras</c> subfolder (a game whose only backed-up files are extras has no
-    /// installer at its top level, so re-adding a drive never scanned it and 4 extras-only games stayed
-    /// un-adopted; the depth cap stopped the walk exactly there).</summary>
     private static bool LooksLikeGameFolder(string dir)
     {
         try
         {
             if (Directory.EnumerateFiles(dir).Any(IsInstallerFile)) return true;
-            // A BACKUP ROOT has a top-level Extras folder too, once a separate extras tree
-            // has ever been applied (FolderPruner never removes it). The root then read as ONE game folder:
-            // "no library match", nothing under Games was scanned, 0 adopted. A root is not a game.
             if (Directory.Exists(Path.Combine(dir, "Games"))) return false;
             return Directory.Exists(Path.Combine(dir, "Extras"));
         }
@@ -96,8 +77,6 @@ public sealed class ImportPlanner
         catch { return Array.Empty<string>(); }
     }
 
-    /// <summary>Depth-capped walk from the picked folder; never descends into a folder that already looks
-    /// like a game folder.</summary>
     public List<string> FindCandidateFolders(string root, int maxDepth = 2)
     {
         var found = new List<string>();
@@ -112,15 +91,10 @@ public sealed class ImportPlanner
         return found;
     }
 
-    /// <summary>Folders Grog itself makes that never hold a CURRENT file: the archive of superseded builds and
-    /// the partial-download folder. Import walked into both: an old build sits within the size
-    /// tolerance of the new one and was adopted as the current file, and a .part as a finished download.</summary>
     internal static bool IsGrogInternalFolder(string name)
         => string.Equals(name, Grog.Core.Download.DownloadEngine.OldVersionsFolder, StringComparison.OrdinalIgnoreCase)
         || string.Equals(name, ".grog-tmp", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>True when <paramref name="path"/> (under <paramref name="dir"/>) is inside an internal folder or
-    /// is itself a partial.</summary>
     internal static bool IsGrogInternalFile(string dir, string path)
     {
         if (path.EndsWith(".part", StringComparison.OrdinalIgnoreCase)) return true;
@@ -130,10 +104,8 @@ public sealed class ImportPlanner
         return false;
     }
 
-    // ---- matching helpers ----
+    // matching helpers ----
 
-    /// <summary>Lowercase alnum-only key ("Baldur's Gate 1" == "baldurs_gate_1"); canonical roman numerals
-    /// become arabic first so "Civilization III" matches "Civilization 3".</summary>
     internal static string NormAlnum(string s)
     {
         if (string.IsNullOrEmpty(s)) return "";
@@ -144,8 +116,6 @@ public sealed class ImportPlanner
         return sb.ToString();
     }
 
-    /// <summary>Replaces canonical roman-numeral words (length >= 2, value <= 50) with arabic. Length-1
-    /// tokens (esp. "I") stay untouched to avoid mangling names like "I, Robot".</summary>
     internal static string ConvertRomanNumerals(string s)
         => System.Text.RegularExpressions.Regex.Replace(s, @"\b[IVXLCDMivxlcdm]{2,}\b", m =>
         {
@@ -153,8 +123,6 @@ public sealed class ImportPlanner
             return val is > 0 and <= 50 ? val.Value.ToString() : m.Value;
         });
 
-    /// <summary>Parses a roman numeral, returning its value only if canonical (re-encoding yields the same
-    /// string); rejects forms like "IIII".</summary>
     private static int? ParseCanonicalRoman(string r)
     {
         int Val(char c) => c switch { 'I' => 1, 'V' => 5, 'X' => 10, 'L' => 50, 'C' => 100, 'D' => 500, 'M' => 1000, _ => 0 };
@@ -180,15 +148,12 @@ public sealed class ImportPlanner
         }
     }
 
-    /// <summary>Strips a "(1998)" or "[1998]" year token from a folder name.</summary>
     internal static string StripYear(string folderName)
     {
         var s = System.Text.RegularExpressions.Regex.Replace(folderName, @"[\(\[]\s*(19|20)\d{2}\s*[\)\]]", " ");
         return s.Trim();
     }
 
-    /// <summary>Pulls the slug from a GOG installer filename ("setup_syberia_2_2.0.0.13.exe" -> "syberia_2"),
-    /// breaking at the dotted version token; bare sequel numbers stay or sequels collide with their originals.</summary>
     internal static string? SlugFromInstallerName(string fileNameNoExt)
     {
         var name = fileNameNoExt.ToLowerInvariant();
@@ -223,16 +188,14 @@ public sealed class ImportPlanner
         catch { return Array.Empty<string>(); }
     }
 
-    // ---- plan ----
+    // plan ----
 
-    /// <summary>Scans the source tree and classifies each candidate folder against the manifest. Pure.</summary>
     public ImportPlan Plan(string sourceDir, int maxDepth = 2)
     {
         if (!Directory.Exists(sourceDir))
             throw new DirectoryNotFoundException($"Import source not found: {sourceDir}");
 
         var items = _manifest.Current.Items;
-        // Pre-index by normalized slug + title for cheap lookups.
         var bySlug = new Dictionary<string, List<LibraryItem>>();
         var byTitle = new Dictionary<string, List<LibraryItem>>();
         foreach (var it in items)
@@ -270,13 +233,8 @@ public sealed class ImportPlanner
                         return t.Length > 3 && fkey.Length > 3 && (t.Contains(fkey) || fkey.Contains(t));
                     }).ToList();
 
-                    // Prefer the most-specific candidate: the longest title fully contained in the folder key
-                    // (so "DOOM 3: Phobos" beats "DOOM 3" for a "Doom 3 Phobos" folder).
                     if (contains.Count > 1)
                     {
-                        // Collapse only when every candidate is contained in the folder key. If any candidate
-                        // instead contains the folder key (folder "Doom 3 BFG" vs "Doom 3 BFG Edition") it is
-                        // genuinely ambiguous -- fall through so the user disambiguates.
                         var inFolder = contains
                             .Where(i => fkey.Contains(NormAlnum(i.Title)))
                             .OrderByDescending(i => NormAlnum(i.Title).Length)
@@ -323,7 +281,6 @@ public sealed class ImportPlanner
         }
     }
 
-    /// <summary>Builds a matched folder from a user's manual pick ("Find match"); null if nothing pairs.</summary>
     public MatchedFolder? MatchFolderToItem(string folderPath, long gogId)
     {
         var item = _manifest.Current.ItemById(gogId);
@@ -333,8 +290,6 @@ public sealed class ImportPlanner
         return new MatchedFolder(folderPath, item.GogId, item.Title, "manual", matches, unmatched);
     }
 
-    /// <summary>Matches a game folder's files to the item's entries by size within tolerance; returns
-    /// confident matches plus a count of files that matched no entry.</summary>
     private static (List<ImportFileMatch> matches, int unmatched) MatchFilesToEntries(string dir, LibraryItem item)
     {
         var matches = new List<ImportFileMatch>();
@@ -350,17 +305,11 @@ public sealed class ImportPlanner
             long size;
             try { size = new FileInfo(path).Length; } catch { continue; }
 
-            // Prefer a filename match over pure size: near-equal-size installer parts would otherwise
-            // cross-adopt by enumeration order. Exact CDN-filename match is authoritative; size breaks ties.
             var diskName = Path.GetFileName(path);
             GameFile? best = null; bool bestNameMatch = false; long bestDelta = long.MaxValue;
             foreach (var e in item.Files)
             {
                 if (usedKeys.Contains(e.FileKey)) continue;
-                // A NAME the record itself carries is authoritative: the CDN file name, or the leaf of the path
-                // the record last held (the record still says
-                // "Extras/pst_avatars.zip"). GOG's ExpectedSizeBytes is rounded (tiny extras report 1 MB, a
-                // 2.7 GB part reported 2.68 GB), so a size-only test dropped 5 of 44 files on re-add.
                 bool nameMatch = (!string.IsNullOrEmpty(e.ResolvedFileName)
                                   && string.Equals(e.ResolvedFileName, diskName, StringComparison.OrdinalIgnoreCase))
                               || (!string.IsNullOrEmpty(e.LocalRelativePath)
@@ -387,17 +336,10 @@ public sealed class ImportPlanner
 
     // ---- apply ----
 
-    /// <summary>Carries out the plan: Preview does nothing; Adopt re-points matched entries to the found
-    /// files and recomputes item status. Never deletes.</summary>
     public async Task ApplyAsync(ImportPlan plan, ImportMode mode, CancellationToken ct = default)
     {
         if (mode == ImportMode.Preview) return;
 
-        // Keyed by (game, FileKey), never FileKey alone: FileKey is GOG's download path and GOG serves one
-        // extra under several products (Ultima Underworld I and II share Ultima_Underworld_1_2_QRC.zip, same
-        // key). A manifest-wide first-wins map adopted the FIRST game's entry twice and left the second game's
-        // record Missing (6 of 142 re-adopted files stayed "gone from disk").
-        // Still duplicate-tolerant within a game (GOG omits manualUrl on some pairs).
         int adopted = 0;
         using (_manifest.Gate.Enter())   // the whole apply is in-memory; the save follows outside
         {
@@ -414,11 +356,7 @@ public sealed class ImportPlanner
                     ct.ThrowIfCancellationRequested();
                     if (!entryByKey.TryGetValue((folder.GogId, fm.FileKey), out var pair)) continue;
                     var entry = pair.f;
-                    // A record that ALREADY holds bytes on this root is not an adoption: re-adding a
-                    // detached drive's folder must not demote Verified to Present or erase Sync's Outdated /
-                    // Verify's Corrupt signal (invariant: those two own their signals).
                     if (RootId is not null && entry.RootId == RootId && Sync.BackupScope.HoldsBytes(entry)) continue;
-                    // Store the path relative to the backup root (may be an existing in-root file).
                     entry.LocalRelativePath = Download.DownloadEngine.RelPath(BackupRoot, fm.DiskPath);
                     entry.LocalSizeBytes = fm.Size;
                     if (RootId is not null) entry.RootId = RootId;

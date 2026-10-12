@@ -7,8 +7,10 @@ which creates a private advisory.
 
 ## What Grog stores, and where
 
-**Sign-in tokens.** You log in on GOG's own page in a native WebView. Grog never sees your password.
-What it keeps is the OAuth token GOG returns.
+**Sign-in.** You always sign in on GOG's own page: in the app, a GOG sign-in window; in the CLI
+(`grogcli login`), your web browser, after which you paste back the address GOG lands you on.
+Grog never asks for, sees or stores your password. What it keeps is the OAuth tokens GOG returns
+(an access token and a refresh token), which renew the session so you don't sign in again.
 
 - **Windows** - encrypted at rest with DPAPI, scoped to your Windows user account.
 - **Linux** - encrypted with AES-GCM using a key held in the OS keyring via `libsecret`.
@@ -25,5 +27,6 @@ for sign-in, your library and backups, and to GitHub to check for updates.
 - Binaries are **unsigned**: Windows SmartScreen warns on first run, and macOS needs **Open Anyway**.
   Each release publishes SHA-256 checksums to verify your download.
 - Without a Linux keyring (or if the macOS Keychain refuses), tokens fall back to a file only your
-  account can read, and Grog says so in the interface.
+  account can read, and Grog says so in the interface. The same applies if you turn on
+  "Keep sign-in usable by scheduled tasks" (macOS and Linux), so cron or systemd runs can read them.
 - Anyone who can already read your home directory can read Grog's data.

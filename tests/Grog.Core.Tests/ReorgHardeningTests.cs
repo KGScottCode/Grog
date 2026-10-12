@@ -13,8 +13,6 @@ using Grog.Core.Storage;
 using Grog.Core.Tests.Framework;
 using Grog.Core.Volumes;
 
-/// <summary>Cross-drive copy hardening: live CopiedBytes, no orphaned .grogpart, size-verify against the real
-/// source length, and a journal store with a .bak fallback.</summary>
 [NewBatch]
 [Trait("reorg")]
 public sealed class ReorgHardeningTests

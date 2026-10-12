@@ -42,10 +42,8 @@ public sealed partial class StorageViewModel
     private DispatcherTimer? _slowDriveTick;
     private readonly Dictionary<string, long> _slowSeen = new(StringComparer.OrdinalIgnoreCase);   // volume -> longest wait seen
     private string _waitingDriveText = "";
-    /// <summary>"Waiting for H: to respond…", or "" when every drive answers promptly.</summary>
     public string WaitingDriveText => _waitingDriveText;
     public bool HasWaitingDrive => _waitingDriveText.Length > 0;
-    /// <summary>The drive names alone ("H:" or "H: and G:"), for the lines that phrase it themselves.</summary>
     internal string WaitingDrives { get; private set; } = "";
     private IReadOnlyList<string> _waitingVolumes = System.Array.Empty<string>();
     private string WaitingTextFor(Grog.App.ViewModels.BackupLocationRow? row)
@@ -86,8 +84,6 @@ public sealed partial class StorageViewModel
         }
     }
 
-    /// <summary>True once the watch's first probe has landed; until then the cards paint no online/offline word
-    /// (a UNC root's first probe can take the SMB timeout, and that wait never belongs on the dispatcher).</summary>
     private bool _watchSeeded;
 
     internal void StartVolumeWatch()
@@ -213,7 +209,6 @@ public sealed partial class StorageViewModel
         PrimaryGrid.Raise(); SecondaryGrid.Raise(); RaiseInventory();
     }
 
-    /// <summary>Which roots are mounted (live probe per root path); a change means rebuild the cards.</summary>
     private Dictionary<string, bool> OnlineMap()
     {
         var map = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);

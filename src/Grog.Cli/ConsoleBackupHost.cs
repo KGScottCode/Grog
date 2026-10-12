@@ -9,11 +9,6 @@ using Grog.Core.Sync;
 
 namespace Grog.Cli;
 
-/// <summary>
-/// The CLI's face on a <see cref="BackupRun"/>: a spinner per account scan, the live per-file block for the
-/// download, and dim log lines. Nothing here decides WHAT happens -- selection, placement, settlement, verify
-/// and the outcome are Core's; this class only draws them. The App's host does the same with a ViewModel.
-/// </summary>
 internal sealed class ConsoleBackupHost : NullBackupHost
 {
     private readonly bool _scanDebug;
@@ -27,10 +22,8 @@ internal sealed class ConsoleBackupHost : NullBackupHost
         _scanDebug = scanDebug; _scanDetails = scanDetails; _failuresDir = failuresDir;
     }
 
-    /// <summary>The renderer of the last engine run, for the console summary and --json failure list.</summary>
     public DownloadRenderer? Render => _render;
 
-    /// <summary>--debug: trace the engine's resolve/fetch steps to the console.</summary>
     public bool EngineDebug { get; init; }
 
     public override void ConfigureScan(LibrarySyncService svc, GrogAccount? account, int index, int count)
@@ -48,7 +41,6 @@ internal sealed class ConsoleBackupHost : NullBackupHost
     {
         FinishScan();
         var snapshot = engine.Snapshot.ToList();
-        // Size the name column to the longest known label (name + OS/lang), capped in the renderer.
         int nameCol = 16;
         foreach (var t in snapshot)
         {
@@ -67,7 +59,6 @@ internal sealed class ConsoleBackupHost : NullBackupHost
 
     public override void Log(string message, bool isError = false)
     {
-        // A failure mid-scan must not leave a spinner printing "completed" under the error line.
         if (isError) { FinishScan(); Out.Warn(message); } else Out.Dim(message);
     }
 }

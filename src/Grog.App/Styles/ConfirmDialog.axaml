@@ -1,6 +1,4 @@
-<!-- The one modal theme (see Controls/ConfirmDialog.cs). Card chrome is the SurfaceCard vocabulary: panel
-     fill, 1px stroke, RadiusCard, 36,30 padding, 16 spacing. Danger swaps the confirm button to the
-     destructive tier; Alarm tints the title and stroke red. -->
+
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:ctl="using:Grog.App.Controls">
@@ -40,11 +38,11 @@
         </Border>
       </ControlTemplate>
     </Setter>
-    <!-- With a note the body is the statement: white, the note carries the dim reassurance. -->
+
     <Style Selector="^:noted /template/ TextBlock#PART_Body"><Setter Property="Foreground" Value="{StaticResource InkPrimary}"/></Style>
-    <!-- Plain: the accent verb is the Enter default. -->
+
     <Style Selector="^ /template/ Button#PART_Confirm"><Setter Property="IsDefault" Value="True"/></Style>
-    <!-- Danger: destructive tier on the verb, and Cancel takes Enter. Alarm: the card itself goes red. -->
+
     <Style Selector="^:danger /template/ Button#PART_Confirm"><Setter Property="IsDefault" Value="False"/></Style>
     <Style Selector="^:danger /template/ Button#PART_Cancel"><Setter Property="IsDefault" Value="True"/></Style>
     <Style Selector="^:alarm /template/ TextBlock#PART_Title"><Setter Property="Foreground" Value="{StaticResource ErrorRedBright}"/></Style>

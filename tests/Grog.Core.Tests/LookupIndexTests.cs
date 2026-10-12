@@ -10,8 +10,6 @@ using Grog.Core.Manifest;
 using Grog.Core.Models;
 using Grog.Core.Tests.Framework;
 
-/// <summary>The keyed lookups behind the per-entry hot paths (DownloadQueue by (GogId, FileKey), LibraryManifest
-/// by GogId) must agree with a linear scan of the list they index, through every mutator.</summary>
 [NewBatch]
 [Trait("queue")]
 public class LookupIndexTests

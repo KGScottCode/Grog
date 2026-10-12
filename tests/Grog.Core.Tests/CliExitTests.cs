@@ -15,12 +15,6 @@ public class CliExitTests
     [Test] void AuthExpired_MapsToCode4()
         => Assert.Equal(ExitCode.AuthExpired, CliExit.ForException(new AuthExpiredException("x")), "session expired");
 
-    [Test] void Captcha_And_BadCreds_MapToLoginBlocked()
-    {
-        Assert.Equal(ExitCode.LoginBlocked, CliExit.ForException(new CaptchaRequiredException()), "captcha blocks headless");
-        Assert.Equal(ExitCode.LoginBlocked, CliExit.ForException(new InvalidCredentialsException("nope")), "bad creds");
-    }
-
     [Test] void Network_MapsToNetworkError()
         => Assert.Equal(ExitCode.NetworkError, CliExit.ForException(new System.Net.Http.HttpRequestException("down")), "GOG unreachable");
 

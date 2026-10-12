@@ -5,13 +5,6 @@ using Avalonia.Threading;
 
 namespace Grog.App.Services;
 
-/// <summary>
-/// Coalesces bursts of UI refresh requests into at most one run per interval, on the UI thread.
-/// Leading edge: a request after a quiet period runs immediately (single events stay instant).
-/// Trailing edge: requests inside the window schedule exactly one run at the window's end, so the
-/// LAST event of a burst is always reflected (a 600-file run's final state can never be dropped).
-/// UI-THREAD ONLY: no locking; callers must Request() from the dispatcher.
-/// </summary>
 public sealed class UiCoalescer
 {
     private readonly TimeSpan _interval;

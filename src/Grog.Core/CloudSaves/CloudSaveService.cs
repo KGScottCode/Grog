@@ -13,9 +13,6 @@ using Grog.Core.Auth;
 
 namespace Grog.Core.CloudSaves;
 
-/// <summary>Preserves GOG cloud saves locally via GOG-native endpoints: a per-game save list
-/// (cloudstorage.gog.com/v1/{userId}/{clientId}) plus per-entry downloads. Saves land as timestamped
-/// localSaves under &lt;root&gt;/&lt;slug&gt;/cloud-saves/&lt;utc&gt;/ so a run never overwrites older saves.</summary>
 public sealed class CloudSaveService
 {
     private readonly HttpClient _http;
@@ -27,11 +24,8 @@ public sealed class CloudSaveService
         _auth = auth;
     }
 
-    /// <summary>Warnings a host may surface (a skipped save entry, a refused download host). Optional.</summary>
     public Action<string>? Log { get; set; }
 
-    /// <summary>The save's destination under <paramref name="root"/>, or null when the server-supplied name
-    /// escapes it (`../`, a rooted path, a drive letter). Nothing GOG sends may pick a path outside the folder.</summary>
     internal static string? SafeDestination(string root, string name)
     {
         var rel = name.Replace('\\', '/').TrimStart('/');
@@ -47,8 +41,6 @@ public sealed class CloudSaveService
         return full.StartsWith(rootFull, StringComparison.Ordinal) ? full : null;
     }
 
-    /// <summary>Only gog.com hosts ever see the bearer token: a save list is server data, and a download URL
-    /// pointing elsewhere would hand the game-scoped token to a stranger.</summary>
     internal static bool IsTrustedDownloadHost(string url)
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps) return false;
@@ -57,7 +49,6 @@ public sealed class CloudSaveService
             || host.EndsWith(".gog.com", StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>Resolves where one save entry lands, or null (logged) when its name or URL is not acceptable.</summary>
     private string? ResolveSaveTarget(string root, CloudSaveFile save)
     {
         if (!IsTrustedDownloadHost(save.DownloadUrl))
@@ -70,10 +61,6 @@ public sealed class CloudSaveService
         return dest;
     }
 
-    /// <summary>Streams one save to <paramref name="dest"/> via a `.part` sibling renamed on completion, so a
-    /// failure mid-file never leaves a truncated save under its final name. False when the server refused.
-    /// A body shorter or longer than the listed size (<paramref name="expectedBytes"/> > 0) is a cut connection,
-    /// not a save: the .part goes and the throw discards the dated folder.</summary>
     internal async Task<bool> DownloadToAsync(string url, string token, string dest, long expectedBytes, CancellationToken ct)
     {
         using var req = new HttpRequestMessage(HttpMethod.Get, url);
@@ -101,8 +88,6 @@ public sealed class CloudSaveService
         return true;
     }
 
-    /// <summary>Resolves the games that have cloud saves, each with its clientId. The master-list JSON
-    /// endpoint is not yet wired; callers pass known (game, clientId) pairs until it is.</summary>
     public Task<IReadOnlyList<CloudGame>> ResolveGamesWithSavesAsync(
         IReadOnlyList<CloudGame> knownPairs, CancellationToken ct = default)
     {
@@ -110,9 +95,6 @@ public sealed class CloudSaveService
         return Task.FromResult(knownPairs);
     }
 
-    /// <summary>Lists one game's save files (GET cloudstorage.gog.com/v1/{userId}/{clientId}). Requires a
-    /// game-scoped token from <see cref="AuthorizeGameAsync"/> -- the endpoint 403s the plain session token.
-    /// 404 = the game has no cloud saves (normal).</summary>
     public async Task<IReadOnlyList<CloudSaveFile>> ListSavesAsync(string clientId, string accessToken, CancellationToken ct = default)
     {
         var session = await _auth.EnsureAuthenticatedAsync(ct);
@@ -121,7 +103,6 @@ public sealed class CloudSaveService
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         req.Headers.Accept.ParseAdd("application/json");
         using var res = await _http.SendAsync(req, ct);
-        // 404 is the one "no saves" answer; a 500 or a 403 read as empty would record a capture of nothing.
         if (res.StatusCode == System.Net.HttpStatusCode.NotFound) return Array.Empty<CloudSaveFile>();
         res.EnsureSuccessStatusCode();
 
@@ -129,8 +110,6 @@ public sealed class CloudSaveService
         return ParseSaveList(json, baseUrl);
     }
 
-    /// <summary>Resolves a game's clientId + clientSecret from generation-2 build meta, then mints a token
-    /// scoped to them via a refresh-token grant -- the token the per-game endpoint accepts. Null on failure.</summary>
     public async Task<GameCloudAuth?> AuthorizeGameAsync(long gogId, string platform = "windows", CancellationToken ct = default)
     {
         var creds = await ResolveClientCredsAsync(gogId, platform, ct);
@@ -149,16 +128,12 @@ public sealed class CloudSaveService
         catch { return null; }
     }
 
-    /// <summary>ClientId + clientSecret from a game's generation-2 build meta (zlib JSON).</summary>
     public async Task<(string ClientId, string ClientSecret)?> ResolveClientCredsAsync(long gogId, string platform = "windows", CancellationToken ct = default)
     {
         var (cid, sec) = await ResolveClientMetaAsync(gogId, platform, ct);
         return string.IsNullOrEmpty(cid) || string.IsNullOrEmpty(sec) ? null : (cid!, sec!);
     }
 
-    /// <summary>THE build-meta read: builds?generation=2 -> items[0].link -> meta (zlib JSON, plain fallback) ->
-    /// clientId + clientSecret, either null when absent. ResolveClientCredsAsync and ResolveClientIdAsync were two
-    /// line-for-line copies of this walk; they differ only in what they need from the answer.</summary>
     private async Task<(string? ClientId, string? ClientSecret)> ResolveClientMetaAsync(long gogId, string platform, CancellationToken ct)
     {
         var session = await _auth.EnsureAuthenticatedAsync(ct);
@@ -220,16 +195,9 @@ public sealed class CloudSaveService
         return probes;
     }
 
-    /// <summary>Page size of the containers listing. One page was all that was ever asked for before sweep 2 #4,
-    /// so an account with more than 50 games with saves silently lost the rest.</summary>
     internal const int ContainerPageSize = 50;
-    /// <summary>A ceiling on the paging loop: a server that never returns a short page must not spin forever.</summary>
     internal const int ContainerMaxPages = 200;
 
-    /// <summary>Every cloud-save container of the signed-in account, ALL pages. THROWS on a non-2xx answer
-    /// (404 = the account has no containers, read as empty): an empty list is a fact ("no saves"), and the
-    /// reconciler replaces the account's entries with it, so a 500 or a 403 read as empty wiped every game's
-    /// cloud entry for that account. Callers already treat a throw as "keep as last seen".</summary>
     public async Task<IReadOnlyList<CloudContainer>> ListContainersAsync(CancellationToken ct = default)
     {
         var session = await _auth.EnsureAuthenticatedAsync(ct);
@@ -251,8 +219,6 @@ public sealed class CloudSaveService
         return all;
     }
 
-    /// <summary>Raw entries on a page (ParseContainers drops entries with no product, so its count cannot
-    /// say whether the page was full).</summary>
     internal static int CountItems(string json)
     {
         using var doc = JsonDocument.Parse(json);
@@ -283,7 +249,6 @@ public sealed class CloudSaveService
                 if (c.TryGetProperty("files", out var f)) files = f.GetInt32();
                 if (c.TryGetProperty("space_id", out var sp)) space = sp.GetString() ?? "";
                 if (quota == 0 && c.TryGetProperty("quota", out var cq)) quota = cq.GetInt64();
-                // Container change-time when GOG supplies it (field name varies). Primary change signal.
                 foreach (var key in new[] { "date_updated", "last_modified", "modified", "updated", "updated_at" })
                     if (updated is null && c.TryGetProperty(key, out var dEl) &&
                         dEl.ValueKind == JsonValueKind.String && DateTimeOffset.TryParse(dEl.GetString(), out var dv))
@@ -294,8 +259,6 @@ public sealed class CloudSaveService
         return list;
     }
 
-    /// <summary>GOG may gzip cloud-storage responses and the shared HttpClient doesn't auto-decompress:
-    /// detect the gzip magic and inflate when present, else read as UTF-8.</summary>
     private static string MaybeGunzip(byte[] bytes)
     {
         if (bytes.Length >= 2 && bytes[0] == 0x1f && bytes[1] == 0x8b)
@@ -308,13 +271,9 @@ public sealed class CloudSaveService
         return System.Text.Encoding.UTF8.GetString(bytes);
     }
 
-    /// <summary>Resolves a game's Galaxy clientId from build metadata: builds?generation=2 -> items[0].link ->
-    /// meta (zlib JSON, plain fallback) -> clientId. Null if no builds / no clientId.</summary>
     public async Task<string?> ResolveClientIdAsync(long gogId, string platform = "windows", CancellationToken ct = default)
         => (await ResolveClientMetaAsync(gogId, platform, ct)).ClientId;
 
-    /// <summary>Parses the save-list JSON into entries, tolerant of field-name variants: reads the common
-    /// keys for name/path, size and timestamp.</summary>
     internal static IReadOnlyList<CloudSaveFile> ParseSaveList(string json, string baseUrl = "")
     {
         var list = new List<CloudSaveFile>();
@@ -348,12 +307,9 @@ public sealed class CloudSaveService
         return list;
     }
 
-    /// <summary>Download one game's saves into a fresh timestamped local save directory. Returns the
-    /// local save path and the number of files written. Never overwrites prior localSaves.</summary>
     public async Task<(string LocalSaveDir, int FilesWritten, int FilesExpected)> DownloadLocalSaveAsync(
         CloudGame game, string gameDir, CancellationToken ct = default)
     {
-        // Mint a game-scoped token; without it the per-game cloud endpoint 403s everything.
         var auth = await AuthorizeGameAsync(game.GogId, "windows", ct);
         var stamp = DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss");
         var localSaveDir = Path.Combine(gameDir, "cloud-saves", stamp);
@@ -370,7 +326,6 @@ public sealed class CloudSaveService
             ct.ThrowIfCancellationRequested();
             if (string.IsNullOrEmpty(save.DownloadUrl)) continue;
 
-            // Preserve the save's relative path (e.g. "saves/Orc 02 - 001.sav"), kept inside the dated folder.
             var dest = ResolveSaveTarget(localSaveDir, save);
             if (dest is null) continue;
             Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
@@ -379,23 +334,14 @@ public sealed class CloudSaveService
         }
         catch
         {
-            // A capture that blew up is not a snapshot: between files it is a partial set, mid-file it holds a
-            // truncated save. Left on disk it counted as the newest local save and retention pruned a
-            // COMPLETE older one to make room for it. Any failure, not only a cancel: the whole
-            // dated folder goes.
             try { Directory.Delete(localSaveDir, recursive: true); } catch { /* best-effort cleanup */ }
             throw;
         }
-        // Nothing came back (e.g. the endpoint 403'd): remove the empty timestamped folder -- a backup
-        // tool must never make "nothing" look like "something".
         if (written == 0)
             try { Directory.Delete(localSaveDir, recursive: true); } catch { /* best-effort cleanup */ }
         return (localSaveDir, written, expected);
     }
 
-    /// <summary>"Save As" / restore: download a game's current cloud saves FLAT into <paramref
-    /// name="targetDir"/> (preserving each save's own relative path, e.g. "__default/data0.bin"), not a
-    /// timestamped local save. For dropping saves straight into a game's live save folder. Returns files written.</summary>
     public async Task<int> ExportSavesAsync(long gogId, string targetDir, CancellationToken ct = default)
     {
         var auth = await AuthorizeGameAsync(gogId, "windows", ct);

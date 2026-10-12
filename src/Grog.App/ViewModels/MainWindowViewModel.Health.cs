@@ -24,14 +24,8 @@ using Grog.Core.Models;
 using Grog.Core.Sync;
 using Grog.Core.Verify;
 
-// Run-side helpers the Overview's health flows hand off to: the fix re-queue and its engine handoff, the
-// Esc detour, per-game verify, cancel and the RunBusy wrapper. (The health readouts moved to OverviewViewModel in S3.3.)
 public partial class MainWindowViewModel
 {
-    /// <summary>Device summary line: what THIS folder holds against what the whole in-scope library needs.
-    /// Both halves come from one pass with one predicate -- the device's raw FileCount counts every file on
-    /// the drive, not just in-scope ones, and mixing the two yields "holds 4/3". The figures are gathered by
-    /// the single per-root pass in RefreshBackupLocationsCore; this only words them.</summary>
     internal static string CoverageLineFrom(int hereGames, int hereN, long hereB, int totalN, long totalB)
     {
         if (totalN == 0) return "";
@@ -39,9 +33,6 @@ public partial class MainWindowViewModel
         return $"{hereGames} game{(hereGames == 1 ? "" : "s")}  ·  {bytes}  ·  {hereN} / {totalN} files";
     }
 
-    /// <summary>Core's FixRun resets and front-queues the selection; what follows is the App's
-    /// handoff: a paused queue stays staged, a live engine gets the fresh copies at the front, otherwise the
-    /// queue is drained now.</summary>
     internal async Task RequeueProblemFiles(Grog.Core.Runs.FixSelector selector, string label,
                                            IReadOnlySet<(long, string)>? exclude = null)
     {
@@ -56,7 +47,6 @@ public partial class MainWindowViewModel
         AfterRequeue(result.Keys, result.Count, label);
     }
 
-    /// <summary>The handoff after a FixRun re-queued <paramref name="keys"/> (front of the persisted queue).</summary>
     private void AfterRequeue(IReadOnlyList<(long GogId, string FileKey)> keys, int count, string label)
     {
         if (_manifest is null) return;
@@ -73,9 +63,6 @@ public partial class MainWindowViewModel
         }
         if (_liveEngine is { } live)
         {
-            // A run is under way: DownloadFiltered would refuse (Busy) and "fetching now" would be a lie.
-            // Hand the fresh copies to the LIVE engine at the front, the way QueueRemainingForGame does.
-            // Only a LIVE task blocks a re-add: a Failed or Canceled one is exactly what is being re-queued.
             var have = live.Snapshot
                 .Where(t => t.State is Grog.Core.Download.DownloadTaskState.Pending or Grog.Core.Download.DownloadTaskState.Active)
                 .Select(t => (t.File.GameGogId, t.File.FileKey)).ToHashSet();
@@ -97,14 +84,11 @@ public partial class MainWindowViewModel
             if (Settings.Xfer.AutoConcurrency) Settings.ApplyAutoConcurrency(live, force: true);   // retired workers respawn for the additions
             else live.SetMaxConcurrent(Settings.Xfer.MaxConcurrentDownloads);
             Log($"Re-queued {count} {label} file(s) at the top of the running queue.", category: LogCategory.Download);
-            // These went in unplanned (no target, Fits by default): the whole-queue pass gives each a drive or
-            // takes it back out as won't-fit, instead of letting it fail disk-full a second time.
             _ = Overview.ReplanQueueAsync("the re-queued files");
             RecomputeActivity();
             return;
         }
         Log($"Re-queued {count} {label} file(s) at the top of the queue - fetching now.", category: LogCategory.Download);
-        // Show the fix happening: switch to the Library and drain the just-filled queue.
         Navigate("Library");
         _ = DownloadFiltered(false, fromQueue: true);
     }
@@ -113,8 +97,6 @@ public partial class MainWindowViewModel
     private string _searchBeforeDetour = "";
     private bool _hasDetour;
 
-    /// <summary>Esc backs out of a temporary filter and restores the prior view. Returns false when there
-    /// is nothing to back out of, so Esc can fall through to clearing the selection.</summary>
     public bool TryEndDetour()
     {
         if (!_hasDetour) return false;
@@ -133,11 +115,6 @@ public partial class MainWindowViewModel
     // ---- Health-card verify progress: inline bar + "Verifying N of M" text by the Rescan & Verify button ----
     [ObservableProperty] private bool _verifying;
 
-    /// <summary>Per-game "Rescan &amp; Verify": a FULL re-hash of every checksummed file of this one game.
-    /// It was read-frugal (Unverified: a file already Verified got a size check only), so the user's explicit
-    /// verify passed a Verified installer overwritten with same-size junk and toasted "all files verified".
-    /// The user asked for THIS game; reading its files is the point. Automatic sweeps stay out of scope.
-    /// Serialized against downloads/moves via the activity slot.</summary>
     [RelayCommand]
     private async Task VerifyGame(InventoryGroupRow? group)
     {
@@ -147,11 +124,9 @@ public partial class MainWindowViewModel
         if (!TryBeginActivitySlot("Can't verify right now")) return;
         try
         {
-            // Said at the start, not only at the end: a large game hashes for minutes with nothing else on screen.
             ShowToast($"Rescanning and verifying {group.Title}…", 0);
             await RunBusy($"Verifying {group.Title}…", async () =>
             {
-                // Core's VerifyRun; the per-game line and toast below stay this view's (silent host).
                 var request = Grog.Core.Runs.VerifyRequest.ForItems(new[] { item.GogId }, Grog.Core.Verify.VerifyMode.FullRehash) with
                 {
                     Progress = p => Dispatcher.UIThread.Post(() =>
@@ -176,13 +151,6 @@ public partial class MainWindowViewModel
         finally { EndActivitySlot(); }
     }
 
-    /// <summary>Files an import adopted are verified at once, as a VISIBLE activity: the import
-    /// returns first so the grid and the outcome show immediately, then this takes the activity slot (so a
-    /// Forget, a move or a run cannot land mid-verify), shows progress in the status bar and can be cancelled.
-    /// Core's own in-import verify is for hosts with no UI (CLI, BackupRun); the App turns it off and calls this.</summary>
-    /// <remarks> <paramref name="withChecksums"/> is the Add dialog's "Verify file integrity with GOG's
-    /// checksums": on, every adopted file is hashed against GOG's checksum (fetched when none is on record); off,
-    /// a size check only.</remarks>
     internal async Task VerifyAdoptedAsync(Grog.Core.Runs.ImportRunResult result, bool withChecksums)
     {
         var keys = result.Plan?.AdoptedKeys;
@@ -242,7 +210,6 @@ public partial class MainWindowViewModel
         try
         {
             _cts = new CancellationTokenSource();
-            // Catalog ops drive the CTA mini bar, not the status-bar bar; download/verify opt in themselves.
             Busy = true; ProgressValue = 0; Log(startMsg);
             OnPropertyChanged(nameof(CanCancel));
             await Task.Run(work);
@@ -253,13 +220,10 @@ public partial class MainWindowViewModel
         {
             Busy = false; ProgressVisible = false;
             _cts?.Dispose(); _cts = null;
-            // A canceled/errored scan threw before EndCatalog: the library ends it as NOT completed and drops
-            // the preview rows, so a half-read catalog never reports itself as scanned. (No-op after a normal completion.)
             Library.EndAbandonedScan();
             OnPropertyChanged(nameof(CanCancel));
             EndActivity();
             RaiseDashboard();
-            // A move deferred behind a scan, verify or sign-out starts now; moves run beside downloads, and the call is idempotent.
             Storage.StartDeferredMove();
         }
     }

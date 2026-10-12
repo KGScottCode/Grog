@@ -8,18 +8,10 @@ using System.Runtime.InteropServices;
 
 namespace Grog.Core.Storage;
 
-/// <summary>Produces the first-run candidate backup locations, each with free space. Kinds mirror the
-/// onboarding radios: Documents (default), BesideExe (portable), OtherDrive (largest non-system), Custom.</summary>
 public static class BackupLocationSuggester
 {
     public const string FolderName = "GOG_Library";
 
-    /// <summary>Auto-applied first-run default root holding Games, Extras and Cloud Saves.
-    /// PORTABLE first: with a Data folder beside the exe, the default lands INSIDE the install folder, so
-    /// the app, its state and its backups move as one thing -- pointing a portable copy at Documents would
-    /// leave the library behind on every machine it visits. Otherwise Windows uses
-    /// Documents\My Games\GOG_Library (composed under MyDocuments; "My Games" has no SpecialFolder);
-    /// elsewhere the folder lands directly in Documents.</summary>
     public static string DefaultRoot()
     {
         if (GrogPaths.PortableInstallDir() is { } install) return Path.Combine(install, FolderName);
@@ -34,7 +26,6 @@ public static class BackupLocationSuggester
     {
     }
 
-    /// <summary>Builds the ordered option list; Documents is default unless a much larger secondary drive exists.</summary>
     public static IReadOnlyList<Option> Suggest()
     {
         var list = new List<Option>();
@@ -77,8 +68,6 @@ public static class BackupLocationSuggester
     {
         try
         {
-            // DriveType is reliable on Windows (keep the Fixed-only rule there); on Linux it isn't
-            // (/boot/efi reports Removable), so fall back to real-volume detection by filesystem format.
             var systemRoot = DriveResolver.MountRootOf(Environment.GetFolderPath(Environment.SpecialFolder.System))
                              ?? DriveResolver.MountRootOf(AppContext.BaseDirectory);
             return DriveInfo.GetDrives()

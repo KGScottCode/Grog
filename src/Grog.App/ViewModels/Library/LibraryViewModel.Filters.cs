@@ -100,7 +100,6 @@ public sealed partial class LibraryViewModel
     // ---- Responsive filter pills ----
     // All pills step down together through three render modes as the toolbar narrows; the view
     // (MainWindow.axaml.cs) measures width and picks the mode. Per-pill fitting is deliberately not attempted.
-    /// <summary>Filter-pill render modes, widest to narrowest; the view steps down as space runs out.</summary>
     public enum PillDisplayMode { Full = 0, NameOnly = 1, IconOnly = 2 }
 
     private PillDisplayMode _pillMode = PillDisplayMode.Full;
@@ -117,18 +116,13 @@ public sealed partial class LibraryViewModel
             OnPropertyChanged(nameof(PillShowCaption));
         }
     }
-    /// <summary>The "Filter" caption before the chips: hides with the labels, in the narrowest mode only.</summary>
     public bool PillShowCaption => _pillMode != PillDisplayMode.IconOnly;
-    /// <summary>Icon tile shows in Full + IconOnly, hides in NameOnly.</summary>
     public bool PillShowIcon => _pillMode != PillDisplayMode.NameOnly;
-    /// <summary>Label shows in Full + NameOnly, hides in IconOnly.</summary>
     public bool PillShowLabel => _pillMode != PillDisplayMode.IconOnly;
 
-    /// <summary>Toggle a content chip (bound to each chip button).</summary>
     [RelayCommand]
     private void ToggleChip(FilterChip? chip) { if (chip is not null) chip.IsActive = !chip.IsActive; }
 
-    /// <summary>Settings toggle: show GOG's legacy Movie products. Default off.</summary>
     public bool ShowLegacyMovies
     {
         get => _settings.ShowLegacyMovies;
@@ -144,7 +138,6 @@ public sealed partial class LibraryViewModel
     // ---- Hide from grid (discretion; visual-only -- hidden items are STILL backed up) ----
     private readonly HashSet<long> _hiddenIds = new();
     private bool _showHiddenItems;   // deliberately NOT persisted: resets off each launch so hidden stays hidden
-    /// <summary>Settings toggle: reveal hidden rows so they can be unhidden. Not persisted.</summary>
     public bool ShowHiddenItems
     {
         get => _showHiddenItems;
@@ -160,8 +153,6 @@ public sealed partial class LibraryViewModel
         }
     }
 
-    /// <summary>Right-click "Hide from grid": drop the selected rows from view. Visual only -- files stay
-    /// backed up. "Unhide" reverses it (shown only while Show-hidden reveals the rows).</summary>
     [RelayCommand] private void HideSelected()   => SetSelectionHidden(true);
     [RelayCommand] private void UnhideSelected() => SetSelectionHidden(false);
 
@@ -186,7 +177,6 @@ public sealed partial class LibraryViewModel
     [ObservableProperty] private string _removeItemsConfirmText = "";
     private List<long> _pendingRemoveIds = new();
 
-    /// <summary>Right-click "Remove from library": two-step (scrim confirm) untrack of the selection.</summary>
     [RelayCommand]
     private void RemoveSelected()
     {
@@ -220,8 +210,6 @@ public sealed partial class LibraryViewModel
     }
 
     // ---- The New flag: clearing it, and the header's "any left?" gate ----
-    /// <summary>How many items still carry the New flag (the rail line, the header button and the manual-
-    /// rescan prompt all read this). Zero when there is no manifest yet.</summary>
     // Only what the Library can show: an out-of-scope or hidden item is not "new" to
     // someone whose Settings leave it out (17 New, several of them Linux-less games under a Linux-only scope).
     public int NewItemCount
@@ -236,8 +224,6 @@ public sealed partial class LibraryViewModel
     }
     public bool HasNewItems => NewItemCount > 0;
 
-    /// <summary>Right-click "Clear New Status > Selected Item": drop the flag on the current selection. Nothing else changes --
-    /// the items keep their backup state and stay in the library.</summary>
     [RelayCommand]
     private async Task ClearNew()
     {
@@ -252,9 +238,6 @@ public sealed partial class LibraryViewModel
         Log($"Cleared the New flag on {n} item(s).");
     }
 
-    /// <summary>Right-click "Clear New Status > All Items": drop every flag at once. Was a link in the
-    /// filter bar until; among the chips it read as a label rather than an action, and the wider scope
-    /// belongs beside the narrower one rather than in a different part of the screen.</summary>
     [RelayCommand]
     private async Task ClearAllNew()
     {
@@ -268,7 +251,6 @@ public sealed partial class LibraryViewModel
         Log($"Cleared the New flag on {n} item(s).");
     }
 
-    /// <summary>The New-derived readouts as ONE set: the header button's visibility and the rail's line.</summary>
     internal void RaiseNewItems()
     {
         OnPropertyChanged(nameof(NewItemCount));
@@ -280,7 +262,6 @@ public sealed partial class LibraryViewModel
     private static readonly HashSet<string> _allBoardSet =
         new(RatingBoards.Keys, StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Settings master toggle: hide 18+ games. One adult cutoff across all boards.</summary>
     public bool HideMatureContent
     {
         get => _settings.HideMatureContent;
@@ -335,8 +316,6 @@ public sealed partial class LibraryViewModel
     private void OnMatureRowChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     { if (!_settingAll && e.PropertyName == nameof(MatureReviewRow.Keep)) RaiseKeepAll(); }
 
-    /// <summary>Fill the review from the rating test (Keep ticked for games already kept). False when nothing is rated
-    /// 18+, so the toggle simply applies.</summary>
     private bool OpenMatureReview()
     {
         if (_manifest is null) return false;
@@ -358,7 +337,6 @@ public sealed partial class LibraryViewModel
     private static string RatingsText(IReadOnlyDictionary<string, int> r)
         => string.Join("  ·  ", RatingBoards.All(r.Keys).Where(k => r.TryGetValue(k, out var a) && a > 0).Select(k => $"{RatingBoards.Acronym(k)} {r[k]}"));
 
-    /// <summary>Settings "Review…": the same list while the filter is on.</summary>
     [RelayCommand] private void ReviewMature() => OpenMatureReview();
 
     [RelayCommand]
@@ -380,14 +358,10 @@ public sealed partial class LibraryViewModel
 
     [RelayCommand] private void CancelMatureReview() => ShowMatureReview = false;
 
-    /// <summary>The mature filter reads GOG's own rating only. A game GOG never rated stays visible.</summary>
     private static readonly string[] GogBoardOnly = { "gog" };
 
-    /// <summary>The adult cutoff age; unrated games stay visible.</summary>
     private const int AdultAge = Grog.Core.Sync.HiddenPolicy.AdultAge;
 
-    /// <summary>THE definition of "hidden", cached and rebuilt after any input changes (<see cref="InvalidateHidden"/>).
-    /// Scope decides what is BACKED UP; this decides what is SHOWN (<see cref="Grog.Core.Sync.HiddenPolicy"/>); never hand-roll it.</summary>
     public Grog.Core.Sync.HiddenPolicy Hidden => _hidden ??= new(
         HideMatureContent, _settings.MatureAgeThreshold,
         GogBoardOnly,   // GOG's own store rating decides; the other boards caught violent classics
@@ -396,7 +370,6 @@ public sealed partial class LibraryViewModel
         _settings.MatureKeptIds is { Count: > 0 } ? _settings.MatureKeptIds : null);
     private Grog.Core.Sync.HiddenPolicy? _hidden;
 
-    /// <summary>Called at every site that changes a policy input: the hidden ids, the mature toggle, the kept ids, Show hidden.</summary>
     private void InvalidateHidden() => _hidden = null;
 
     // ---- Multi-select + "Sync selected" ----
@@ -404,7 +377,6 @@ public sealed partial class LibraryViewModel
     [ObservableProperty] private int _selectedActionableCount;
     public bool HasSelection => SelectedActionableCount > 0;
 
-    /// <summary>Called by the view when the grid's selection changes.</summary>
     public void UpdateSelection(System.Collections.IList selected)
     {
         SelectedRows.Clear();
@@ -426,8 +398,6 @@ public sealed partial class LibraryViewModel
         _root.RaiseBarState();   // primary is selection-aware ("Back up · 3 selected")
     }
 
-    /// <summary>How many rows a filter is hiding: STATE beside the grid, not a transient message.
-    /// Empty when nothing is filtered.</summary>
     public string FilterCountText
     {
         get
@@ -439,8 +409,6 @@ public sealed partial class LibraryViewModel
     }
     public bool HasFilterCount => FilterCountText.Length > 0;
 
-    /// <summary>One click back to the whole library: search, quick-filters, header dropdowns and content
-    /// chips all reset. Lives on the filtered strip, which only exists when something is narrowed.</summary>
     [RelayCommand]
     private void ClearFilters()
     {
@@ -460,8 +428,6 @@ public sealed partial class LibraryViewModel
         ApplyFilter();
     }
 
-    /// <summary>A Status/Type header filter limits the grid beyond the DEFAULT view (which has "Not in Scope"
-    /// unchecked, so that alone never reads as active); used to bold the header.</summary>
     public bool StatusFilterActive => StatusOptions.Any(o => o.IsChecked != (o.Value != NotInScopeBucket));
     public bool TypeFilterActive => TypeOptions.Count(o => o.IsChecked) < TypeOptions.Count;
 
@@ -478,8 +444,6 @@ public sealed partial class LibraryViewModel
     [RelayCommand(AllowConcurrentExecutions = true)] private Task SyncSelectedGames()  => SyncSelectedScoped(games: true,  extras: false);
     [RelayCommand(AllowConcurrentExecutions = true)] private Task SyncSelectedExtras() => SyncSelectedScoped(games: false, extras: true);
 
-    /// <summary>The other intention: these games FIRST. Queues what is not queued, moves all of it to
-    /// the front of the queue, and starts or resumes the run. Same words as the queue row's "Download this next".</summary>
     // AllowConcurrentExecutions on the four entries: an async command is disabled while its last click is
     // awaited, and "All files" awaits the whole download run it starts, so the entry was dead for the run.
     [RelayCommand(AllowConcurrentExecutions = true)] private Task DownloadSelectedNext() => SyncSelectedScoped(games: true, extras: true, next: true);
@@ -597,15 +561,10 @@ public sealed partial class LibraryViewModel
     // ---- "You still have this file" guard ----
     [ObservableProperty] private bool _showMarkNotBackedUpConfirm;
     [ObservableProperty] private string _markWarningText = "";
-    /// <summary>The dialog's "Don't ask again" box; persisted only if the mark goes through.</summary>
     [ObservableProperty] private bool _dontAskMarkAgain;
 
-    /// <summary>The mark to perform on confirm: held, not re-derived, so it is exactly the action warned
-    /// about even if the selection changes behind the dialog.</summary>
     private Func<Task>? _pendingMark;
 
-    /// <summary>How many of the given files are physically on disk. ONE BackupLayout
-    /// (its ctor probes every root) and every File.Exists run off the dispatcher.</summary>
     private Task<int> CountFilesOnDiskAsync(System.Collections.Generic.IReadOnlyList<GameFile> files)
     {
         var manifest = _manifest; var root = _backupRoot;
@@ -741,7 +700,6 @@ public sealed partial class LibraryViewModel
         Log($"Marked {row.Name} as {label}. File on disk is untouched.");
     }
 
-    /// <summary>Raised when the VM wants the grid to drop its selection (the view clears SelectedItems).</summary>
     public event Action? SelectionClearRequested;
 
     [RelayCommand]
@@ -750,8 +708,6 @@ public sealed partial class LibraryViewModel
     // Software content-chip keys; everything else is an extras bucket. Used to decide games-vs-files noun.
     private static readonly HashSet<string> _softwareChipKeys = new(StringComparer.OrdinalIgnoreCase) { "Game", "Mod" };
 
-    /// <summary>The tour's "back up everything" step makes the primary the whole-library action, so the
-    /// button ignores the selection there; the selection itself deliberately stays.</summary>
     internal bool GuideWantsWholeLibrary => _root.Guide.GuideActive && _root.Guide.CurrentStepKey == "back-up-all";
 
     public string SyncBackupLabel
@@ -776,8 +732,6 @@ public sealed partial class LibraryViewModel
         }
     }
 
-    /// <summary>Count of pending files the current filter chips would queue (mirrors DownloadFiltered's
-    /// selection). Drives the scoped primary label. On-demand only.</summary>
     // Memoized per dashboard pass: SyncBackupLabel is read by up to four bindings per RaiseBarState/RaiseDashboard
     // and each read walked the whole library through BackupQueueBuilder when the chips were narrowed
     // . The epoch bumps in RaiseDashboardCore and RebuildRows; a chip change swaps the
@@ -808,13 +762,9 @@ public sealed partial class LibraryViewModel
     public bool CanBackUpAll    => _pendAll    > 0;
     public bool CanBackUpGames  => _pendGames  > 0;
     public bool CanBackUpExtras => _pendExtras > 0;
-    /// <summary>Every file the selection still needs is ALREADY in the queue: there is nothing to add, so the
-    /// "Add to queue" entry greys out and says so, and "Download next" is the one live choice.</summary>
     private bool _selectionAllQueued;
     public bool CanAddToQueue => CanBackUpAll && !_selectionAllQueued;
 
-    /// <summary>In-scope, filter-passing files in the selection that still need work. Counted whether or not
-    /// already queued: a scoped back-up RE-SCOPES the queue, so a paused queue must not zero the count.</summary>
     private int PendingForSelection(bool games, bool extras)
     {
         if (_manifest is null || SelectedRows.Count == 0) return 0;
@@ -824,8 +774,6 @@ public sealed partial class LibraryViewModel
             _root.SelectionOptions(updatesOnly: false, onlyGameIds: ids, fromQueue: false, ScopeFor(games, extras), _allContentSelected)).Count;
     }
 
-    /// <summary>Recompute the three submenu counts and refresh their labels + enabled state. Cheap
-    /// (scans only the selection); called on selection change and after download/queue state changes.</summary>
     internal void RefreshBackUpMenuCounts()
     {
         _pendAll    = PendingForSelection(games: true,  extras: true);
@@ -848,28 +796,18 @@ public sealed partial class LibraryViewModel
         RaiseLibraryAction();
     }
 
-    /// <summary>Back-up-selection button text; scopes to the current selection.</summary>
-    /// "Back up" read as both "add it" and "do it now": the two intentions carry their own words.
     public string BackUpSelectedLabel => _selectionAllQueued ? "Already queued"
         : $"Add to queue \u00b7 {SelectedRows.Count} {(SelectedRows.Count == 1 ? "item" : "items")}";
 
-    /// <summary>"Clear New Status > Selected..." text. Singular reads without a count (a "(1)" beside one
-    /// highlighted row is noise); plural carries it, so the menu states how much the click covers before
-    /// you commit to it -- the same promise the Back up entry above makes.</summary>
     public string ClearNewSelectedLabel
         => SelectedRows.Count == 1 ? "Selected Item" : $"Selected Items ({SelectedRows.Count})";
 
     // ---- Library action foot: PRIMARY binds the BarState machine; only the SECONDARY has its own label ----
-    /// <summary>Secondary label: ALWAYS the rescan, never the run transport -- the foot acts on the selection,
-    /// so it must not read "Stop" whenever a download happens to be running.</summary>
-    /// <summary>Selection-aware rescan text: selection or whole library, and the "Re" prefix only once a
-    /// catalog exists -- "RE-scan" is a lie before the first scan.</summary>
     internal string RescanLabel => SelectedRows.Count > 0
         ? (TotalCount > 0 ? "Rescan Selected" : "Scan Selected")
         : (TotalCount > 0 ? "Rescan GOG Library" : "Scan GOG Library");
     public string LibraryRescanLabel => RescanLabel;
 
-    /// <summary>Anything backed up anywhere yet; gates the Folders page's inventory half.</summary>
 
     public bool ShowLibrarySecondary => TotalCount > 0;
     public void RaiseLibraryAction() => OnPropertyChanged(nameof(LibraryRescanLabel));

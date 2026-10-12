@@ -16,7 +16,7 @@ using Grog.Core.Layout;
 
 namespace Grog.App.Views;
 
-// Window and grid layout persistence: size/position restore, column widths, capture on close.
+// Window and grid layout persistence
 public partial class MainWindow
 {
     private void RestoreWindowSize()
@@ -24,8 +24,6 @@ public partial class MainWindow
         if (FixedStartupWindow)
         {
             Width = 1920; Height = 1080; WindowState = WindowState.Normal;
-            // Pin to the primary screen's top-left so 1920x1080 is not center-placed off a 1080p display;
-            // WindowStartupLocation must be Manual for Position to hold.
             WindowStartupLocation = WindowStartupLocation.Manual;
             Position = new PixelPoint(0, 0);
             return;
@@ -34,8 +32,6 @@ public partial class MainWindow
             Width = WindowLayoutMath.ClampDimension(w, WindowLayoutMath.MinWindowWidth, Width);
         if (_settings.WindowHeight is { } h)
             Height = WindowLayoutMath.ClampDimension(h, WindowLayoutMath.MinWindowHeight, Height);
-        // Only adopt a saved position that is still on a connected screen; coordinates from a
-        // since-unplugged monitor would open the window off-desktop.
         if (_settings.WindowPosX is { } px && _settings.WindowPosY is { } py)
         {
             var p = new PixelPoint(px, py);
@@ -49,22 +45,17 @@ public partial class MainWindow
             WindowState = WindowState.Maximized;
     }
 
-    /// <summary>Mirrors LibraryViewModel.ShowOwnerColumn onto the Library grid's Owner column.</summary>
     private void SyncOwnerColumn(MainWindowViewModel vm)
     {
         if (Find<DataGrid>("LibraryGrid") is not { } libraryGrid) return;
         foreach (var c in libraryGrid.Columns)
             if (c.SortMemberPath == "OwnerSortKey")
             {
-                // Each cell's ItemsControl reserves the full-stack MinWidth (GameRowViewModel.OwnerCellMinWidth)
-                // so Auto never undershoots; only the visibility flag is code-behind (no IsVisible binding).
                 c.IsVisible = vm.Library.ShowOwnerColumn;
                 break;
             }
     }
 
-    /// <summary>Bump when the Library grid's columns change shape or a width changes kind; without the bump,
-    /// restore-on-Opened re-applies stale saved widths over the new layout every launch.</summary>
     private const int GridLayoutVersion = 5;
 
     private void RestoreColumnWidths(DataGrid? grid)
@@ -81,28 +72,19 @@ public partial class MainWindow
 
     protected override void OnClosing(WindowClosingEventArgs e)
     {
-        // the Closing handlers (raised by base.OnClosing) cancel most X presses --
-        // confirm dialog, drop-to-tray, quit re-raise -- and each one used to pay a settings Flush+Load+Save
-        // on the dispatcher. Persist the layout only for a close that actually goes through; the quit path
-        // re-raises Closing un-cancelled, so the final write still happens exactly as before.
         base.OnClosing(e);
         if (!e.Cancel) CaptureLayout();
     }
 
     private void CaptureLayout()
     {
-        // Read-modify-write against the current file: the ViewModel owns a separate AppSettings instance
-        // and saves prefs mid-session, so touch only the layout fields here.
         AppSettings.FlushPendingSave();   // a debounced save is newer than the file we are about to read
         var s = AppSettings.Load();
 
-        // While the fixed-size harness is on, never persist the window layout or the forced size would
-        // overwrite the user's real saved layout; column widths still persist normally.
         if (!FixedStartupWindow)
         {
             if (WindowState == WindowState.Maximized)
             {
-                // Keep the last known normal size/position as the restore layout; just remember maximized.
                 s.WindowMaximized = true;
             }
             else

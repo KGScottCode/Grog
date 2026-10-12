@@ -16,13 +16,8 @@ using Grog.Core.Sync;
 using Grog.Core.Tests.Framework;
 using Grog.Core.Volumes;
 
-/// <summary>
-/// The portable hint, a withdrawn GOG slot, the UNC probe, and the saved-scope writer. The.grog-root marker
-/// and its relocation search left in 1284: a storage that comes back under another letter is matched by its files
-/// when the folder is added (ImportRun.MatchExistingRoot), not by a file Grog leaves in the backup folder.
-/// </summary>
 [Trait("volumes")]
-public sealed class VolumesPass0928Tests
+public sealed class VolumesRegressionTests
 {
     private sealed class MemoryStore : IManifestStore
     {

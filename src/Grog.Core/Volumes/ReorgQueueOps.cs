@@ -6,14 +6,8 @@ using System.Linq;
 
 namespace Grog.Core.Volumes;
 
-/// <summary>Reprioritizing the not-yet-started moves of a running (or paused) reorg. Only Pending moves
-/// move; settled and in-flight moves keep their slots. Thread-safe against the runner via
-/// <see cref="ReorgJob.SyncRoot"/> -- the runner always picks the first non-settled move, so putting a
-/// Pending move earlier makes it run sooner.</summary>
 public static class ReorgQueueOps
 {
-    /// <summary>Reposition <paramref name="item"/> to <paramref name="newPendingIndex"/> within the
-    /// Pending subset (0-based). No-op if the item isn't Pending (already running or done).</summary>
     public static void MovePendingTo(ReorgJob job, ReorgMove item, int newPendingIndex)
     {
         lock (job.SyncRoot)
@@ -35,9 +29,6 @@ public static class ReorgQueueOps
         }
     }
 
-    /// <summary>Re-sequence the Pending subset by <paramref name="key"/> (stable), keeping settled and in-flight
-    /// moves in their slots -- the Moving pane's "Order by" pills, the twin of the download queue's sort.</summary>
-    /// <returns>True when the order changed.</returns>
     public static bool SortPending<TKey>(ReorgJob job, Func<ReorgMove, TKey> key, bool ascending)
     {
         lock (job.SyncRoot)

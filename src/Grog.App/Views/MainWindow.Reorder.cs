@@ -16,15 +16,9 @@ using Grog.Core.Layout;
 
 namespace Grog.App.Views;
 
-// Drag-to-reorder for the two waiting queues (downloads, moves).
+// Drag-to-reorder for the two queues
 public partial class MainWindow
 {
-    /// <summary>Drag-to-reorder for a waiting queue: position IS priority, and a drop into the active slots
-    /// bumps the running item back to waiting (its partial survives).</summary>
-    /// <remarks>Pointer-based, not the DragDrop API (in-list reorder, no payload). ONE implementation for
-    /// BOTH queues -- the download and move queues are the same gesture and must move together. The list may
-    /// hold rows of other types (the download tail's won't-fit divider): only a T row starts a drag, any row
-    /// is a drop target, and the drop callback maps the visual index onto the persisted order.</remarks>
     private void WireRowReordering<T>(string listName,
                                       Func<MainWindowViewModel, System.Collections.IList> tail,
                                       Action<MainWindowViewModel, T, int> drop,
@@ -39,15 +33,12 @@ public partial class MainWindow
         Control? dimmed = null;
         IDropTargetRow? lit = null;   // the row painting the insertion line
 
-        // Auto-scroll while a drag sits near the top or bottom of the visible list, so a row can be carried
-        // past the viewport instead of stopping at its edge. The timer runs only during a drag.
         var scroller = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(30) };
         double lastY = 0;
         scroller.Tick += (_, _) =>
         {
             if (dragging is null || !moved) { scroller.Stop(); return; }
             if (list.FindAncestorOfType<ScrollViewer>() is not { } sv) { scroller.Stop(); return; }
-            // Edge zone in the ScrollViewer's own coordinates (the list is its direct content).
             double yInSv = lastY - sv.Offset.Y;
             const double Zone = 36, Step = 14;
             double dy = yInSv < Zone ? -Step : yInSv > sv.Viewport.Height - Zone ? Step : 0;
@@ -70,19 +61,12 @@ public partial class MainWindow
             moved = false;
         }
 
-        // Draws WHERE IT WILL LAND while the pointer moves, so a live drag never looks dead. The line is a flag on
-        // the TARGET ROW, painted by its own template: the adorner it replaced was placed by list-space
-        // coordinates and never showed once the list was scrolled (owner-measured, repeatable across restarts).
         void ClearLine() { if (lit is not null) { lit.DropLineAbove = false; lit.DropLineBelow = false; lit = null; } }
         void DrawLine(int targetIdx, int fromIdx)
         {
             var rows = DataContext is MainWindowViewModel vm0 ? tail(vm0) : null;
             if (rows is null || targetIdx < 0 || targetIdx >= rows.Count || rows[targetIdx] is not IDropTargetRow target) { ClearLine(); return; }
-            // A target the list refuses draws no line: the
-            // gesture has no meaning there, and no line is the honest signal before a pointless drop.
             if (canDrop is not null && dragging is not null && DataContext is MainWindowViewModel vm1 && !canDrop(vm1, dragging, rows[targetIdx]!)) { ClearLine(); return; }
-            // The line marks the BOUNDARY the row lands on: above the target moving up, below it moving
-            // down -- one fixed edge would point at the wrong gap half the time.
             bool above = targetIdx <= fromIdx;
             if (!ReferenceEquals(lit, target)) ClearLine();
             lit = target;
@@ -91,16 +75,11 @@ public partial class MainWindow
 
         list.AddHandler(PointerPressedEvent, (_, e) =>
         {
-            // NEVER start a drag from a press on a button (the row's cancel X): capturing the pointer to
-            // the list robs the button of its press-release cycle, so Click silently never fires -- the X
-            // looked pressed and removed nothing (caught on macOS, but broken everywhere).
             if (e.Source is Visual v && v.FindAncestorOfType<Button>(includeSelf: true) is not null) return;
-            // Left button only: a right-click opens the row's menu and must not capture the pointer.
             if (!e.GetCurrentPoint(list).Properties.IsLeftButtonPressed) return;
             dragging = RowUnder<T>(e.Source);
             start = e.GetPosition(list);
             moved = false;
-            // Capture, so a drag straying outside the list keeps reporting instead of freezing at the edge.
             if (dragging is not null) e.Pointer.Capture(list);
         }, RoutingStrategies.Tunnel);
 
@@ -108,8 +87,6 @@ public partial class MainWindow
         {
             if (dragging is null) return;
             double y = e.GetPosition(list).Y;
-            // Slop so a click never becomes an accidental reorder. 8px, not 4 (a touchpad
-            // click drifted into a drag, which also reset the sticky sort to Queue order).
             if (!moved && System.Math.Abs(y - start.Y) > 8)
             {
                 moved = true;
@@ -132,20 +109,15 @@ public partial class MainWindow
             EndDrag();
             if (row is null || !wasMoved || DataContext is not MainWindowViewModel vm) return;
 
-            // Resolve the drop target by vertical position against the realized rows, so a drop that lands in
-            // the gap between rows (or below the last one) still reorders instead of being a silent no-op.
             int targetIdx = IndexAtY(list, y);
             var rows = tail(vm);
             if (targetIdx < 0 || targetIdx >= rows.Count) return;
             if (ReferenceEquals(rows[targetIdx], row)) return;
             if (canDrop is not null && !canDrop(vm, row, rows[targetIdx]!)) return;
-            // A drop onto a row of another kind (the won't-fit divider) is still a valid target: the drop
-            // callback maps it onto the persisted order.
 
             drop(vm, row, targetIdx);
         }, RoutingStrategies.Tunnel);
 
-        // A lost capture (deactivation, a dialog) must not leave a row dimmed and a line painted forever.
         list.AddHandler(PointerCaptureLostEvent, (_, _) => EndDrag(), RoutingStrategies.Tunnel);
 
         static T? RowUnder<TRow>(object? source) where TRow : class
@@ -167,8 +139,6 @@ public partial class MainWindow
         }
     }
 
-    /// <summary>Index of the realized row whose vertical span contains <paramref name="y"/>; the last row
-    /// when below everything, -1 when empty. Lets a drop in the padding between rows still resolve.</summary>
     private static int IndexAtY(ItemsControl list, double y)
     {
         int last = -1;

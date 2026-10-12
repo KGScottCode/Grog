@@ -6,11 +6,6 @@ using Grog.App.ViewModels;
 using Grog.Core.Sync;
 using Grog.Core.Tests.Framework;
 
-/// <summary>
-/// The shared status vocabulary. The point of these tests is not that a condition maps to a particular
-/// English word - it is that there is exactly ONE mapping, so the Library column and the Folders grid can
-/// never describe the same file differently. They used to hold separate switch statements.
-/// </summary>
 [NewBatch]
 [Trait("vocabulary")]
 public class ConditionVocabularyTests

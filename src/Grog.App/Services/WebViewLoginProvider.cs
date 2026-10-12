@@ -9,10 +9,6 @@ using Grog.Core.Auth;
 
 namespace Grog.App.Services;
 
-/// <summary>In-app GOG login: opens GOG's real login page in a native WebView (WebAuthenticationBroker) and
-/// captures the authorization code on the on_login_success redirect.</summary>
-/// <remarks>Credentials are entered on GOG's genuine page and never pass through Grog; Grog only sees the
-/// one-time auth code the engine exchanges for tokens.</remarks>
 public sealed class WebViewLoginProvider : IInteractiveLoginProvider
 {
     // EVERY login runs in a throwaway session -- no persistent WebView profile, ever. The profile existed
@@ -29,8 +25,6 @@ public sealed class WebViewLoginProvider : IInteractiveLoginProvider
     // dialog with no way out but killing the process.
     private static NativeWebDialog? _activeDialog;
 
-    /// <summary>Close the in-flight login dialog, if any. Safe from any thread; returns false when no
-    /// login is active.</summary>
     public static bool TryCancelActiveLogin()
     {
         var dlg = _activeDialog;
@@ -52,6 +46,11 @@ public sealed class WebViewLoginProvider : IInteractiveLoginProvider
 
     public async Task<string> AcquireAuthorizationCodeAsync(Uri loginUrl, CancellationToken ct = default)
     {
+        if (!await GtkBackendGuard.EnsureAsync())
+            throw new InvalidOperationException(
+                "The GOG sign-in window couldn't start: GTK failed with both the default display and X11. " +
+                "On Wayland, make sure XWayland is installed, then try again.");
+
         // Marshal the whole broker interaction onto the UI thread (native windows must be created there).
         // BACKGROUND priority: the WebView cold start is seconds of UI-thread work, and Background sits
         // below Render so the connect scrim paints before the stall.

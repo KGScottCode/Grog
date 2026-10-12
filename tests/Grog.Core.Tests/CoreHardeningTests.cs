@@ -20,16 +20,12 @@ using Grog.Core.Runs;
 using Grog.Core.Tests.Framework;
 using Grog.Core.Volumes;
 
-/// <summary>Core hardening pass: server-supplied save names stay inside the save folder and the bearer token
-/// stays on gog.com (B4), a failed capture leaves no dated folder (B5), the save list treats only 404 as
-/// empty (B6), and the settler reports a flush that outran its bound (E9).</summary>
 [NewBatch]
 [Trait("cloud")]
 public sealed class CoreHardeningTests
 {
     // ---- cloud rig ------------------------------------------------------------------------------
 
-    /// <summary>The per-game cloud flow for clientId "cid1" with a configurable save list and file answers.</summary>
     sealed class FakeCloud : HttpMessageHandler
     {
         public List<string> Urls { get; } = new();
@@ -324,7 +320,6 @@ public sealed class CoreHardeningTests
 
     // ---- stall guard ------------------------------------------------------------------------------
 
-    /// <summary>A body whose reads hang until told otherwise.</summary>
     sealed class HangingStream : Stream
     {
         public TaskCompletionSource<int> Next = new(TaskCreationOptions.RunContinuationsAsynchronously);

@@ -10,8 +10,6 @@ using System.Threading.Tasks;
 
 namespace Grog.Core.Auth;
 
-/// <summary>Stores the auth session as JSON in the user's config directory (%APPDATA%\Grog on Windows,
-/// ~/.config/Grog elsewhere), encrypted at rest where possible, chmod 600 on unix.</summary>
 public sealed class FileTokenStore : ITokenStore
 {
     private readonly string _path;
@@ -21,8 +19,6 @@ public sealed class FileTokenStore : ITokenStore
         _path = overridePath ?? DefaultPath();
     }
 
-    /// <summary>The default token path. Must delegate to GrogPaths -- the one authority for the config dir
-    /// and its casing; a divergent default is a phantom-logout trap on case-sensitive filesystems.</summary>
     public static string DefaultPath() => Grog.Core.Storage.GrogPaths.Resolve().TokensPath;
 
     public async Task<AuthSession?> LoadAsync()
@@ -49,9 +45,8 @@ public sealed class FileTokenStore : ITokenStore
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
         var json = JsonSerializer.SerializeToUtf8Bytes(session, new JsonSerializerOptions { WriteIndented = true });
         var payload = Encrypt(json);
-        // A random temp name per save: two stores on one path (or two saves in flight) never share it.
         var tmp = _path + "." + Path.GetRandomFileName() + ".tmp";
-        // Any step that throws (write, chmod, move) leaves no stray .tmp behind.
+
         try
         {
             await File.WriteAllBytesAsync(tmp, payload);
@@ -79,15 +74,11 @@ public sealed class FileTokenStore : ITokenStore
     private static string MarkerPath
         => MarkerPathOverride ?? Path.Combine(Grog.Core.Storage.GrogPaths.Resolve().ConfigDir, PlainTextMarkerName);
 
-    /// <summary>True when this machine opted out of keyring encryption so scheduled CLI runs can read the
-    /// token. Checked fresh on every use -- no cache -- so the toggle takes effect immediately.</summary>
     public static bool PlainTextPreferred
     {
         get { try { return File.Exists(MarkerPath); } catch { return false; } }
     }
 
-    /// <summary>Create or remove the marker. Callers that flip this should re-save any existing sessions so
-    /// the bytes on disk match the new policy at once rather than on some future token refresh.</summary>
     public static void SetPlainTextPreferred(bool on)
     {
         var path = MarkerPath;
@@ -101,13 +92,8 @@ public sealed class FileTokenStore : ITokenStore
         else if (File.Exists(path)) File.Delete(path);
     }
 
-    /// <summary>How this machine is actually protecting the token. Read by the UI so what it tells the user is
-    /// derived from the running system rather than from a sentence written on a Windows box.</summary>
     public static TokenProtection Protection => ProtectionOf(DefaultPath());
 
-    /// <summary>How the token at <paramref name="path"/> is actually protected. When the file exists its own
-    /// header is the answer -- the keyring can say "encrypted" over a file a keyring blip wrote in the clear.
-    /// Only with no file does the keyring state predict what the next save will do.</summary>
     public static TokenProtection ProtectionOf(string path)
     {
         if (PlainTextPreferred) return TokenProtection.FilePermissionsOnly;
@@ -119,14 +105,10 @@ public sealed class FileTokenStore : ITokenStore
             return TokenProtection.FilePermissionsOnly;
         }
         if (OperatingSystem.IsWindows()) return TokenProtection.WindowsDataProtection;
-        // GetEXISTINGKey: a readout must not create keys as a side effect (that causes double keyring
-        // prompts); the key is minted only on SaveAsync. A fresh machine honestly reports
-        // FilePermissionsOnly until the first save -- nothing is encrypted yet.
         if (OsKeyring.GetExistingKey() is null) return TokenProtection.FilePermissionsOnly;
         return OperatingSystem.IsMacOS() ? TokenProtection.MacKeychain : TokenProtection.LinuxKeyring;
     }
 
-    /// <summary>The file's first six bytes, or null when there is no file (or it cannot be read).</summary>
     private static byte[]? ReadHeader(string path)
     {
         try
@@ -140,26 +122,16 @@ public sealed class FileTokenStore : ITokenStore
         catch { return null; }
     }
 
-    /// <summary>Per-instance readout of <see cref="ProtectionOf"/> for this store's own file.</summary>
     public TokenProtection FileProtection => ProtectionOf(_path);
 
-    /// <summary>Test seam: the key source behind <see cref="Encrypt"/>. Null means "no keyring".</summary>
     internal static Func<byte[]?> KeySource = OsKeyring.GetOrCreateKey;
 
-    /// <summary>Wired by the host: one line the first time a save falls back to plaintext because the keyring
-    /// gave no key. Silent fallback hid a plaintext token behind an "encrypted" badge.</summary>
     public static Action<string>? Log;
     private static int _plaintextFallbackLogged;
-    /// <summary>True once this process wrote a token in the clear because no keyring key was available.</summary>
     public static bool PlaintextFallbackHappened => Volatile.Read(ref _plaintextFallbackLogged) != 0;
 
-    /// <summary>WHY <see cref="Protection"/> says what it says, so the UI can tell each fallback cause its
-    /// own true sentence. Decided the same way as Protection: an encrypted header on disk answers Encrypted
-    /// whatever the keyring says now (the file IS encrypted even when its key is unreachable). Only a
-    /// plaintext or missing file consults the keyring, and only through Available, which never prompts.</summary>
     public static TokenProtectionReason ProtectionReason => ProtectionReasonOf(DefaultPath());
 
-    /// <summary>The reason for <see cref="ProtectionOf"/>'s answer for the token at <paramref name="path"/>.</summary>
     public static TokenProtectionReason ProtectionReasonOf(string path)
     {
         if (ProtectionOf(path) != TokenProtection.FilePermissionsOnly) return TokenProtectionReason.Encrypted;
@@ -195,7 +167,7 @@ public sealed class FileTokenStore : ITokenStore
             return Prefix(MagicGcm, body);
         }
 
-        // No keyring: plaintext + chmod 600. Said once per process so the fallback is never silent.
+        // No keyring: plaintext + chmod 600
         if (Interlocked.Exchange(ref _plaintextFallbackLogged, 1) == 0)
             try { Log?.Invoke("No keyring key was available; the sign-in token was saved unencrypted (file permissions only)."); } catch { }
         return json;
@@ -217,9 +189,8 @@ public sealed class FileTokenStore : ITokenStore
         if (Starts(raw, MagicGcm))
         {
             var body = raw.AsSpan(MagicGcm.Length);
-            if (body.Length < 28) return raw;                            // truncated; treated as unreadable
-            // GetEXISTINGKey, not GetOrCreate: a newly minted key cannot decrypt this file, and creating
-            // would cost an extra keyring unlock prompt per restore.
+            if (body.Length < 28) return raw;       
+            // GetEXISTINGKey, not GetOrCreate
             if (OsKeyring.GetExistingKey() is not { } key) return raw;   // keyring gone/locked -> re-login
             var nonce = body[..12].ToArray();
             var tag = body[12..28].ToArray();
@@ -237,9 +208,6 @@ public sealed class FileTokenStore : ITokenStore
             enc, null, System.Security.Cryptography.DataProtectionScope.CurrentUser);
     }
 
-    /// <summary>Cheap honesty probe: could the token file plausibly load in THIS process right now? Reads only
-    /// the magic; a locked/canceled keyring makes a GRGK1 row read signed OUT rather than claiming a token
-    /// it cannot use. Never throws.</summary>
     // ---- Remembered readability ----
     // The App asks "is this token readable" for every account on every 1 Hz dashboard pass and on every scan
     // progress flush. Each ask is a stat + open + read on the config dir (a USB stick, portable) and, for a
@@ -248,7 +216,6 @@ public sealed class FileTokenStore : ITokenStore
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (bool Ok, DateTime When)> ReadableCache = new();
     private static readonly TimeSpan ReadableTtl = TimeSpan.FromSeconds(5);
 
-    /// <summary><see cref="LooksReadable"/> with the answer remembered for a few seconds per path.</summary>
     public static bool LooksReadableCached(string path)
     {
         if (ReadableCache.TryGetValue(path, out var hit) && DateTime.UtcNow - hit.When < ReadableTtl) return hit.Ok;
@@ -257,7 +224,6 @@ public sealed class FileTokenStore : ITokenStore
         return ok;
     }
 
-    /// <summary>Forget the remembered answer for one token file (its bytes changed), or for all.</summary>
     public static void ForgetReadable(string? path = null)
     {
         if (path is null) ReadableCache.Clear(); else ReadableCache.TryRemove(path, out _);
@@ -275,7 +241,7 @@ public sealed class FileTokenStore : ITokenStore
             if (n < 6) return head[0] == (byte)'{';
             if (head.AsSpan().SequenceEqual(MagicGcm)) return OsKeyring.GetExistingKey() is not null;
             if (head.AsSpan().SequenceEqual(Magic)) return OperatingSystem.IsWindows();
-            return true;   // plaintext (or an unknown future format: optimistic, LoadAsync stays the truth)
+            return true;   // plaintext (or unknown)
         }
         catch { return false; }
     }

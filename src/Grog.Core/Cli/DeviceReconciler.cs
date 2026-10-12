@@ -9,10 +9,6 @@ using Grog.Core.Volumes;
 
 namespace Grog.Core.Cli;
 
-/// <summary>Turns the CLI's declarative device arguments (<c>--primary</c>/<c>--secondary</c>) into manifest
-/// state. Contract: stated paths are made so (create/adopt/promote); an omitted argument never removes
-/// anything; an ambiguous primary fails fast rather than guess (<c>--moved</c> re-points a moved drive).
-/// Mutates the in-memory manifest; the caller saves.</summary>
 public static class DeviceReconciler
 {
     /// <param name="Ok">False -> the caller prints <see cref="Error"/> to stderr and exits non-zero
@@ -37,7 +33,6 @@ public static class DeviceReconciler
 
             if (atPath is not null)
             {
-                // A device already lives here -- just make sure it's the primary.
                 if (m.PrimaryRootId != atPath.Id)
                 {
                     vol.SetPrimary(atPath.Id);
@@ -46,7 +41,6 @@ public static class DeviceReconciler
             }
             else if (currentPrimary is null)
             {
-                // Fresh: no primary yet -> create it here. Unambiguous (nothing to conflict with).
                 try
                 {
                     var r = vol.AddRoot(full);
@@ -57,8 +51,6 @@ public static class DeviceReconciler
             }
             else if (moved)
             {
-                // User asserts the primary drive moved (e.g. drive letter changed): re-point in place so
-                // its files stay valid (same device Id, new path).
                 try
                 {
                     vol.ReplaceRoot(currentPrimary.Id, full);
@@ -68,7 +60,7 @@ public static class DeviceReconciler
             }
             else
             {
-                // Ambiguous -- refuse to guess.
+                // Ambiguous, don't guess
                 return new Result(false,
                     $"--primary={full} isn't the current primary ({currentPrimary.PathHint}), and no device is "
                     + "registered there. If that drive MOVED, re-run with --moved to re-point it in place. To make "
@@ -76,7 +68,7 @@ public static class DeviceReconciler
             }
         }
 
-        // ---------- SECONDARY (additive / adopt; never removes) ----------
+        // SECONDARY (additive)
         if (!string.IsNullOrWhiteSpace(secondaryPath))
         {
             string full;
@@ -91,12 +83,11 @@ public static class DeviceReconciler
             {
                 try
                 {
-                    vol.AddRoot(full);   // adopt as a secondary device
+                    vol.AddRoot(full);   // add a secondary device
                     notes.Add($"Secondary device added at {full}.");
                 }
                 catch (Exception ex) { return new Result(false, ex.Message, notes); }
             }
-            // else: already a known device -- leave its role as-is (declarative, non-destructive).
         }
 
         return new Result(true, null, notes);

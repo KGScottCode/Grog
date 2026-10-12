@@ -13,12 +13,6 @@ using Grog.Core.Sync;
 
 namespace Grog.App.ViewModels;
 
-/// <summary>
-/// Delete downloaded files. ONE flow at three sizes -- a file row, a section of the detail
-/// pane (game files / extras), the grid selection (whole games) -- so it reads as one action. Confirms once
-/// with the real count and bytes; "Don't ask again" is an app setting, per machine. The work itself is
-/// <see cref="LocalDeletion"/>; this file only decides WHICH files and asks.
-/// </summary>
 public sealed partial class LibraryViewModel
 {
     [ObservableProperty] private bool _showDeleteConfirm;
@@ -30,7 +24,6 @@ public sealed partial class LibraryViewModel
     private Task DeleteFile(DetailFileRow? row)
         => row is null ? Task.CompletedTask : BeginDelete(new[] { row.File }, row.Name);
 
-    /// <summary>"games" or "extras": every file in that section of the open game.</summary>
     [RelayCommand]
     private Task DeleteSection(string? which)
     {
@@ -39,20 +32,15 @@ public sealed partial class LibraryViewModel
         return BeginDelete(rows.Select(r => r.File).ToList(), which == "extras" ? $"the extras of {title}" : $"the game files of {title}");
     }
 
-    /// <summary>Storage page, file row: the one copy on that device.</summary>
     [RelayCommand]
     private Task DeleteInventoryFile(InventoryRow? row)
         => row is null ? Task.CompletedTask : BeginDelete(new[] { row.File }, row.FileName);
 
-    /// <summary>Storage page, game rollup: this game's files ON THIS DEVICE only. A copy of the same game on the
-    /// other drive is a separate row there and is not touched -- the user deletes what they right-clicked.</summary>
     [RelayCommand]
     private Task DeleteInventoryGame(InventoryGroupRow? group)
         => group is null ? Task.CompletedTask
          : BeginDelete(group.Files.Select(r => r.File).ToList(), $"{group.Title} on {(string.IsNullOrEmpty(group.Grid?.Label) ? "this device" : group.Grid!.Label)}");
 
-    /// <summary>Nothing downloaded, nothing to delete: the entry is dead on a game that holds no bytes
-    /// (records only, no disk). Re-asked whenever the menu counts are (selection and download-state changes).</summary>
     private bool CanDeleteSelected()
         => SelectedRows.Select(r => ItemById(r.GogId)).Any(i => i is not null && i.Files.Concat(i.OldVersionFiles).Any(Grog.Core.Sync.BackupScope.HoldsBytes));
 

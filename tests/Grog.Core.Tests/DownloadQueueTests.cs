@@ -7,8 +7,6 @@ using Grog.Core.Download;
 using Grog.Core.Models;
 using Grog.Core.Tests.Framework;
 
-/// <summary>The queue IS the priority: position decides what runs next, and dragging something to the
-/// front pre-empts what's running. Pre-emption is only cheap because partials survive in .grog-tmp.</summary>
 [NewBatch]
 [Trait("queue")]
 public class DownloadQueueTests

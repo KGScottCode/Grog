@@ -16,8 +16,6 @@ public partial class StoragePage : UserControl
         Hook();
     }
 
-    /// <summary>The rail's "Other storage" entry lands on this page and asks for the section: bring it
-    /// into view (it is docked at the bottom, so on a short window it can sit below the fold).</summary>
     private void Hook()
     {
         var vm = DataContext as MainWindowViewModel;

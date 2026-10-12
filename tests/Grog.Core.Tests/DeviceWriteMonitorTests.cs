@@ -5,7 +5,6 @@ using Grog.Core.Tests.Framework;
 
 namespace Grog.Core.Tests;
 
-/// <summary>The per-device write gate: slow above 2 s of smoothed flush, fast again only under 1 s.</summary>
 public sealed class DeviceWriteMonitorTests
 {
     [Test]

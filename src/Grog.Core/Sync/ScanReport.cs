@@ -9,22 +9,14 @@ using Grog.Core.Manifest;
 
 namespace Grog.Core.Sync;
 
-/// <summary>
-/// The scan report: a plain-text diagnostic of what the last scan found, written beside Grog's other state
-/// so it can be pasted into an issue. Order is deliberate: reconciliation, errors, no-download products,
-/// then the ordinary library last. Unresolved entries carry the RAW account URL so the user can verify.
-/// </summary>
 public static class ScanReport
 {
     public const string FileName = "scan-report.txt";
 
-    /// <summary>The account record for one product, by id. Works without a slug or a title, which is what
-    /// makes it usable for the very items Grog could learn nothing about.</summary>
     public static string RawUrl(long gogId) => $"https://embed.gog.com/account/gameDetails/{gogId}.json";
 
     public static string StoreUrl(string slug) => $"https://www.gog.com/en/game/{slug}";
 
-    /// <summary>Build the report text. Pure: takes what the scan saw, returns the document.</summary>
     public static string Build(LibraryManifest manifest, int productsSeen, DateTimeOffset stamp,
                                IReadOnlyList<long>? failedIds = null)
     {
@@ -101,8 +93,6 @@ public static class ScanReport
         return sb.ToString();
     }
 
-    /// <summary>Write the report next to Grog's other state and return its path. Never throws: a report that
-    /// cannot be written must not fail a scan.</summary>
     public static string? Write(LibraryManifest manifest, int productsSeen, string configDir,
                                 IReadOnlyList<long>? failedIds = null, DateTimeOffset? stamp = null)
     {

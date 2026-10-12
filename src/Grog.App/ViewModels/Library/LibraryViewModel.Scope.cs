@@ -27,10 +27,7 @@ public sealed partial class LibraryViewModel
 {
     // ---- Split language scope: games vs extras. ONE flyout, retargeted -- not two copies of the picker,
     //      so the two sides can never drift apart in behavior.
-    /// <summary>Point the shared flyout at the GAMES list and reseed its checkboxes from it.</summary>
     [RelayCommand] private void EditGamesLanguages() => RetargetLanguageFlyout(false);
-    /// <summary>Point the shared flyout at the EXTRAS list; extras with no pick of their own show the games
-    /// selection, which is what they back up.</summary>
     [RelayCommand] private void EditExtrasLanguages() => RetargetLanguageFlyout(true);
 
     private void RetargetLanguageFlyout(bool extras)
@@ -41,21 +38,14 @@ public sealed partial class LibraryViewModel
         OnPropertyChanged(nameof(LanguageFlyoutTitle));
     }
 
-    /// <summary>Which side the open flyout is editing, so the panel cannot be read as the wrong one.</summary>
     public string LanguageFlyoutTitle => _editingExtraLanguages ? "Languages for extras" : "Languages for games";
 
     public string GamesLanguageLabel => $"Games · {LanguageListLabel(_languages, _gameLangCount, _gameHasNeutral)}";
-    /// <summary>Extras with no pick of their own report the games value, because that is what they follow.</summary>
     public string ExtrasLanguageLabel => $"Extras · {LanguageListLabel(_extraLanguages ?? _languages, _extraLangCount, _extraHasNeutral)}";
 
-    /// <summary>How many languages each side's files actually tag -- the denominators for the buttons.</summary>
     private int _gameLangCount, _extraLangCount;
     private bool _gameHasNeutral, _extraHasNeutral;
 
-    /// <summary>Button-sized label: a COUNT, never the list. A list grows without bound and
-    /// tells the user nothing a count does not; a count has a known maximum width, so the row beside it cannot
-    /// reflow as the selection changes. The +1 is the always-kept Neutral entry, which is real but not
-    /// user-selectable.</summary>
     private static string LanguageListLabel(List<string> langs, int available, bool hasNeutral)
         => available <= 0 ? (langs.Count == 0 ? "All" : $"{langs.Count} languages")
          : langs.Count == 0 ? $"{available} of {available}"
@@ -63,13 +53,11 @@ public sealed partial class LibraryViewModel
 
     [RelayCommand] private void SelectAllLanguages() { foreach (var o in LanguageOptions) o.IsChecked = true; }
 
-    /// <summary>The one shortcut worth having: the common case is "I only want my own language".</summary>
     [RelayCommand] private void SelectEnglishOnly()
     {
         foreach (var o in LanguageOptions) if (!o.IsLocked) o.IsChecked = o.Name.Equals("English", StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>Compact language list for the policy summary strip ("English", "English, German", "all languages").</summary>
     public string LanguageSummaryShort
     {
         get
@@ -127,7 +115,6 @@ public sealed partial class LibraryViewModel
         OnPropertyChanged(nameof(ScopeLabel));
     }
 
-    /// <summary>States the backup policy on the Backups page; the controls themselves live in Settings.</summary>
     public string BackupPolicySummary
     {
         get
@@ -144,8 +131,6 @@ public sealed partial class LibraryViewModel
         }
     }
 
-    /// <summary>Scope lives in the MANIFEST -- a property of the backup, so the CLI on any OS honors the GUI's
-    /// picks. A pre-scope manifest is seeded once from legacy AppSettings; after that the manifest wins.</summary>
     internal void AdoptManifestScope()
     {
         if (_manifest.Current.Scope is not { } ms)
@@ -170,8 +155,6 @@ public sealed partial class LibraryViewModel
         OnPropertyChanged(nameof(GamesLanguageLabel)); OnPropertyChanged(nameof(ExtrasLanguageLabel));
     }
 
-    /// <summary>The manifest's scope record, created on demand. Every scope WRITE goes through here followed
-    /// by a manifest save -- the manifest is the owner, the VM fields are the cache.</summary>
     private Grog.Core.Sync.ScopeSettings ManifestScope()
         => _manifest.Read(m => m.Scope ??= new Grog.Core.Sync.ScopeSettings());   // the create-on-demand is a graph write
 
@@ -180,23 +163,16 @@ public sealed partial class LibraryViewModel
         _platforms.Count > 0 ? _platforms : null,
         ExtraLanguagesForScope);
 
-    /// <summary>The extras language list as Core wants it: NULL means "follow games", an EMPTY list means
-    /// "every language". `_extraLanguages` is null until extras are given their own pick.</summary>
     private IReadOnlyCollection<string>? ExtraLanguagesForScope
         => _extraLanguages is null ? null : (_extraLanguages.Count > 0 ? _extraLanguages : System.Array.Empty<string>());
 
-    /// <summary>EffectiveScope with the games/extras axis overridden but language + platform kept. One source
-    /// so the submenu count, the queue re-prune, and the enqueue agree on the same file set.</summary>
     internal Grog.Core.Sync.Scope ScopeFor(bool games, bool extras) => new(games, extras,
         _languages.Count > 0 ? _languages : null,
         _platforms.Count > 0 ? _platforms : null,
         ExtraLanguagesForScope);
     private List<string> _languages = new();
-    /// <summary>NULL until extras get their own pick, which is what makes them inherit the games list.</summary>
     private List<string>? _extraLanguages;
-    /// <summary>Which list the ONE shared, retargeted checkbox flyout is currently editing.</summary>
     private bool _editingExtraLanguages;
-    /// <summary>The list the flyout reads/writes; extras with no pick of their own show the games selection.</summary>
     private List<string> ActiveLanguageList
         => _editingExtraLanguages ? (_extraLanguages ?? _languages) : _languages;
     private List<string> _platforms = new();
@@ -221,13 +197,9 @@ public sealed partial class LibraryViewModel
     public bool HasPlatformOptions => PlatformOptions.Count > 0;
 
     private int _neutralFiles; private long _neutralBytes;
-    /// <summary>The platform row's "always kept" figure: extras + platform-neutral files under the current
-    /// games/extras/language picks. Platform checkboxes plus this line sum to the scope totals.</summary>
     public string NeutralPlatformCostText =>
         $"{Grog.Core.Format.ByteFormat.Size(_neutralBytes)} \u00b7 {_neutralFiles:N0} files";
 
-    /// <summary>The Content row's extras figure ("Extras: size, files"), shown while extras are in scope.
-    /// Same number the platform rows need to sum to the scope totals -- extras are platform-neutral.</summary>
     public string ExtrasScopeCostText => $"Extras: {NeutralPlatformCostText}";
 
     private void RebuildPlatformOptions()
@@ -302,18 +274,13 @@ public sealed partial class LibraryViewModel
         public int FileCount { get; }
         public long Bytes { get; }
         public string CostText => $"{Grog.Core.Format.ByteFormat.Size(Bytes)} \u00b7 {FileCount:N0} files";
-        /// <summary>The pick in force. Not two-way: the flyout row is a button that runs SetScope, so there is
-        /// one write path for the choice instead of a binding that can fire while the list is being seeded.</summary>
         public bool IsCurrent { get; }
     }
 
     public ObservableCollection<ContentOption> ContentOptions { get; } = new();
 
-    /// <summary>The Content button's label: the choice in force, by name. Three short fixed options, so the
-    /// name fits where a count would be less informative.</summary>
     public string ContentLabel => ScopeGamesOn ? "Games only" : ScopeExtrasOn ? "Extras only" : "Games & Extras";
 
-    /// <summary>The Platforms button's label: a count, for the reason the language buttons carry one.</summary>
     public string PlatformsLabel
     {
         get
@@ -325,9 +292,6 @@ public sealed partial class LibraryViewModel
         }
     }
 
-    /// <summary>The scope card's headline figure: what the CURRENT picks add up to. Sits on the card's
-    /// header rule the way the device cards carry their contents telemetry, so the card states its total
-    /// before the user reads a single control.</summary>
     public string ScopeTotalText { get; private set; } = "";
 
     private void RebuildContentOptions()
@@ -372,8 +336,6 @@ public sealed partial class LibraryViewModel
         OnPropertyChanged(nameof(ScopeLabel));
     }
 
-    /// <summary>Drop queued files the current language OR platform scope excludes: the queue, not the scope,
-    /// is the source of truth for future runs, so a resume would otherwise fetch a turned-off axis.</summary>
     private void PruneQueuedOutOfScope()
     {
         if (_manifest is null || _manifest.Current.Downloads.IsEmpty) return;
@@ -388,7 +350,6 @@ public sealed partial class LibraryViewModel
         _root.RefreshStorageIfIdle();
     }
 
-    /// <summary>Change scope from the running app (Settings): persist, re-evaluate rows + dashboard.</summary>
     public void ApplyScope(bool includeGames, bool includeExtras)
     {
         if (_includeGames == includeGames && _includeExtras == includeExtras) return;
@@ -411,8 +372,6 @@ public sealed partial class LibraryViewModel
         // out of scope the storage row is hidden (ShowExtrasLocation), so nothing stale is shown either.
     }
 
-    /// <summary>The Content buttons' states + extras gating as ONE set (ApplyScope and the everything
-    /// shortcut both raise it).</summary>
     internal void RaiseScopeButtons()
     {
         OnPropertyChanged(nameof(ScopeBothOn)); OnPropertyChanged(nameof(ScopeGamesOn)); OnPropertyChanged(nameof(ScopeExtrasOn));
@@ -423,7 +382,6 @@ public sealed partial class LibraryViewModel
         OnPropertyChanged(nameof(ContentLabel)); OnPropertyChanged(nameof(PlatformsLabel));
     }
 
-    /// <summary>The scope hint shown after "% backed up".</summary>
     public string ScopeLabel =>
         _includeGames || _includeExtras ? $"Backing up {EffectiveScope.Caption.ToLowerInvariant()}"
         : "Nothing selected to back up";
@@ -435,15 +393,12 @@ public sealed partial class LibraryViewModel
     public bool ScopeHasExtras => _includeExtras;   // gates the folder-layout section (only relevant with extras)
     [RelayCommand] private void SetScope(string? s) => ApplyScope(s != "extras", s != "games");
 
-    /// <summary>When false, the download skips Extra files (set by the first-run "Games only" choice).</summary>
     private bool _includeExtras = true;
     private bool _includeGames = true;
 
     // ---- Language scope: built from the library's OWN tags; empty selection = everything ----
     public ObservableCollection<LanguageOption> LanguageOptions { get; } = new();
 
-    /// <summary>What the grid actually shows: a filtered list, because a UniformGrid reserves a cell per
-    /// bound item whether or not it is visible.</summary>
     public ObservableCollection<LanguageOption> VisibleLanguages { get; } = new();
 
     private void RebuildVisibleLanguages()
@@ -454,8 +409,6 @@ public sealed partial class LibraryViewModel
     }
     public bool HasLanguageChoices => LanguageOptions.Count > 1;
 
-    /// <summary>Surface the language choice in the read-only policy summaries only when it differs from the
-    /// English-only default; the Settings language chooser stays visible regardless.</summary>
     public bool ShowLanguagePolicy
     {
         get
@@ -465,11 +418,8 @@ public sealed partial class LibraryViewModel
         }
     }
 
-    /// <summary>Live consequence of the current language choice -- what you're giving up, in real numbers.</summary>
     [ObservableProperty] private string _languageConsequence = "";
 
-    /// <summary>Extra languages are hidden until asked for: most people want one, and 14 checkboxes for a
-    /// decision you'll never revisit is noise.</summary>
     [ObservableProperty] private bool _showOtherLanguages;
     public string OtherLanguagesLabel => ShowOtherLanguages ? "Hide other languages" : $"Show {OtherLanguageCount} other languages";
     public bool HasOtherLanguages => OtherLanguageCount > 0;
@@ -591,13 +541,9 @@ public sealed partial class LibraryViewModel
     public double GamesRowOpacity => EffectiveScope.Includes(FileKind.Installer) ? 1.0 : 0.22;
     public double ExtrasRowOpacity => EffectiveScope.Includes(FileKind.Extra) ? 1.0 : 0.22;
 
-    /// <summary>Domain-derived library counts, for the Overview readouts and the storage VM's system-drive hint.
-    /// The health tally (Overview) recomputes it on its own pass, so the setter is part of the surface.</summary>
     internal Grog.Core.Sync.LibraryStats Stats { get => _stats; set => _stats = value; }
-    /// <summary>The byte-weighted rollup behind the percent bars.</summary>
     internal Grog.Core.Sync.LibraryRollup Rollup => _rollup;
     internal bool IncludeGames => _includeGames;
     internal bool IncludeExtras => _includeExtras;
-    /// <summary>A download state transition changed the in-flight / present split: the next progress tick rebuilds the cached base once.</summary>
     internal void InvalidateRollupBase() => _rollupBaseValid = false;
 }

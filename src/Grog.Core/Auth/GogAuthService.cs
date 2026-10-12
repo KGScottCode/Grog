@@ -11,7 +11,6 @@ namespace Grog.Core.Auth;
 
 public sealed class GogAuthService : IAuthService
 {
-    /// <summary>Refresh this long before actual expiry to avoid using a token that dies mid-request.</summary>
     private static readonly TimeSpan ExpirySkew = TimeSpan.FromMinutes(2);
 
     private readonly HttpClient _http;
@@ -64,10 +63,6 @@ public sealed class GogAuthService : IAuthService
         finally { _gate.Release(); }
     }
 
-    /// <summary>Re-read the store before a refresh. GOG rotates the refresh token on every exchange, so a second
-    /// GogAuthService over the same token file (the App's interactive session and AccountSessions' chain) that
-    /// refreshed with its own copy would present a token already spent. When disk holds a different refresh
-    /// token it is the newer fact: adopt it. True when the in-memory session changed. Callers hold the gate.</summary>
     private async Task<bool> SyncFromStoreAsync()
     {
         AuthSession? disk;
@@ -78,8 +73,6 @@ public sealed class GogAuthService : IAuthService
         return true;
     }
 
-    /// <summary>A fresh session becomes THE session only once it is on disk: a failed save keeps the old one in
-    /// memory (still valid for this process) and the failure reaches the caller unchanged.</summary>
     private async Task<AuthSession> AdoptAsync(AuthSession fresh)
     {
         await _store.SaveAsync(fresh);
@@ -93,10 +86,6 @@ public sealed class GogAuthService : IAuthService
         await _store.ClearAsync();
     }
 
-    /// <summary>Re-writes the current session to the store. EnsureAuthenticated saves only when it logs in
-    /// or refreshes -- a valid in-memory session returns without touching disk, so a token FILE that went
-    /// unreadable underneath it (keyring key lost while the app ran) stays orphaned until the session
-    /// expires. Callers that detect an unreadable file after a successful auth call this to heal it.</summary>
     public async Task PersistSessionAsync(CancellationToken ct = default)
     {
         await _gate.WaitAsync(ct);
@@ -104,8 +93,6 @@ public sealed class GogAuthService : IAuthService
         finally { _gate.Release(); }
     }
 
-    /// <summary>Forces a refresh now, rotating the refresh token -- the keepalive lever that holds the
-    /// unattended window open against GOG's disuse cleanup. Throws if no session or the token has lapsed.</summary>
     public async Task<AuthSession> RefreshNowAsync(CancellationToken ct = default)
     {
         await _gate.WaitAsync(ct);
@@ -133,10 +120,6 @@ public sealed class GogAuthService : IAuthService
         finally { _gate.Release(); }
     }
 
-    /// <summary>GOG REFUSED the refresh token (a 4xx from the token endpoint). Everything else -- no network, DNS,
-    /// a timeout, a 5xx -- says nothing about the token, and reading it as "expired" popped a login window for
-    /// a laptop that was merely offline, and marked a good account signed out on the non-interactive path
-    /// . Those propagate; the session is kept and the next call tries again.</summary>
     internal static bool IsRejection(HttpRequestException ex)
         => ex.StatusCode is { } c && (int)c >= 400 && (int)c < 500;
 

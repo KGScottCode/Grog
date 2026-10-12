@@ -32,18 +32,13 @@ public sealed partial class OverviewViewModel
     // empty queue and when nothing queued fits (a won't-fit file is never the pill; the frame then
     // shows a placeholder and every red row sits under the divider). DownloadTail is everything after it, in queue order.
     [ObservableProperty] private QueueRow? _downloadPill;
-    /// <summary>The rendered tail: QueueRows that fit, in queue order, then (while any row is flagged) the one
-    /// <see cref="WontFitDividerRow"/>, then the won't-fit QueueRows in queue order when it is expanded. Typed
-    /// object because it holds two row kinds; the view picks the template by type.</summary>
     public Services.BulkObservableCollection<object> DownloadTail { get; } = new();
     public bool HasDownloadTail => DownloadTail.Count > 0;
-    /// <summary>The single divider instance, so reconciling the tail never re-realizes it.</summary>
     public WontFitDividerRow WontFitDivider { get; } = new();
     [RelayCommand] private void ToggleWontFitDivider() { WontFitDivider.Expanded = !WontFitDivider.Expanded; RebuildQueue(); RoomLeftChanged(); }
     // Stable QueueRow instances keyed by (GogId, FileKey) so RebuildQueue updates the bound tail incrementally.
     // Never Clear(): a collection Reset forces the list control to re-realize every row on each progress tick.
     private readonly Dictionary<(long, string), QueueRow> _rowCache = new();
-    /// <summary>The rows are REUSED, so a fact they derive (hidden name, needs sign-in) is re-raised in place.</summary>
     internal void RefreshQueueRowFacts() { foreach (var r in _rowCache.Values.ToList()) r.Refresh(); DownloadPill?.Refresh(); }
     public bool DownloadPillIdle => DownloadPill is null;
     public string DownloadPillIdleText => DownloadQueueCount > 0 ? "Nothing in the queue fits" : "Queue files from your library to download";
@@ -63,7 +58,6 @@ public sealed partial class OverviewViewModel
 
     // Activity-section header counts (the little pills). Recomputed in RebuildQueue / SyncReorgRows.
     public int DownloadQueueCount => ActiveRows.Count + WaitingRows.Count;
-    /// <summary>Queued files that fit where they are routed: what Resume would start. The persisted queue is the source.</summary>
     public int ResumableCount => _manifest?.Current.Downloads.FittingCount ?? 0;
     internal long DownloadQueueBytes => ActiveRows.Concat(WaitingRows)
         .Sum(r => r.RemainingBytes);
@@ -73,23 +67,10 @@ public sealed partial class OverviewViewModel
     public string MoveCountText => $"{MoveQueueCount} / {ByteFormat.Size(MoveQueueBytes)}";
     public bool ShowMoveCount => MoveQueueCount > 0;
 
-    /// <summary>Queue has anything in it (active or waiting). Section controls key off this, NOT "actively
-    /// transferring" -- otherwise Pause would make its own controls vanish, leaving no way to Resume.</summary>
     public bool HasQueuedWork => !QueueIsEmpty;
-    /// <summary>Show Pause: there's queued work and it isn't already paused.</summary>
-    /// <summary>Pause only while a run is MOVING. A run that finished with files still queued (won't-fit
-    /// leftovers) is idle, not paused: it showed "Pause" over a stopped queue.</summary>
     public bool ShowPauseDownloadQueue => HasQueuedWork && _root.DownloadRunning && !_root.DownloadPaused;
-    /// <summary>Show Resume: there's queued work and it's paused - and an account exists to serve it.
-    /// With none connected, Resume is a lie; Connect Account takes its slot.</summary>
-    /// PAUSED shows Resume AT ONCE. It waited for the run to unwind (DownloadRunning false), and the unwind
-    /// flushes partial files: on a slow USB drive the slot sat EMPTY for seconds after the click, no Pause and no
-    /// Resume. A Resume clicked during the unwind is safe: ResumeDownloads waits the unwind out before it starts.
     public bool ShowResumeDownloadQueue => HasQueuedWork && (!_root.DownloadRunning || _root.DownloadPaused) && !_root.QueueNeedsAccount;
     public bool ShowQueueConnectAccount => HasQueuedWork && (!_root.DownloadRunning || _root.DownloadPaused) && _root.QueueNeedsAccount;
-    /// <summary>With registered accounts merely signed out the fix is a Log In; with none registered
-    /// it is a full connect. One button, the honest verb.</summary>
-    /// <summary>The queue's pause/resume/connect button states as ONE set (S3.3).</summary>
     internal void RaiseDownloadControls()
     {
         OnPropertyChanged(nameof(ShowPauseDownloadQueue)); OnPropertyChanged(nameof(ShowResumeDownloadQueue));
@@ -97,7 +78,6 @@ public sealed partial class OverviewViewModel
     }
     public string QueueConnectLabel => (_manifest?.Current.Accounts.Count ?? 0) > 0 ? "Log In" : "Connect Account";
 
-    /// <summary>What's left, in the terms the user chose to back up.</summary>
     public string QueueStatsText
     {
         get
@@ -147,8 +127,6 @@ public sealed partial class OverviewViewModel
         OnPropertyChanged(nameof(QueueSortGlyphInstallers)); OnPropertyChanged(nameof(QueueSortGlyphExtras));
     }
 
-    /// <summary>Click a queue column header: set or toggle the sort, then re-sequence the real persisted +
-    /// live queue. Sticky until a manual drag reverts to explicit "Queue order".</summary>
     [RelayCommand]
     private void SortQueue(string column)
     {
@@ -170,12 +148,6 @@ public sealed partial class OverviewViewModel
     }
 
 
-    /// <summary>Apply the active sort to the persisted queue + live engine (pre-empting the active download if
-    /// needed). Event-driven: called on header click or enqueue only -- a draining queue stays in order.</summary>
-    /// <param name="replan">Re-check what fits for the new order. TRUE only for an explicit header click.
-    /// At run start the plan was just made by Place over this very queue, so re-planning there is a full
-    /// placement walk that can only produce the answer it already has (queue membership changing
-    /// is not a reason to re-plan; free space changing is).</param>
     internal void ApplyQueueSortToModel(bool replan = false)
     {
         if (_manifest is null || QueueSort == QueueSortKey.Order) return;
@@ -220,18 +192,8 @@ public sealed partial class OverviewViewModel
         _manifest?.SaveSoon();   // ordering only: debounced, coalesces with the drag that follows
     }
 
-    /// <summary>Re-decide what fits for the order just applied. Whole-queue, so a file that was won't-fit can
-    /// come back: the per-file re-plan during a run cannot do that (it only sees what the engine holds). Runs
-    /// with or without a live engine: idle, the records are rewritten so the red rows match the order.</summary>
     private void ReplanAfterSort() => _ = ReplanQueueAsync("the new order");
 
-    /// <summary>Re-check every queued row's target and fit now, run live or idle, and repaint every surface
-    /// from the rewritten flags. <paramref name="why"/> names the trigger in the log ("the new order", "the
-    /// pinned games"). Shared with the Storage page's game pins.</summary>
-    /// <returns>True when a plan ran over the newest order; false when it was skipped (logged). A request that
-    /// lands while a plan is in flight is coalesced into ONE trailing run, and its caller awaits that run, so
-    /// nobody paints a verdict, a glow or a scroll against a list the trailing run is about to regroup
-    /// .</returns>
     internal Task<bool> ReplanQueueAsync(string why)
     {
         if (_manifest is null) return Task.FromResult(false);
@@ -245,13 +207,9 @@ public sealed partial class OverviewViewModel
     }
     private Task<bool>? _replanLoop;
 
-    /// <summary>True while the re-plan publishes its result through the Storage refresh: that refresh must
-    /// not ask for another re-plan.</summary>
     internal bool PublishingPlan { get; private set; }
-    /// <summary>The newest plan's per-device leftover: the one "still free" figure an idle refresh shows.</summary>
     internal IReadOnlyList<Grog.Core.Volumes.DeviceSpace>? LastPlanRoom { get; private set; }
     private Services.UiCoalescer? _idleReplan;
-    /// <summary>An idle refresh asks for the flags to be re-decided: off the UI thread, at most once a second.</summary>
     internal void RequestIdleReplan()
         => (_idleReplan ??= new Services.UiCoalescer(TimeSpan.FromSeconds(1), () => _ = ReplanQueueAsync("the drives as they are now"))).Request();
     private string? _replanPending;
@@ -309,12 +267,8 @@ public sealed partial class OverviewViewModel
         catch (Exception ex) { _root.Log($"Fit re-check skipped: {ex.Message}", false, LogCategory.Download); return false; }
     }
 
-    /// <summary>The per-file ceiling that stops a red row, or null when it is simply out of room.</summary>
     private string? FileLimitOf(QueueRow r) => Grog.Core.Runs.QueueShaper.FileLimitBlocking(r.Task.File, WontFitDivider.RoomByRoot);
 
-    /// <summary>Publish the room left per device to the divider and re-evaluate the row menus. "Fits" is a
-    /// per-device test (the planner needs ONE drive with the room), so the divider's number and the menus' gate
-    /// use the largest single-device leftover, never the sum across drives.</summary>
     internal void SetRoomLeft(IReadOnlyList<Grog.Core.Volumes.DeviceSpace> freeAfter)
     {
         WontFitDivider.SetRoom(freeAfter);
@@ -322,8 +276,6 @@ public sealed partial class OverviewViewModel
         RoomLeftChanged();
     }
 
-    /// <summary>Build the Downloading card from the PERSISTED queue, so it is identical on any screen and
-    /// after restart. The live engine supplies byte progress; every other file renders from its manifest entry.</summary>
     internal void RebuildQueue() => Services.UiWatch.Time("RebuildQueue", RebuildQueueCore);
     private void RebuildQueueCore()
     {
@@ -465,22 +417,17 @@ public sealed partial class OverviewViewModel
     public string ActivityTabHeader => (_root.Storage.IsReorgRunning || HasActive || _root.Storage.MoveWaitingForSlot) ? "Activity  ●" : "Activity";
 
     internal void RaiseActivityTabHeader() => OnPropertyChanged(nameof(ActivityTabHeader));
-    /// <summary>The Move queue's count readouts on the Activity tab, raised by the storage VM's pane.</summary>
     internal void RaiseMoveCount()
     {
         OnPropertyChanged(nameof(MoveQueueCount)); OnPropertyChanged(nameof(MoveCountText));
         OnPropertyChanged(nameof(ShowMoveCount));
     }
 
-    /// <summary>The Primary-first pill hides without a secondary; a sort left on it would show no pill
-    /// selected and no glyph. Back to queue order, the resting state.</summary>
 
     public ObservableCollection<LogEntry> LogEntries { get; } = new();
     private const int MaxLogEntries = 500;
     public bool HasLogEntries => LogEntries.Count > 0;
 
-    /// <summary>The shell's Log() lands each entry here (newest first, capped); failures also feed the
-    /// issues modal's RECENT ERRORS list. UI thread only (the shell marshals).</summary>
     internal void AppendLog(LogEntry entry, bool isError)
     {
         LogEntries.Insert(0, entry);
@@ -505,30 +452,17 @@ public sealed partial class OverviewViewModel
     [ObservableProperty] private bool _toastVisible;
     [ObservableProperty] private string _toastMessage = "";
     [ObservableProperty] private bool _toastIsError;
-    /// <summary>Three-tier severity: 0 info (green), 1 warning (orange), 2 error (red) -- the same colors
-    /// as the tray icon escalation. ToastIsError mirrors severity >= 2 for existing bindings.</summary>
     [ObservableProperty] private int _toastSeverity;
-    /// <summary>Where the toast's Fix link goes ("Overview", "Accounts"...) -- the page that fixes the problem.</summary>
     private ToastFix _toastFix = "Overview";
     private int _toastGen;
 
-    /// <summary>Accent for the toast's status dot, matching the tray icon tier exactly.</summary>
     public IBrush ToastAccent => ToastSeverity >= 2 ? Palette.ErrorRed
         : ToastSeverity == 1 ? Palette.WarnOrange : Palette.SuccessGreen;
-    /// <summary>Border follows the severity too, but a success gets a plain surface stroke rather than a green
-    /// ring: a good outcome should confirm quietly, not shout as loudly as a problem.</summary>
     public IBrush ToastStroke => ToastSeverity >= 2 ? Palette.ErrorRed
         : ToastSeverity == 1 ? Palette.WarnOrange : Palette.SurfaceStroke;
-    /// <summary>"Fix" only makes sense when there IS something to fix; a success toast linking anywhere
-    /// sends the user to look for a problem that does not exist.</summary>
     public bool ToastHasReview => ToastSeverity > 0;
-    /// <summary>Sentinel fix target: the toast button reads "Retry" and starts the queue instead of navigating.</summary>
     public string ToastActionLabel => _toastFix.RetryQueue ? "Retry" : "Fix";
-    /// <summary>Warnings and errors read larger: they exist to be noticed (readability law -- an alert in
-    /// caption type is an alert designed to be missed).</summary>
     public double ToastFontSize => ToastSeverity > 0 ? 17 : 15;   // info at 12 was below the readability floor
-    /// <summary>Alerts get extra vertical body (roughly two text rows of air) so the card itself is
-    /// bigger and harder to miss; info toasts keep their compact shape.</summary>
     public Avalonia.Thickness ToastPadding => ToastSeverity > 0 ? new Avalonia.Thickness(22, 34) : new Avalonia.Thickness(20, 20);
     public Avalonia.Media.FontWeight ToastFontWeight => ToastSeverity > 0 ? Avalonia.Media.FontWeight.SemiBold : Avalonia.Media.FontWeight.Normal;
     partial void OnToastSeverityChanged(int value)
@@ -580,8 +514,6 @@ public sealed partial class OverviewViewModel
         if (_toastFix.RetryQueue) RetryRunFailureCommand.Execute(null);   // retries the failed files, not just Resume over whatever is queued
     }
 
-    /// <summary>The pill's eyebrow (STARTING / UP NEXT / PAUSED) follows the run flags the shell owns.</summary>
     internal void RaisePillState() => OnPropertyChanged(nameof(DownloadPillState));
-    /// <summary>The queue's "N queued · X to go" line, per progress tick.</summary>
     internal void RaiseQueueStats() => OnPropertyChanged(nameof(QueueStatsText));
 }

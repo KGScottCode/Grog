@@ -5,10 +5,6 @@ using System.Runtime.InteropServices;
 
 namespace Grog.App.Services;
 
-/// <summary>The minimum Objective-C interop Grog needs on macOS: reading and writing an NSWindow's
-/// styleMask (to clear NSWindowStyleMaskMiniaturizable - native minimize is broken in the Avalonia mac
-/// backend, see MainWindow's mac block). DllImports only ever execute behind OperatingSystem.IsMacOS()
-/// guards, so this file is safely cross-platform.</summary>
 internal static class MacInterop
 {
     private const string LibObjC = "/usr/lib/libobjc.A.dylib";

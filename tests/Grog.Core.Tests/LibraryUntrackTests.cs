@@ -9,13 +9,6 @@ using Grog.Core.Models;
 using Grog.Core.Sync;
 using Grog.Core.Tests.Framework;
 
-/// <summary>
-/// Untracking (Grog_Design_TOC: remove = stop tracking, bytes stay). Rules locked down here:
-/// removing an owner strips per-file stamps and only SOLE-owned files/items leave; co-owned games
-/// survive with the other owners intact; removed items take their queue entries with them; the
-/// fresh-library reset empties items + queue and nothing else; legacy AccountId attribution is
-/// blanked so load-time seeding cannot resurrect removed ownership.
-/// </summary>
 [NewBatch]
 [Trait("untrack")]
 public class LibraryUntrackTests

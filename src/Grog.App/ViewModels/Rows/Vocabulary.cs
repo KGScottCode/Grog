@@ -16,7 +16,6 @@ using Grog.Core.Format;
 
 namespace Grog.App.ViewModels;
 
-/// <summary>Brush arithmetic shared by the row types: a palette brush at a given alpha.</summary>
 internal static class RowBrushes
 {
     public static IBrush Translucent(IBrush b, byte alpha)
@@ -28,7 +27,6 @@ internal static class RowBrushes
 
 public static class SeverityBrush
 {
-    /// <summary>THE ONLY PLACE a severity becomes a color. Add a surface, call this; never re-derive.</summary>
     public static IBrush For(Grog.Core.Sync.Severity s) => s switch
     {
         Grog.Core.Sync.Severity.Fault     => Palette.ErrorRed,
@@ -36,8 +34,6 @@ public static class SeverityBrush
         _                                            => Palette.InkPrimary,
     };
 
-    /// <summary>The log's severities through the same single mapping. Info draws DIM rather than primary:
-    /// a log line at rest is chrome, not a value the user is reading.</summary>
     public static IBrush For(LogSeverity s) => s switch
     {
         LogSeverity.Error => For(Grog.Core.Sync.Severity.Fault),
@@ -46,8 +42,6 @@ public static class SeverityBrush
     };
 }
 
-/// <summary>THE STATUS VOCABULARY: one word, one glyph and one color per file condition, for the whole app.
-/// GREEN = all-clear, AMBER = a gap you can close, RED = wrong/gone bytes, ORANGE = safely unplugged, DIM = nothing to do.</summary>
 public static class ConditionVocabulary
 {
     public static string Word(Grog.Core.Sync.FileCondition c) => c switch
@@ -61,9 +55,6 @@ public static class ConditionVocabulary
         _ => "Not Downloaded",
     };
 
-    /// <summary>The game-level word: same vocabulary as the file condition (a game with a corrupt file reads
-    /// "Corrupt", not a different word for the same red). Zero in-scope files derives Complete ("nothing to
-    /// do"), but the grid must not claim "Backed Up" with no files, so that case says what it is.</summary>
     public static string Word(BackupStatus s, bool notInScope) => s switch
     {
         BackupStatus.Complete when notInScope => "Not in Scope",
@@ -104,10 +95,7 @@ public static class ConditionVocabulary
 public sealed record ExtraTypeSegment(string Name, IBrush Brush)
 {
     public bool HasName => !string.IsNullOrEmpty(Name);
-    /// <summary>Proportional width when the segment is drawn in a star-sized grid.</summary>
     public Avalonia.Controls.GridLength Col { get; init; } = new(1, Avalonia.Controls.GridUnitType.Star);
-    /// <summary>Bytes of this type actually backed up -- the legend entry doubles as the breakdown. BYTES, not
-    /// files: the segment widths are byte-weighted and the legend must share the bar's unit.</summary>
     public long DoneBytes { get; init; }
     public string DoneBytesText => Grog.Core.Format.ByteFormat.Size(DoneBytes);
     // ---------- Content-type colors: ONE source of truth ----------
@@ -136,8 +124,6 @@ public sealed record ExtraTypeSegment(string Name, IBrush Brush)
     };
     private static readonly SolidColorBrush Fallback = Br(136, 144, 160);
 
-    /// <summary>The app-wide SHORT label for a content type: folds the classifier's long bucket names and
-    /// synonyms onto the canonical keys, so every surface names (and colors) a type the same way.</summary>
     public static string Label(string key) => Canonical(key);
     private static string Canonical(string key) => key switch
     {
@@ -151,8 +137,6 @@ public sealed record ExtraTypeSegment(string Name, IBrush Brush)
         _                        => key,
     };
 
-    /// <summary>The color for a content type, stable regardless of what else is on screen. "Game" returns
-    /// the live theme accent brush (so it re-tints with the theme); every other type is a fixed hue.</summary>
     public static IBrush ColorFor(string key)
     {
         var k = Canonical(key);

@@ -16,7 +16,6 @@ using Grog.Core.Format;
 
 namespace Grog.App.ViewModels;
 
-/// <summary>One row in the live reorg checklist: a file being moved, and its state.</summary>
 public partial class ReorgMoveRow : ObservableObject, IDropTargetRow
 {
     private bool _dropAbove, _dropBelow;
@@ -25,9 +24,7 @@ public partial class ReorgMoveRow : ObservableObject, IDropTargetRow
 
     public string Title { get; init; } = "";
     public string PathText { get; init; } = "";
-    /// <summary>The actual file name (line two), e.g. "setup_eye_of_the_beholder_2.0.0.3.exe".</summary>
     public string FileName { get; init; } = "";
-    /// <summary>Color for the subtext: the game's accent for installers, the Extra's bucket hue for extras.</summary>
     public IBrush TypeBrush { get; init; } = Brushes.Transparent;
     // Identity back to the ReorgMove, so a drag-reorder can map this row to the plan entry.
     public long GogId { get; init; }
@@ -37,16 +34,12 @@ public partial class ReorgMoveRow : ObservableObject, IDropTargetRow
     [ObservableProperty] private string _stateText = "Waiting";
     [ObservableProperty] private bool _isDone;
     [ObservableProperty] private double _percent;   // for the active (in-flight) move card
-    /// <summary>The same OS chip the download card shows; empty for extras.</summary>
     public string OsBadge { get; init; } = "";
     public bool ShowOsBadge => OsBadge.Length > 0;
-    /// <summary>"Primary → Small": bottom-right of the active card.</summary>
     [ObservableProperty] private string _routeText = "";
-    /// <summary>"1.3 GB / 2.38 GB · 55%": the download card's readout, on the move card too.</summary>
     [ObservableProperty] private string _progressText = "";
 }
 
-/// <summary>A problem folder in the import results screen (ambiguous or unmatched), resolvable via Find-match.</summary>
 public partial class ImportResultRow : ObservableObject
 {
     public string Path { get; init; } = "";
@@ -63,5 +56,4 @@ public partial class ImportResultRow : ObservableObject
     }
 }
 
-/// <summary>A weekday choice for the scheduler's Weekly dropdown.</summary>
 public sealed record WeekdayOption(System.DayOfWeek Day, string Label);

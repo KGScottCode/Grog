@@ -18,10 +18,7 @@ namespace Grog.App.ViewModels;
 
 public sealed record HealthCheckRow(string Label, string Value, Grog.Core.Sync.Severity Level, string Tip = "")
 {
-    /// <summary>MANAGE BY EXCEPTION: a passing check is REPORTED, not celebrated -- only a fault or an
-    /// outstanding job earns a color. The value stays readable in every case because it is a VALUE.</summary>
     public IBrush ValueBrush => SeverityBrush.For(Level);
-    /// <summary>The dot is DECORATION on a quiet row, so it may be muted; otherwise it is the marker.</summary>
     public IBrush DotBrush => Level == Grog.Core.Sync.Severity.Quiet ? Palette.StrokeSubtle : ValueBrush;
 }
 
@@ -41,9 +38,6 @@ public sealed record HealthFileRow(string Title, string Name, string SizeText, s
     }
 }
 
-/// <summary>One outstanding item on a rail entry: the words, and the SEVERITY that
-/// decides both its order in the stack and its colour. It carries the severity rather than a brush so
-/// <see cref="SeverityBrush"/> stays the one place a grading becomes a colour (the d234 rule).</summary>
 public sealed record RailException(string Text, Grog.Core.Sync.Severity Severity)
 {
     public Avalonia.Media.IBrush Brush => SeverityBrush.For(Severity);

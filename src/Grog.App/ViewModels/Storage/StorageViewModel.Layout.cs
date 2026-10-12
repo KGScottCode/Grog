@@ -25,8 +25,6 @@ namespace Grog.App.ViewModels;
 // and resolving a stopped move (put the files back, or accept them where they landed).
 public sealed partial class StorageViewModel
 {
-    /// <summary>one layout offer at a time: the ExtrasLayoutValue setter also
-    /// schedules CheckLayoutMigration, and two concurrent offers overwrote each other's plan.</summary>
     private bool _layoutOfferBusy, _migrateCheckBusy;
 
     internal async Task OfferLayoutReorg()
@@ -54,15 +52,9 @@ public sealed partial class StorageViewModel
         finally { _layoutOfferBusy = false; }
     }
 
-    /// <summary>The plan behind the open migrate prompt: the one-time flat-layout offer found on load, or a
-    /// layout the user just switched. The pane runs plan.Job. </summary>
     private Grog.Core.Runs.LayoutMigrationPlan? _layoutPlan;
-    /// <summary>A running move is being stopped because a newer decision replaces it: no stop-choice dialog.</summary>
     private Grog.Core.Volumes.ReorgJob? _supersededJob;
 
-    /// <summary>Hand the extras card's plan to the same prompt and pane the layout offer uses.
-    /// The card decides WHAT moves; running moves stays here, where the journal, the pause/cancel pane and
-    /// the resume path already live. A plan that needs an offline drive blocks instead of half-running.</summary>
     internal void OfferExtrasPlacementPlan(Grog.Core.Runs.LayoutMigrationPlan plan)
     {
         if (plan.HasUnavailableDrives) { BlockMoveForDrives(plan.UnavailableDrives); return; }
@@ -73,16 +65,12 @@ public sealed partial class StorageViewModel
         _layoutPlan = plan; _layoutPlanIsExtras = true;
         ShowMigratePrompt = true;
     }
-    /// <summary>The open prompt's plan came from the extras card: it is re-made at the click, because the prompt can
-    /// sit open while a move lands more files (the prompt said 114 of what was by then 279).</summary>
     private bool _layoutPlanIsExtras;
 
     // ---- Layout migration (flat -> Games/Extras/Cloud Saves) ----
     [ObservableProperty] private bool _showMigratePrompt;
     public string MigrateSummary { get; internal set; } = "";   // internal: the headless harness seeds it
 
-    /// <summary>On load, detect backups still in the old flat layout and offer a one-time reorganize
-    /// into Games/Extras folders. Core's plan is a dry-run (one File.Exists per move) until the user confirms.</summary>
     // "Don't ask again" lives in the MANIFEST Settings (a property of the backup, so it travels with the
     // drive). It only silences THIS automatic on-load offer -- a deliberate layout change in Settings
     // still prompts via OfferLayoutReorg, because the user just asked for it.
@@ -117,7 +105,6 @@ public sealed partial class StorageViewModel
         finally { _migrateCheckBusy = false; }
     }
 
-    /// <summary>Persists the "Don't ask again" tick when either button dismisses the prompt.</summary>
     private void PersistMigrateDontAskAgain()
     {
         if (!MigrateDontAskAgain || _session.Manifest is null) return;
@@ -240,8 +227,6 @@ public sealed partial class StorageViewModel
         await RunReorgWithPaneAsync(pending, configDir);
     }
 
-    /// <summary>The room re-check before a resume, startup and in-app alike: what no longer fits
-    /// leaves the plan and is said once.</summary>
     internal int DropWhatNoLongerFitsFor(Grog.Core.Volumes.ReorgJob job)
     {
         if (_session.Manifest is not { } manifest) return 0;
@@ -263,8 +248,6 @@ public sealed partial class StorageViewModel
     [ObservableProperty] private bool _showOrphanConfirm;
     [ObservableProperty] private string _moveStopSummary = "";
     [ObservableProperty] private string _moveStopOrphanWarning = "";
-    /// <summary>The operation being resolved, phrased for a human ("Changing the Primary folder"). Shown in
-    /// every dialog about this job so the user is never asked about "a move" they have to guess at.</summary>
     [ObservableProperty] private string _moveStopWhat = "";
     [ObservableProperty] private string _revertOldFolder = "";
     [ObservableProperty] private string _revertNewFolder = "";
@@ -278,9 +261,6 @@ public sealed partial class StorageViewModel
     partial void OnRevertOldFolderChanged(string value) { OnPropertyChanged(nameof(RevertStopWarning)); }
     [ObservableProperty] private bool _reverting;
 
-    /// <summary>Show the resolve dialog for whatever stopped job is on disk. Reads the journal rather than
-    /// trusting an in-memory job, so it works identically after a cancel, a crash, or a restart.</summary>
-    /// <param name="preloaded">The stopped job when the caller already read the journal (startup check); else it is read here.</param>
     private async void OpenStopChoice(Grog.Core.Volumes.ReorgJob? preloaded = null)
     {
         try { await OpenStopChoiceCore(preloaded); }
@@ -324,8 +304,6 @@ public sealed partial class StorageViewModel
         ShowMoveStopChoice = true;
     }
 
-    /// <summary>The stopped job in the user's vocabulary ("Moving files from Primary to Archive"). Named from
-    /// the job itself so it is right when the journal is all we have, and reused across every dialog.</summary>
     private string DescribeJob(Grog.Core.Volumes.ReorgJob job) => job.Reason switch
     {
         // "Changing the Primary folder" would read as changing WHICH folder is primary. It is the path that
@@ -340,8 +318,6 @@ public sealed partial class StorageViewModel
     private string RootLabelForJob(Grog.Core.Volumes.ReorgJob job)
         => LabelOfRoot(job.Moves.FirstOrDefault()?.FromRootId);
 
-    /// <summary>The slot word for the active cards' route readouts: "Primary" / "Secondary" (the role,
-    /// never a folder name or path, so the text always fits), the drive's label only for a drive in neither slot.</summary>
     internal string SlotNameOf(string? rootId)
     {
         if (_session.Manifest is null) return "";
@@ -361,8 +337,6 @@ public sealed partial class StorageViewModel
         return rootId == _session.Manifest.Current.PrimaryRootId ? "Primary" : (string.IsNullOrWhiteSpace(r.Label) ? "backup" : r.Label);
     }
 
-    /// <summary>The old or new folder of a ChangeFolder job, recovered from a move's absolute path minus its
-    /// (unchanged) relative path -- the journal records no folder of its own.</summary>
     private static string FolderSideOf(Grog.Core.Volumes.ReorgJob job, bool destination)
     {
         var mv = job.Moves.FirstOrDefault();
@@ -401,8 +375,6 @@ public sealed partial class StorageViewModel
         _activeReorgJob = null;
     }
 
-    /// <summary>Put the moved files back. Takes the activity slot: this is real file movement, not bookkeeping,
-    /// and must not race a download.</summary>
     [RelayCommand]
     private Task RevertStoppedMove() => RevertStoppedMoveCore(null);
 

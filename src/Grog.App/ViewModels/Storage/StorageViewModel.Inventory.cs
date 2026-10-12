@@ -33,8 +33,6 @@ public sealed partial class StorageViewModel
 
     // Move affordances. Right sends Primary -> Secondary, left the reverse; "Selection" acts on highlighted
     // rows, "All" on the whole grid. Each lights up only when it can act -- the enabled state is the hint.
-    /// <summary>A running BACKUP does not block a move any more: the move asks it to finish what is in
-    /// progress and start nothing new (RunReorgWithPaneAsync). Anything else that holds Busy (a scan) still does.</summary>
     private bool MovesBlocked => _root.Busy && !_root.DownloadRunning;
     public bool CanMoveSelToSecondary => PrimaryGrid.HasSelection && HasSecondary && !MovesBlocked;
     public bool CanMoveAllToSecondary => PrimaryGrid.HasFiles && HasSecondary && !MovesBlocked;
@@ -74,8 +72,6 @@ public sealed partial class StorageViewModel
         RaiseInventory();
     }
 
-    /// <summary>Fill one device grid: the games with files on that device, folded into rollup rows with
-    /// their files underneath. Games are ordered by their footprint on the device (biggest first).</summary>
     private void BuildGridRows(DeviceGridViewModel grid)
     {
         // The rebuild runs after every file that lands (a run of small files = one every second), and it
@@ -167,8 +163,6 @@ public sealed partial class StorageViewModel
 
     private DeviceGridViewModel Other(DeviceGridViewModel g) => g == PrimaryGrid ? SecondaryGrid : PrimaryGrid;
 
-    /// <summary>"Bring the rest of this game here": the files on the other device move onto this one through the
-    /// move engine.</summary>
     [RelayCommand]
     private async Task ConsolidateGame(InventoryGroupRow? g)
     {
@@ -205,9 +199,6 @@ public sealed partial class StorageViewModel
         SyncSelection(grid);
     }
 
-    /// <summary>Shift+click range: select every file row between the anchor and the target in the visible
-    /// (GroupedRows) order, inclusive. A group in the range selects all its files. Not additive (plain Shift)
-    /// clears first; Ctrl+Shift adds to the existing selection. The anchor is left unchanged.</summary>
     private void SelectRange(DeviceGridViewModel grid, object anchor, object target, bool additive)
     {
         var rows = grid.GroupedRows;
@@ -239,8 +230,6 @@ public sealed partial class StorageViewModel
         grid.Selected.Clear();
     }
 
-    /// <summary>Rebuild a grid's Selected list from the per-row flags, clear the opposite grid, and refresh
-    /// the move affordances.</summary>
     private void SyncSelection(DeviceGridViewModel grid)
     {
         grid.Selected.Clear();
@@ -251,8 +240,6 @@ public sealed partial class StorageViewModel
         RaiseInventory();
     }
 
-    /// <summary>True while a file is part of the running move job and hasn't settled yet -- drives the
-    /// inventory's "Moving" status. Rebuilt when a move starts and when it finishes.</summary>
     private HashSet<(long GogId, string FileKey)>? _movingKeys;   // valid only during RebuildInventoryCore
     private bool IsFileMoving(long gogId, string fileKey)
         => _movingKeys is not null && _movingKeys.Contains((gogId, fileKey));
@@ -266,7 +253,6 @@ public sealed partial class StorageViewModel
         OnPropertyChanged(nameof(CanMoveSelToPrimary)); OnPropertyChanged(nameof(CanMoveAllToPrimary));
     }
 
-    /// <summary>Clear both grids' selections (Esc). Returns true if anything was actually selected.</summary>
     public bool ClearInventorySelectionIfAny()
     {
         if (PrimaryGrid.Selected.Count == 0 && SecondaryGrid.Selected.Count == 0) return false;
@@ -282,16 +268,11 @@ public sealed partial class StorageViewModel
     [RelayCommand(AllowConcurrentExecutions = true)] private async Task MoveAllToSecondary() { _moveAllFromRootId = PrimaryGrid.RootId; try { await MoveRowsTo(PrimaryGrid.FileRows.ToList(), SecondaryGrid.RootId); } finally { _moveAllFromRootId = null; } }
     [RelayCommand(AllowConcurrentExecutions = true)] private async Task MoveSelToPrimary() => await MoveRowsTo(SecondaryGrid.Selected.ToList(), PrimaryGrid.RootId);
     [RelayCommand(AllowConcurrentExecutions = true)] private async Task MoveAllToPrimary() { _moveAllFromRootId = SecondaryGrid.RootId; try { await MoveRowsTo(SecondaryGrid.FileRows.ToList(), PrimaryGrid.RootId); } finally { _moveAllFromRootId = null; } }
-    /// <summary>Set while a "Move all" is being planned: the drive it empties. A move that has to wait for files in
-    /// progress is planned again when it starts, so the files that landed meanwhile go too.</summary>
     private string? _moveAllFromRootId;
 
-    /// <summary>Drag-and-drop entry point: move a grid's current selection onto the target device.</summary>
     public async Task MoveInventoryTo(DeviceGridViewModel source, string? targetRootId)
         => await MoveRowsTo(source.Selected.ToList(), targetRootId);
 
-    /// <summary>Move files to a device via the same reorg engine as layout migration: visible in the Moving
-    /// pane, pausable, restart-resumable. Each file settles copy -> verify -> delete source individually.</summary>
     public async Task MoveRowsTo(IReadOnlyList<InventoryRow> rows, string? targetRootId)
     {
         // A click that does nothing is a bug ("All" did nothing, no toast, no log). Every way
@@ -320,8 +301,6 @@ public sealed partial class StorageViewModel
         await MoveFilesTo(pairs, targetRootId!, "Move");
     }
 
-    /// <summary>What a move onto <paramref name="targetRootId"/> can count on: free bytes after the writes a running
-    /// move still owes that drive, and the drive's per-file limit. Probes disk: call off the UI thread.</summary>
     internal static Grog.Core.Volumes.MoveRoom MoveRoomFor(JsonManifestStore manifest, Grog.Core.Volumes.PendingWrites? pending,
         Grog.Core.Volumes.IBackupLayout layout, string targetRootId)
     {
@@ -343,7 +322,6 @@ public sealed partial class StorageViewModel
         return new Grog.Core.Volumes.MoveRoom(free, max, cluster);
     }
 
-    /// <summary>One log line for the flows that have their own dialogs: what was left in place and why.</summary>
     private void LogLeftInPlace(Grog.Core.Volumes.ReorgJob job, string? targetRootId)
     {
         if (job.NotFitting.Count == 0) return;
@@ -355,7 +333,6 @@ public sealed partial class StorageViewModel
     [ObservableProperty] private string _moveRoomText = "";
     private TaskCompletionSource<bool>? _moveRoomAnswer;
 
-    /// <summary>Shows the dialog and waits for the answer. True = move what fits; false = cancel.</summary>
     private async Task<bool> AskMoveWhatFitsAsync(Grog.Core.Volumes.ReorgJob job, string label)
     {
         var total = job.Moves.Count + job.NotFitting.Count;
@@ -381,14 +358,11 @@ public sealed partial class StorageViewModel
         return await _moveRoomAnswer.Task;
     }
 
-    /// <summary>The room the last plan was priced against, for the confirm text.</summary>
     private Grog.Core.Volumes.MoveRoom? _lastMoveRoom;
 
     [RelayCommand] private void ConfirmMoveRoom() { ShowMoveRoomConfirm = false; _moveRoomAnswer?.TrySetResult(true); }
     [RelayCommand] private void CancelMoveRoom() { ShowMoveRoomConfirm = false; _moveRoomAnswer?.TrySetResult(false); }
 
-    /// <summary>The one move path for the Storage page: plan off the dispatcher, refuse offline drives, run in
-    /// the Moving pane.</summary>
     private async Task MoveFilesTo(List<(LibraryItem Item, GameFile File)> pairs, string targetRootId, string why)
     {
         if (_session.Manifest is null) return;

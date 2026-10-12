@@ -7,17 +7,6 @@ using System.Linq;
 using Grog.Core.Scheduling;
 using Grog.Core.Tests.Framework;
 
-/// <summary>
-/// When the scheduler is due to fire. Pure arithmetic over a supplied instant, so all of it is
-/// testable without a timer.
-///
-/// <para>WHY THESE ARE PLATFORM-INTERESTING: <c>SchedulePlanner.MakeAt</c> asks
-/// <c>TimeZoneInfo.Local.GetUtcOffset</c> for the offset that applies on the TARGET date, and that
-/// answer comes from the Windows registry on one machine and from tzdata on the other. A backup
-/// scheduled for 03:00 that quietly fires at 02:00 or 04:00 for half the year is exactly the kind of
-/// bug that only shows up in November. The DST tests below adapt to whatever zone the suite runs in,
-/// so running the suite under TZ=America/New_York (or any DST zone) exercises the tzdata path.</para>
-/// </summary>
 [NewBatch]
 [Trait("schedule")]
 public class SchedulePlannerTests
@@ -27,8 +16,6 @@ public class SchedulePlannerTests
     private static BackupSchedule Daily(int minutes = ThreeAm) =>
         new() { Enabled = true, Frequency = ScheduleFrequency.Daily, TimeOfDayMinutes = minutes };
 
-    /// <summary>A local instant, stamped with the offset the LOCAL zone really uses then. Building the
-    /// input any other way would test the test rather than the planner.</summary>
     private static DateTimeOffset Local(int y, int m, int d, int hh = 12, int mm = 0, int ss = 0)
     {
         var wall = new DateTime(y, m, d, hh, mm, ss, DateTimeKind.Unspecified);
@@ -168,8 +155,6 @@ public class SchedulePlannerTests
 
     // ---- the platform-sensitive half ------------------------------------------------------
 
-    /// <summary>The next DST transition at or after <paramref name="from"/> in the AMBIENT zone, or null
-    /// when this zone does not observe DST (UTC, Asia/Kolkata, most of Asia and Africa).</summary>
     private static DateTime? NextTransition(DateTime from)
     {
         for (var d = from.Date; d < from.Date.AddDays(400); d = d.AddDays(1))

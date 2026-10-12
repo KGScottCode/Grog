@@ -17,11 +17,6 @@ using Grog.Core.Tests.Framework;
 
 namespace Grog.Core.Tests;
 
-/// <summary>
-/// LibrarySyncService.RunAsync end to end against a fake GOG: owned ids, the rich listing, the mod tag
-/// set and one gameDetails per product, including a product whose details 500 and one that returns
-/// nothing. Written before RunAsync was split into stages; keep it green through any sync change.
-/// </summary>
 [Trait("sync")]
 public sealed class LibrarySyncRunTests
 {

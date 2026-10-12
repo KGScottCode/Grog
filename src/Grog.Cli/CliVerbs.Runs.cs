@@ -10,18 +10,8 @@ using Grog.Core.Runs;
 
 namespace Grog.Cli;
 
-/// <summary>Verbs that are thin shells over the Core orchestrators: the sequence lives in
-/// <c>Grog.Core.Runs</c>, the verb parses flags, renders the result and picks the exit code.</summary>
 internal static partial class CliVerbs
 {
-    /// <summary>
-    /// <c>grogcli fix [--failed|--corrupt|--missing|--game &lt;id&gt;] [--dry-run] [--parallel N]</c>: re-queue
-    /// the problem files at the front of the queue (strikes cleared, fresh copies) and drain the queue
-    /// through <see cref="BackupRun"/>, exactly as the App's Fix / Try again do. No flag = corrupt + missing
-    /// (the Overview "Fix It"). <c>--dry-run</c> lists what would be re-queued and changes nothing.
-    /// Exit codes: nothing to fix -> 0; queued but a fetch failed or verify found problems -> 8;
-    /// no account -> 4; nothing fits -> 7; stopped -> 1.
-    /// </summary>
     internal static async Task<int> Fix(CliContext ctx)
     {
         var args = ctx.Args;
@@ -29,7 +19,6 @@ internal static partial class CliVerbs
         bool Has(string f) => args.Contains(f, StringComparer.OrdinalIgnoreCase);
         await manifest.LoadAsync();
 
-        // ---- selector ----
         FixKind kinds = FixKind.None;
         if (Has("--failed")) kinds |= FixKind.FailedDownloads;
         if (Has("--corrupt")) kinds |= FixKind.CorruptFiles;
@@ -48,7 +37,6 @@ internal static partial class CliVerbs
         }
         else selector = new FixSelector(kinds == FixKind.None ? FixKind.CorruptFiles | FixKind.MissingFiles : kinds);
 
-        // ---- what it touches (read-only) ----
         var affected = FixRun.Select(manifest, selector);
         if (affected.Count == 0)
         {
@@ -81,11 +69,10 @@ internal static partial class CliVerbs
             return Continue;
         }
 
-        // ---- re-queue (saved inside) ----
+        // re-queue
         var fix = await FixRun.RequeueAsync(manifest, selector);
         Out.Dim($"Re-queued {fix.Count} file(s) at the top of the queue. Fetching…");
 
-        // ---- drain the persisted queue, the way `backup` runs, minus the scan (the queue is the selection) ----
         if (string.IsNullOrWhiteSpace(ctx.ContentRoot()))
             return Fail("fix", Grog.Core.Cli.ExitCode.NotConfigured, "not-configured",
                 "Files are queued but no backup location is configured. Run 'backup --primary=<path>' once, then 'fix' again.");
@@ -129,15 +116,6 @@ internal static partial class CliVerbs
         return Continue;
     }
 
-    /// <summary>
-    /// <c>grogcli dates [--force]</c>: fill in acquisition dates from GOG's order history through Core's
-    /// <see cref="PurchaseDatesRun"/>. Normally there is nothing to do -- an interactive <c>sync</c> already
-    /// runs this pass, and once a complete walk has answered for every product the pass makes no request at
-    /// all -- so the verb exists to catch up a library that predates the feature and to state plainly how
-    /// many products GOG's history simply does not cover. <c>--force</c> re-opens every settled answer and
-    /// walks every page again, for when GOG's history is believed to have changed.
-    /// Exit codes: no account -> 4; otherwise 0, including "nothing to date".
-    /// </summary>
     internal static async Task<int> Dates(CliContext ctx)
     {
         var manifest = ctx.Manifest;
@@ -152,8 +130,6 @@ internal static partial class CliVerbs
             return Continue;
         }
 
-        // --force re-opens the settled answers FIRST, so the run that follows sees them as unanswered and
-        // walks every page again. Without this the run would correctly decide there was nothing to ask.
         if (force)
         {
             int reopened = 0;
@@ -173,7 +149,7 @@ internal static partial class CliVerbs
 
         try
         {
-            // Every connected account's order history, each on its own client.
+            // Every connected account's order history
             var r = manifest.Current.Accounts.Count == 0
                 ? await PurchaseDatesRun.RunAsync(manifest, ctx.Api, CancellationToken.None)
                 : await PurchaseDatesRun.RunForAccountsAsync(manifest, PurchaseDatesRun.OrdersOf(ctx.Sessions), CancellationToken.None);
@@ -185,9 +161,6 @@ internal static partial class CliVerbs
             Out.Success(r.Dated == 0
                 ? $"No new dates: order history covers none of the {unanswered} item(s) asked about."
                 : $"Dated {r.Dated} item(s) from order history ({r.Requests} request(s)).");
-            // Not a warning: GOG's order history genuinely does not cover Connect imports, bundled DLC or
-            // pre-order grants. Saying it is SETTLED matters more than saying it is missing -- it is why
-            // this will not be asked again, and why the next scan costs nothing.
             if (r.Settled > 0)
                 Out.Dim($"{r.Settled} item(s) are not in GOG's order history (Connect imports, DLC bundled "
                       + "under a base game, pre-order grants). Answered - they will not be asked about again.");

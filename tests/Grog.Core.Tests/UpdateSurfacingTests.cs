@@ -110,7 +110,7 @@ public class UpdateSurfacingTests
         var svc = new AccountService(store, paths);
 
         // default account → legacy tokens.json
-        Assert.Contains("tokens-kevin.json", svc.TokenPathFor("kevin"), "every account gets its own token file");
+        Assert.Contains("tokens-acct.json", svc.TokenPathFor("acct"), "every account gets its own token file");
         try { svc.TokenPathFor(""); Assert.True(false, "empty id must throw"); }
         catch (System.ArgumentException) { /* the unnamed slot no longer exists */ }
         // named account → tokens-<id>.json

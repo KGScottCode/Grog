@@ -9,9 +9,6 @@ using Grog.Core.Storage;
 using Grog.Core.Tests.Framework;
 using Grog.Core.Volumes;
 
-/// <summary>Extras always live under their own Extras/ area; the HOW choice (game-first vs type-first) is
-/// authoritative on EVERY drive. So the folder shape is the same whether extras sit beside their game, on a
-/// separate drive (the "separate folder" WHERE), or on an overflow spill -- only the ROOT changes.</summary>
 public class CoLocationLayoutTests
 {
     static (JsonManifestStore store, string root) New()

@@ -17,15 +17,8 @@ using Grog.Core.Verify;
 
 namespace Grog.Cli;
 
-/// <summary>
-/// One method per verb, dispatched from Program.cs by name. Until these were 1,880 lines of case
-/// bodies in a single switch; the bodies are unchanged, each reads what it needs off the
-/// <see cref="CliContext"/>. A verb returns an exit code, or <see cref="Continue"/> to take the switch's
-/// old fall-through ("usage error seen -> 2, else 0").
-/// </summary>
 internal static partial class CliVerbs
 {
-    /// <summary>The verb finished without choosing an exit code (the old <c>break;</c>).</summary>
     internal const int Continue = int.MinValue;
     private static readonly object SettleGate = new();
 
@@ -65,10 +58,7 @@ internal static partial class CliVerbs
         var auth = ctx.Auth;
         var api = ctx.Api;
     {
-        // Immediate feedback BEFORE the token read: a dead/locked keyring can eat timeouts and leave
-        // the command silent for the whole wait. Suppressed for --json so machine output stays pure.
         if (!jsonOut) Out.Dim("Checking stored session…");
-        // Local freshness readout first -- no network, so it works offline and for monitoring.
         var stored = await tokenStore.LoadAsync();
         if (jsonOut)
         {
@@ -80,8 +70,6 @@ internal static partial class CliVerbs
             }
             else session = new { loggedIn = false };
 
-            // No readable session: report and STOP -- a read-only verb must never prompt, and a cron
-            // shell would hang on stdin. Failure rides STDERR; stdout under --json is the success doc only.
             if (stored is null)
             {
                 EmitJsonError(command, "auth", "not logged in -- run 'grogcli login'", (int)Grog.Core.Cli.ExitCode.AuthExpired);
@@ -107,13 +95,10 @@ internal static partial class CliVerbs
         }
         else
         {
-            // Same rule as the json branch: no session, no network, NO PROMPT. Exit 4 so a script
-            // can distinguish "needs login" from success.
             Out.Dim("No stored session -- run 'grogcli login'.");
             return (int)Grog.Core.Cli.ExitCode.AuthExpired;
         }
 
-        // --local: freshness only, skip the live identity call (handy for scheduled monitoring).
         if (args.Contains("--local", StringComparer.OrdinalIgnoreCase)) return Continue;
 
         var user = await api.GetUserInfoAsync();
@@ -128,8 +113,6 @@ internal static partial class CliVerbs
     {
         var auth = ctx.Auth;
     {
-        // Keepalive: force a token refresh to hold the unattended window open. Rotates the refresh
-        // token. Exits 4 if the session has truly lapsed and needs a fresh login.
         await auth.RefreshNowAsync();
         Out.Success("Session refreshed (token rotated).");
         Console.WriteLine("  access token ...... (stored)");
@@ -158,14 +141,10 @@ internal static partial class CliVerbs
             Out.Dim("--details: also capturing release date / in-development / OS / languages (slower).");
         Out.Dim($"Syncing library into {ctx.ContentRoot()}");
 
-        // One scan path for CLI and App: Core runs every connected account (or the legacy single token) and
-        // aggregates; this verb only draws the spinner and the summary.
         var failuresDir = Path.Combine(paths.ConfigDir, "_parse_failures");
         var host = new ConsoleBackupHost(syncDebug, syncDetails, failuresDir);
         var scan = await Grog.Core.Runs.LibraryScan.RunAsync(manifest, ctx.Api, ctx.Sessions, host, CancellationToken.None, datePurchases: true);
         host.FinishScan();
-        // Storage registered before the library had items owes an import; the scan just gave it something to
-        // match against (only the App ran these).
         if (manifest.Read(m => Grog.Core.Verify.PendingImports.Runnable(m).Count) > 0)
             await Grog.Core.Runs.ImportRun.RunPendingAsync(manifest, host, CancellationToken.None);
         var r = scan.Aggregate;
@@ -184,7 +163,7 @@ internal static partial class CliVerbs
             }
         }
 
-        // end-of-sync "what changed this run" one-liner (derived from diff state).
+        // end-of-sync
         var changesSummary = new Grog.Core.Sync.ChangesService(manifest).OneLineSummary();
         Out.Dim($"Changes: {changesSummary}");
 
@@ -313,8 +292,7 @@ internal static partial class CliVerbs
         await manifest.LoadAsync();
         bool Has(string f) => args.Contains(f, StringComparer.OrdinalIgnoreCase);
 
-        // --id / --title narrow to games; everything else is a Core option. The run itself (selection,
-        // placement, engine, settlement, journal, checkpoints) is BackupRun -- the same code the App runs.
+        // --id / --title narrow to games
         HashSet<long>? onlyGames = null;
         var idArg = GetArgValue(args, "--id");
         var titleArg = GetArgValue(args, "--title");
@@ -325,8 +303,6 @@ internal static partial class CliVerbs
             onlyGames = manifest.Current.Items.Where(i => i.Title.Contains(titleArg, StringComparison.OrdinalIgnoreCase))
                 .Select(i => i.GogId).ToHashSet();
 
-        // (S2.3) defaults come from the library's transfer settings, the same ones the App shows: a fixed worker
-        // count when Auto is off (Auto = the CLI's own 3), and the bandwidth cap when enabled. Flags override.
         var xfer = manifest.Current.Transfer;
         int parallel = xfer.FixedConcurrency ?? 3;
         if (GetArgValue(args, "--parallel") is { } pStr && int.TryParse(pStr, out var pv)) parallel = Math.Clamp(pv, 1, 8);
@@ -352,7 +328,7 @@ internal static partial class CliVerbs
 
         if (Has("--dry-run"))
         {
-            // Selection only: nothing is queued, placed or saved.
+            // Selection only
             var selection = Grog.Core.Runs.BackupQueueBuilder.Build(manifest.Current, ctx.Layout(), options);
             if (selection.Count == 0) { Out.Warn("Nothing to download (all present, or filters excluded everything)."); return Continue; }
             var vol = new Grog.Core.Volumes.VolumeService(manifest);
@@ -382,7 +358,6 @@ internal static partial class CliVerbs
         return DownloadSummary("download", ctx, r, host);
     }
 
-    /// <summary>The console/JSON tail shared by `download` and `backup`: counts, failures, run log, exit code.</summary>
     private static int DownloadSummary(string command, CliContext ctx, Grog.Core.Runs.BackupRunResult r, ConsoleBackupHost host)
     {
         if (r.Error is { } err)
@@ -398,8 +373,6 @@ internal static partial class CliVerbs
         }
         var failures = host.Render?.Failures ?? Array.Empty<(string File, string State, string? Error)>();
         if (!ctx.JsonOut && r.JournalPath is not null) Out.Dim($"Run log: {r.JournalPath}");
-        // A stopped run is not a success (exit 1, so a script does not report a partial backup as done); files
-        // that failed exit 8 whether or not they will retry next run; held-for-space alone exits 7.
         int failed = r.NotLanded;
         int exit = r.Canceled ? (int)Grog.Core.Cli.ExitCode.Error
             : failed > 0 ? (int)Grog.Core.Cli.ExitCode.IntegrityFailed
@@ -407,7 +380,6 @@ internal static partial class CliVerbs
             : (int)Grog.Core.Cli.ExitCode.Success;
         if (ctx.JsonOut)
         {
-            // The run's outcome as data: how much got through, and exactly what didn't. One shape every time.
             EmitJson(new
             {
                 command,
@@ -445,8 +417,6 @@ internal static partial class CliVerbs
         var auth = ctx.Auth;
         var api = ctx.Api;
     {
-        // Diagnostic: resolve real filenames (+ sizes) for every file in the library, timing the pass
-        // and caching into ResolvedFileName; shows a live counter and reports timing + a sample.
         await manifest.LoadAsync();
         var files = manifest.Current.Items
             .SelectMany(i => i.Files.Select(f => (item: i, file: f)))
@@ -456,8 +426,6 @@ internal static partial class CliVerbs
         files = files.Take(limit).ToList();
         if (files.Count == 0) { Out.Dim("No files to resolve -- scan your library first."); return Continue; }
 
-        // Pre-flight auth WITHOUT triggering an interactive prompt: a missing/expired token would
-        // otherwise send EnsureAuthenticatedAsync into a blocking console login and look like a hang.
         var storedToken = await tokenStore.LoadAsync();
         if (storedToken is null)
         {
@@ -475,8 +443,6 @@ internal static partial class CliVerbs
         int concurrency = int.TryParse(GetArgValue(args, "--concurrency"), out var cc) ? Math.Clamp(cc, 1, 16) : 8;
         Out.Heading($"Resolving filenames for {files.Count} file(s), {concurrency}-way concurrent…");
         bool verbose = args.Contains("--verbose", StringComparer.OrdinalIgnoreCase);
-        // Surface the resolver's internal phases. Note: with concurrency the phase lines interleave;
-        // run with --concurrency 1 for a clean single-file trace.
         if (verbose) api.DebugTrace = msg => Console.WriteLine($"      · {msg}");
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -486,8 +452,6 @@ internal static partial class CliVerbs
         var sampleLock = new object();
         using var gate = new System.Threading.SemaphoreSlim(concurrency);
 
-        // Fire all files as tasks, gated to `concurrency` at once -- same shape as the GUI's parallel
-        // metadata pull, so one slow request never blocks the rest.
         var tasks = files.Select(async x =>
         {
             var (item, file) = x;
@@ -536,8 +500,6 @@ internal static partial class CliVerbs
     }
     }
 
-    /// <summary>GOG's current checksum for a file, so a hash mismatch on a repacked build reads Outdated rather than
-    /// Corrupt. Owner-picked session when named accounts exist; the default session otherwise. Null on any failure.</summary>
     internal static Func<GameFile, CancellationToken, Task<string?>> ServerChecksumFetcher(CliContext ctx)
         => async (f, ct) =>
         {
@@ -563,8 +525,6 @@ internal static partial class CliVerbs
         await manifest.LoadAsync();
         bool full = args.Contains("--full", StringComparer.OrdinalIgnoreCase);
         var prog = new ConsoleProgress();
-        // Core's VerifyRun owns the pass; a server checksum fetcher lets a repack read as Outdated, not Corrupt.
-        // Under --json stdout must carry ONLY the JSON document, so the progress bar stays off.
         var request = Grog.Core.Runs.VerifyRequest.Cli(full) with
         {
             Progress = jsonOut ? null : p => prog.Report(p.Done, p.Total),
@@ -597,8 +557,6 @@ internal static partial class CliVerbs
         if (r.Corrupt > 0 || r.Missing > 0)
         {
             return Fail("verify", Grog.Core.Cli.ExitCode.IntegrityFailed, "integrity",
-                // 'download' never re-fetches a Corrupt file (BackupScope.NeedsFetch: corrupt waits for a fix
-                // decision), so that advice repaired nothing. 'fix' is the verb, per what was found.
                 "Verification found corrupt or missing files. Run 'fix "
                 + string.Join(' ', new[] { r.Corrupt > 0 ? "--corrupt" : null, r.Missing > 0 ? "--missing" : null }.Where(s => s is not null))
                 + "' to re-download them.");
@@ -638,8 +596,6 @@ internal static partial class CliVerbs
         int depth = int.TryParse(GetArgValue(args, "--depth"), out var d) ? Math.Clamp(d, 1, 6) : 2;
         bool verifyChecksums = args.Contains("--verify-checksums", StringComparer.OrdinalIgnoreCase);
 
-        // Core's ImportRun owns the sequence: register the root (preview registers nothing), plan, adopt the
-        // confident matches, verify what was adopted. The CLI only draws the plan.
         var prog = new ConsoleProgress();
         var options = new Grog.Core.Runs.ImportRun.Options
         {
@@ -676,7 +632,6 @@ internal static partial class CliVerbs
         foreach (var u in plan.UnmatchedGameFolders)
             Console.WriteLine($"  [none ] {Path.GetFileName(u)}");
 
-        // Adopt mode: the host already printed Core's "Adopted N file(s)" and "Verified" lines; no second copy here.
         if (mode == ImportMode.Preview)
             Out.Dim("Preview only - nothing changed. Re-run with --mode adopt to register this folder as a backup folder and adopt matches.");
 
@@ -745,7 +700,6 @@ internal static partial class CliVerbs
             {
                 var which = PositionalArgs(args.Skip(2)).FirstOrDefault();
                 var pStr = PositionalArgs(args.Skip(2)).Skip(1).FirstOrDefault()?.ToLowerInvariant();
-                // "overflow" = clear any pinned role; "extras"/"games" pin that content here.
                 bool known = pStr is "overflow" or "extras" or "games";
                 ContentRole? role = pStr switch
                 {
@@ -811,16 +765,11 @@ internal static partial class CliVerbs
             }
             case "reset":
             {
-                // Destructive (manifest-wise): drops every non-primary root and marks their files missing.
-                // Gate on --yes like `root lost`, so a mistyped invocation can't wipe the volume layout.
                 if (!args.Contains("--yes"))
                 {
                     Out.Usage("root reset removes all non-primary roots and marks their files missing. Re-run with --yes to confirm.");
                     return (int)Grog.Core.Cli.ExitCode.UsageError;
                 }
-                // Clear all non-primary roots and route everything back to Primary. Files that
-                // lived on removed roots are re-pointed to Primary and marked missing so they
-                // can be re-downloaded. Handy for re-running the multi-volume test sequence.
                 var primary = manifest.Current.PrimaryRootId!;
                 int removed = 0;
                 using (manifest.Gate.Enter())   // 
@@ -857,8 +806,6 @@ internal static partial class CliVerbs
             }
             case "removable":
             {
-                // Toggle the removable flag on an EXISTING device. Removable drives read
-                // "Disconnected" (safe) when unplugged, not "Missing".
                 var which = PositionalArgs(args.Skip(2)).FirstOrDefault();
                 if (which is null) { Out.Usage("Usage: root removable <label|id> [on|off]"); return (int)Grog.Core.Cli.ExitCode.UsageError; }
                 var target = vol.FindRoot(which);
@@ -872,8 +819,6 @@ internal static partial class CliVerbs
             }
             case "lost":
             {
-                // The drive died / is gone for good: forget its files (they return to "not downloaded" and
-                // re-enter the backup queue) and drop the device. Explicit + --yes gated -- never inferred.
                 var which = PositionalArgs(args.Skip(2)).FirstOrDefault();
                 if (which is null) { Out.Usage("Usage: root lost <label|id> --yes"); return (int)Grog.Core.Cli.ExitCode.UsageError; }
                 var target = vol.FindRoot(which);
@@ -894,7 +839,6 @@ internal static partial class CliVerbs
             }
             case "detach":
             {
-                // The shelf: files stay recorded and count as backed up; the drive frees its slot. Not the primary.
                 var which = PositionalArgs(args.Skip(2)).FirstOrDefault();
                 if (which is null) { Out.Usage("Usage: root detach <label|id>"); return (int)Grog.Core.Cli.ExitCode.UsageError; }
                 var target = vol.FindRoot(which);
@@ -914,8 +858,6 @@ internal static partial class CliVerbs
             }
             case "reattach":
             {
-                // A detached drive back into the free slot. Two slots exist (primary + secondary); with both taken
-                // the App offers a swap, which the CLI does not have.
                 var which = PositionalArgs(args.Skip(2)).FirstOrDefault();
                 if (which is null) { Out.Usage("Usage: root reattach <label|id>"); return (int)Grog.Core.Cli.ExitCode.UsageError; }
                 var target = vol.FindRoot(which);
@@ -941,8 +883,6 @@ internal static partial class CliVerbs
             }
             case "forget":
             {
-                // Stop tracking a detached drive: its files count as not backed up (they re-enter the queue). Files on
-                // disk are untouched. --yes gated like `root lost`.
                 var which = PositionalArgs(args.Skip(2)).FirstOrDefault();
                 if (which is null) { Out.Usage("Usage: root forget <label|id> --yes"); return (int)Grog.Core.Cli.ExitCode.UsageError; }
                 var target = vol.FindRoot(which);
@@ -1181,8 +1121,6 @@ internal static partial class CliVerbs
         var manifest = ctx.Manifest;
         var api = ctx.Api;
     {
-        // What art GOG actually offers per product. The grid wants something square-ish; the logo is
-        // wide and boxArtImage is 3:4, so dump every _links entry rather than guess at the API.
         await manifest.LoadAsync();
         var title = PositionalArgs(args.Skip(1)).FirstOrDefault();
         var picks = manifest.Current.Items
@@ -1217,7 +1155,6 @@ internal static partial class CliVerbs
         var paths = ctx.Paths;
         var manifest = ctx.Manifest;
     {
-        // What GOG actually calls each extra, so we can judge how much is landing in "Other".
         await manifest.LoadAsync();
         var extras = manifest.Current.Items
             .SelectMany(i => i.Files.Select(f => (Item: i, File: f)))
@@ -1290,7 +1227,7 @@ internal static partial class CliVerbs
             Out.Warn($"Checked {r.Checked} zip(s): {r.Ok} ok, {r.Bad} corrupt, {r.Skipped} skipped.");
             foreach (var b in r.BadFiles) Out.Warn($"  corrupt: {b}");
             return Fail("zipcheck", Grog.Core.Cli.ExitCode.IntegrityFailed, "integrity",
-                "Bad archives found. Run 'fix --corrupt' to re-download them.");   // zipcheck marks them Corrupt; 'download' skips Corrupt
+                "Bad archives found. Run 'fix --corrupt' to re-download them.");  
         }
         else Out.Success($"Checked {r.Checked} zip(s): all ok ({r.Skipped} skipped).");
         return Continue;
@@ -1303,9 +1240,6 @@ internal static partial class CliVerbs
         var manifest = ctx.Manifest;
         Grog.Core.Volumes.BackupLayout Layout() => ctx.Layout();
     {
-        // F9: reclaim space by deleting downloaded files. Dry-run first (default); --confirm to
-        // actually delete. Never touches GOG; items stay owned + re-downloadable.
-        // Usage: delete <title|id|--all> [--extras-only] [--confirm]
         await manifest.LoadAsync();
         var q = string.Join(' ', PositionalArgs(args.Skip(1)));
         bool all = args.Contains("--all", StringComparer.OrdinalIgnoreCase);
@@ -1354,7 +1288,6 @@ internal static partial class CliVerbs
         var r = pres.HandleOrphans(move);
         if (jsonOut)
         {
-            // Full list, not the 50 the human view truncates to -- a script wants all of them.
             EmitJson(new { count = r.Orphans.Count, moved = move ? r.Moved : 0, files = r.Orphans });
             return Continue;
         }
@@ -1372,7 +1305,6 @@ internal static partial class CliVerbs
     {
         var manifest = ctx.Manifest;
     {
-        // surface what changed / what's incomplete, using existing diff state (no API).
         await manifest.LoadAsync();
         var changes = new Grog.Core.Sync.ChangesService(manifest);
         var updates = changes.UpdatesAvailable();
@@ -1403,7 +1335,7 @@ internal static partial class CliVerbs
         var manifest = ctx.Manifest;
         var auth = ctx.Auth;
     {
-        // fetch/show a game's GOG changelog (patch-note text). Usage: changelog <title|id>
+        // fetch/show a game's GOG changelog
         await manifest.LoadAsync();
         var q = string.Join(' ', PositionalArgs(args.Skip(1)));
         if (string.IsNullOrWhiteSpace(q)) { Out.Usage("Usage: changelog <game title|id>"); return Continue; }
@@ -1431,7 +1363,7 @@ internal static partial class CliVerbs
         var manifest = ctx.Manifest;
         var sessions = ctx.Sessions;
     {
-        // manage multi-account list. Usage: account [list|add <id>|remove <id>]
+        // manage multi-account list
         await manifest.LoadAsync();
         var accounts = new Grog.Core.Auth.AccountService(manifest, paths);
         var sub = args.Length > 1 ? args[1].ToLowerInvariant() : "list";
@@ -1440,7 +1372,6 @@ internal static partial class CliVerbs
         {
             var id = args.Length > 2 ? args[2] : "";
             if (string.IsNullOrWhiteSpace(id)) { Out.Usage("Usage: account add <id>  (a short name like 'main' or 'kids')"); return Continue; }
-            // Log in for this account into its own token file, then record it.
             var acctTokenStore = new FileTokenStore(accounts.TokenPathFor(id));
             var acctAuth = new GogAuthService(http, acctTokenStore, loginProvider);
             await acctAuth.EnsureAuthenticatedAsync();
@@ -1448,11 +1379,9 @@ internal static partial class CliVerbs
             var user = await acctApi.GetUserInfoAsync();
             var acct = await accounts.AddOrUpdateAsync(id, user.Username, user.Email);
             Out.Success($"Added account '{acct.Id}' ({user.Username}). Tokens: {accounts.TokenPathFor(id)}");
-            // Merge this account's library NOW, parity with the GUI add flow.
+            // Merge this account's library
             Out.Dim($"Merging {user.Username}'s library…");
             sessions.Invalidate(acct.Id);   // fresh token file just landed; drop any stale cached chain
-            // HostOwnsReconcile: a one-account merge must not flag the rest of the shared catalog
-            // as delisted or clobber the Excluded list with just this account's few.
             var mergeSync = new LibrarySyncService(acctApi, manifest) { AccountId = acct.Id, HostOwnsReconcile = true };
             var mergeProg = new ConsoleProgress();
             mergeSync.Progress += p => mergeProg.Report(p.Completed, p.Total);
@@ -1500,14 +1429,10 @@ internal static partial class CliVerbs
         string ContentRoot() => ctx.ContentRoot();
         Grog.Core.Volumes.BackupLayout Layout() => ctx.Layout();
     {
-        // list/download GOG cloud saves; the master-list endpoint is unwired, so this accepts an
-        // explicit --client <clientId> to exercise the confirmed list/download path end-to-end.
-        // Usage: cloudsaves <title|id> --client <clientId> [--download]
+        // list/download GOG cloud saves
         await manifest.LoadAsync();
         _ = Layout();
 
-        // `cloudsaves list` -- account-wide discovery via the v2 containers endpoint (same Core
-        // service the GUI drives). Flags which owned games have cloud saves; no --client needed.
         if (string.Equals(args.ElementAtOrDefault(1), "list", StringComparison.OrdinalIgnoreCase))
         {
             var disco = new Grog.Core.CloudSaves.CloudSaveDiscoveryService(
@@ -1534,8 +1459,6 @@ internal static partial class CliVerbs
 
         var cloud = new Grog.Core.CloudSaves.CloudSaveService(http, auth);
 
-        // --diag: why does list-saves come back empty for a game discovery clearly sees? Probe the
-        // v1 endpoint with BOTH keys (build-meta clientId + discovery space_id) and show raw status.
         if (args.Contains("--diag", StringComparer.OrdinalIgnoreCase))
         {
             var resolved = g.CloudClientId;
@@ -1547,10 +1470,9 @@ internal static partial class CliVerbs
             foreach (var p in await cloud.DiagnoseSavesAsync(resolved, g.CloudSpaceId))
             {
                 var st = p.Status < 0 ? "ERR" : p.Status.ToString();
-                Console.WriteLine($"  [{st,3}] {p.Key,-24} files={p.Count}   {p.Url}");
+                Console.WriteLine($"  [{st,3}] {p.Key,-24} files={p.Count}   {Grog.Core.Format.UrlRedaction.Scrub(p.Url)}");
             }
             Console.WriteLine();
-            // Mint a game-scoped token (its own clientId/clientSecret) and try with THAT.
             var diagAuth = await cloud.AuthorizeGameAsync(g.GogId);
             if (diagAuth is null) Out.Warn("  scoped-token exchange: couldn't resolve build creds or mint a token");
             else
@@ -1561,8 +1483,6 @@ internal static partial class CliVerbs
             return Continue;
         }
 
-        // Mint a token scoped to the game's own clientId/clientSecret -- the per-game cloud endpoint
-        // 403s the plain session token. Creds come from build metadata (no installed game needed).
         Out.Dim("Authorizing game cloud access…");
         var gauth = await cloud.AuthorizeGameAsync(g.GogId);
         if (gauth is null)
@@ -1588,15 +1508,11 @@ internal static partial class CliVerbs
 
         if (args.Contains("--download", StringComparer.OrdinalIgnoreCase))
         {
-            // Use the dedicated cloud resolver so CLI, GUI, and the honest-status reconcile all agree
-            // on <root>/Cloud Saves/<slug>/ (ResolveTargetDir routes CloudSave under Games -- wrong).
             var gameDir = Layout().ResolveCloudDir(g.Slug, out _)
                           ?? Path.Combine(ContentRoot(), "Cloud Saves", g.Slug);
             Out.Dim("Downloading save…");
             var (dir, n, expected) = await cloud.DownloadLocalSaveAsync(
                 new Grog.Core.CloudSaves.CloudGame(g.GogId, g.Title, g.Slug, clientId), gameDir);
-            // Record clientId + cloud-save presence for next time. The listing belongs to the bound
-            // account, so it lands in that account's entry and the mirror follows (single write path).
             using (manifest.Gate.Enter())   // 
             {
                 g.CloudClientId = clientId;
@@ -1630,10 +1546,6 @@ internal static partial class CliVerbs
         var manifest = ctx.Manifest;
         var auth = ctx.Auth;
     {
-        // Hidden diagnostic (research): probe GOG cloud-save endpoints to learn what works
-        // against the real account. With no game, uses the first owned game for context and
-        // focuses on the ACCOUNT-WIDE listing endpoints ("what's in my cloud").
-        // Usage: cloudprobe [<game title|id>] [--client <clientId>]
         await manifest.LoadAsync();
         var q = string.Join(' ', PositionalArgs(args.Skip(1)));
         LibraryItem? g = string.IsNullOrWhiteSpace(q)
@@ -1651,9 +1563,9 @@ internal static partial class CliVerbs
         foreach (var s in steps)
         {
             var statusStr = s.Status < 0 ? "ERR" : s.Status.ToString();
-            if (s.Status is >= 200 and < 300) { Out.Success($"  [{statusStr}] {s.Label}"); Console.WriteLine($"    {s.Url}\n    {s.ContentType}\n    {s.BodySnippet}\n"); }
-            else if (s.Status is 401 or 403) { Out.Warn($"  [{statusStr}] {s.Label} (auth rejected -- may need Galaxy-client token)"); Console.WriteLine($"    {s.Url}\n"); }
-            else { Out.Dim($"  [{statusStr}] {s.Label}"); Console.WriteLine($"    {s.Url}\n    {s.BodySnippet}\n"); }
+            if (s.Status is >= 200 and < 300) { Out.Success($"  [{statusStr}] {s.Label}"); Console.WriteLine(Grog.Core.Format.UrlRedaction.Scrub($"    {s.Url}\n    {s.ContentType}\n    {s.BodySnippet}\n")); }
+            else if (s.Status is 401 or 403) { Out.Warn($"  [{statusStr}] {s.Label} (auth rejected -- may need Galaxy-client token)"); Console.WriteLine(Grog.Core.Format.UrlRedaction.Scrub($"    {s.Url}\n")); }
+            else { Out.Dim($"  [{statusStr}] {s.Label}"); Console.WriteLine(Grog.Core.Format.UrlRedaction.Scrub($"    {s.Url}\n    {s.BodySnippet}\n")); }
         }
         Out.Dim("Report which endpoints returned 2xx (and their body shape) so the cloud-saves feature can be designed to match.");
         return Continue;
@@ -1711,12 +1623,10 @@ internal static partial class CliVerbs
     {
         var args = ctx.Args;
     {
-        // Hidden diagnostic (absent from help): drives DownloadRenderer with synthetic tasks so the
-        // live block can be verified without a real multi-GB download.
         int lanes = int.TryParse(GetArgValue(args, "--parallel"), out var lz) ? Math.Clamp(lz, 1, 8) : 3;
         int files = int.TryParse(GetArgValue(args, "--limit"), out var lf) ? Math.Clamp(lf, lanes, 40) : 6;
         var demo = new DownloadRenderer(files, 28);
-        var rng = new Random(1);   // fixed seed: same picture every run, so a visual diff is a real change
+        var rng = new Random(1);   // fixed seed
         var lane = new DownloadTask?[lanes];
         int started = 0, finished = 0;
         Out.Dim($"Render demo: {files} file(s), {lanes} lane(s). No network, nothing written.\n");
@@ -1765,9 +1675,6 @@ internal static partial class CliVerbs
         var jsonOut = ctx.JsonOut;
         var manifest = ctx.Manifest;
     {
-        // The discoverable answer to "what is Grog doing / what did it just do?". Reads the journal
-        // files only -- no manifest, no network -- so it is safe to poll on a timer and works while a
-        // download is mid-flight in another process.
         var runsDir = Path.Combine(paths.ConfigDir, "runs");
         var currentPath = Path.Combine(runsDir, "current.json");
         if (!File.Exists(currentPath))
@@ -1863,8 +1770,6 @@ internal static partial class CliVerbs
         var manifest = ctx.Manifest;
         Grog.Core.Volumes.BackupLayout Layout() => ctx.Layout();
     {
-        // CLI parity for the layout mover: headless, param-driven, no prompts. Runs to completion;
-        // resumable if a prior run was interrupted. Same-drive renames for a layout change.
         await manifest.LoadAsync();
         var lay = Layout();
         var sub = args.Skip(1).FirstOrDefault(a => !a.StartsWith("--"))?.ToLowerInvariant() ?? "status";
@@ -1929,8 +1834,6 @@ internal static partial class CliVerbs
         var args = ctx.Args;
         var manifest = ctx.Manifest;
     {
-        // Manually mark a product's backed-up files as no longer present (lost/corrupted drive).
-        // Keeps their recorded location; a later download restores them. Usage: mark-missing <game|id>
         await manifest.LoadAsync();
         var q = string.Join(' ', PositionalArgs(args.Skip(1)));
         if (string.IsNullOrWhiteSpace(q)) { Out.Usage("Usage: mark-missing <game title|id>"); return Continue; }
@@ -1949,15 +1852,8 @@ internal static partial class CliVerbs
         var args = ctx.Args;
         var manifest = ctx.Manifest;
         bool Has(string f) => args.Contains(f, StringComparer.OrdinalIgnoreCase);
-        // Scheduled/unattended entry point: resolve + preview the plan (--show-config), fail loud if
-        // unconfigured, then run scan->select->place->download->verify through BackupRun.
-        // Usage: backup [--to <path>] [--skip-extras] [--parallel N]
-        //   [--no-verify] [--largest N] [--show-config|--dry-run] [--non-interactive]
         await manifest.LoadAsync();
 
-        // Declarative devices: --primary / --secondary state the topology. Reconcile them (create /
-        // adopt / promote / re-point a moved drive) BEFORE resolving the plan. Absence never removes a
-        // device; ambiguity fails fast. --to stays as a back-compat alias for --primary.
         string? primaryArg = GetArgValue(args, "--primary") ?? GetArgValue(args, "--to");
         string? secondaryArg = GetArgValue(args, "--secondary");
         if (primaryArg is not null || secondaryArg is not null)
@@ -1998,10 +1894,6 @@ internal static partial class CliVerbs
             return Continue;
         }
 
-        // --- Execute. Exit codes: no account signed in -> 4; nothing fits -> 7; failed or corrupt/missing
-        //     after verify -> 8; files waiting for a disconnected drive -> 10; stopped or paused -> 1; everything intact -> 0.
-        // The queue's Paused fact (set by the App's Pause or `grogcli pause`) holds a scheduled run off entirely; the
-        // JSON envelope says "paused" so a watcher can tell it from a failure. --ignore-pause runs anyway.
         bool ignorePause = Has("--ignore-pause");
         if (manifest.Current.Downloads.Paused && !ignorePause)
             return Fail("backup", Grog.Core.Cli.ExitCode.Error, "paused", "Downloads are paused (grogcli resume to continue)",
@@ -2009,10 +1901,6 @@ internal static partial class CliVerbs
         using var backupCts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; backupCts.Cancel(); Console.WriteLine("\nStopping…"); };
 
-        // backup --new: restrict the run to the items flagged New, the same way --updates
-        // narrows to superseded files. The set is taken from the manifest AS IT STANDS -- this run's own scan
-        // has not happened yet, so anything it adds is next run's --new, which is what "the new ones I can
-        // see" means to someone typing it.
         System.Collections.Generic.IReadOnlySet<long>? onlyNewIds = null;
         if (Has("--new"))
         {
@@ -2041,8 +1929,7 @@ internal static partial class CliVerbs
 
         if (r.Error is Grog.Core.Auth.AuthExpiredException)
         {
-            // Every account signed out: nothing can be fetched, and a cron run must say so LOUDLY
-            // (log + stderr + exit 4) rather than "complete" against a stale catalog.
+            // Every account signed out
             return Fail("backup", Grog.Core.Cli.ExitCode.AuthExpired, "auth",
                 "Backup skipped: no account is signed in. Run 'grog login' or 'grog account add', then re-run.");
         }
@@ -2056,8 +1943,7 @@ internal static partial class CliVerbs
         if (r.Queued == 0) Out.Dim("Nothing to download; everything already present.");
 
         var v = r.Verify;
-        // The after-run pass is size-only (hash re-verification is out of scope), so "verified" here means
-        // "checked and intact": hash-verified earlier plus size-confirmed now. Old code reported the hash count alone (0).
+        // The after-run pass is size-only 
         int checkedOk = (v?.Verified ?? 0) + (v?.SizeOnlyOk ?? 0);
         if (r.JournalPath is not null && !ctx.JsonOut) Out.Dim($"Run log: {r.JournalPath}");
         var envelope = new Dictionary<string, object?> { ["driveOffline"] = r.DriveOffline };
@@ -2068,17 +1954,14 @@ internal static partial class CliVerbs
         }
         if (r.HeldNoSpace > 0)
         {
-            // What fit was fetched; what did not is still queued, and a nightly must not call that complete.
             return Fail("backup", Grog.Core.Cli.ExitCode.InsufficientSpace, "space",
                 $"Backup incomplete: {r.Completed} downloaded, {r.HeldNoSpace} file(s) ({Grog.Core.Format.ByteFormat.Size(r.HeldNoSpaceBytes)}) have no room and stay queued. Free space or add a device.", envelope);
         }
         if (r.DriveOffline > 0)
         {
-            // The queue keeps what a disconnected drive owns; a nightly must not call that complete.
             return Fail("backup", Grog.Core.Cli.ExitCode.StorageOffline, "storage-offline",
                 $"{r.DriveOffline} file(s) are waiting for a disconnected drive and stay queued. Reconnect it and re-run.", envelope);
         }
-        // The documented nightly recipe is `--silent --json backup`: it must leave ONE document behind.
         if (ctx.JsonOut) EmitJson(new { command = "backup", downloaded = r.Completed, unavailable = r.Refused,
             verified = checkedOk, corrupt = v?.Corrupt ?? 0, missing = v?.Missing ?? 0, driveOffline = r.DriveOffline, runLog = r.JournalPath, exitCode = 0 });
         Out.Success($"Backup complete: {r.Completed} downloaded this run, {checkedOk} verified, 0 corrupt/missing.");
@@ -2091,12 +1974,9 @@ internal static partial class CliVerbs
         var silent = ctx.Silent;
         var manifest = ctx.Manifest;
         var auth = ctx.Auth;
-        await Task.CompletedTask;   // keeps the verb table uniform; this verb has no awaits
-        // Bare `grog` or `grog help` -> help, exit 0. An unrecognized command -> stderr + exit 2, so
-        // a mistyped command is never silently reported as success.
+        await Task.CompletedTask; 
         if (command is not ("help" or "--help" or "-h" or "?"))
         {
-            // Only IMPLEMENTED verbs may be suggested.
             var cmdSuggest = NearestFlag(command, new[] { "login","logout","whoami","status","refresh","sync","list","show","backup","download","verify","report","health","serials","cloudsaves","relocate","import","root","policy","reorg","delete","changes","changelog","account","resolve","orphans","delisted","blacklist","zipcheck","dates","pause","resume","scope","version" });
             Out.Usage($"Unknown command '{command}'." + (cmdSuggest is not null ? $" Did you mean '{cmdSuggest}'?" : "") + " Run 'grog help' for usage.");
         }
@@ -2104,8 +1984,7 @@ internal static partial class CliVerbs
             Grog CLI -- back up your GOG library.
 
             Usage:
-              grogcli login             Sign in with username/password (never stored)
-              grogcli login --browser   Sign in via the system browser instead
+              grogcli login             Sign in on GOG's page in your browser (Grog never sees your password)
               grogcli whoami            Show the signed-in account and owned product count ('status' works too)
                                         (whoami/refresh/logout take --account <id> for a named account)
               grogcli refresh           Force a token refresh (keepalive for scheduled runs)
@@ -2203,18 +2082,11 @@ internal static partial class CliVerbs
         return Continue;
     }
 
-    // ---- shared helpers (were static local functions of Program.cs) ----
-// Emit a value as a single JSON document to stdout (for --json). Uses the original stdout even under
-// --silent so the machine-readable output always lands.
+    // ---- shared helpers
     internal static void EmitJson(object value)
         => Console.Out.WriteLine(System.Text.Json.JsonSerializer.Serialize(value,
         new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
 
-    // A failure as data, on STDERR -- stdout under --json is reserved for the success document, so a watcher can
-    // parse stdout unconditionally and read stderr only when the exit code is non-zero.
-    /// <summary>THE non-zero exit path for a verb: under --json the failure is a JSON document on stderr (the
-    /// docs/CLI.md contract: "read stderr only when the exit code is non-zero"), otherwise a red line - and
-    /// never Out.Warn, which --silent swallows entirely. Returns the code so call sites read `return Fail(...)`.</summary>
     internal static int Fail(string command, Grog.Core.Cli.ExitCode code, string kind, string message,
                              IReadOnlyDictionary<string, object?>? extra = null)
     {
@@ -2223,7 +2095,6 @@ internal static partial class CliVerbs
         return (int)code;
     }
 
-    /// <summary><paramref name="extra"/> adds verb-specific fields (backup's driveOffline) after the fixed ones.</summary>
     internal static void EmitJsonError(string command, string kind, string message, int exitCode,
                                        IReadOnlyDictionary<string, object?>? extra = null)
     {
@@ -2252,10 +2123,6 @@ internal static partial class CliVerbs
     //   --os <a[,b]> [--os-fallback]   --lang <a[,b]>
     //   --type <game|mod|pack|dlc|movie>   --title-regex <rx>
     //   --no-dlc   --blacklist <s[,s2]>
-    /// <summary>The manifest's saved scope as the ONE shared predicate (<see cref="Grog.Core.Sync.Scope"/>),
-    /// or null when there is nothing to apply: no scope was ever seeded (pre-scope manifest, GUI never run)
-    /// or the user lifted it with --ignore-saved-scope. Applied as a BASE filter under the per-run
-    /// DownloadScope flags, so a GUI-configured narrowing is honored by `grog backup` from cron on any OS.</summary>
     internal static Grog.Core.Sync.Scope? SavedScope(string[] args, Grog.Core.Manifest.LibraryManifest m)
         => args.Contains("--ignore-saved-scope", StringComparer.OrdinalIgnoreCase) ? null : m.Scope?.ToScope();
 
@@ -2286,7 +2153,7 @@ internal static partial class CliVerbs
 
         foreach (var b in Split(Val("--blacklist"))) scope.Blacklist.Add(b);
 
-        // Persisted defaults: fall back to manifest.Settings["scope.blacklist"] etc. if no flag given.
+        // Persisted defaults
         if (scope.Blacklist.Count == 0 && m.Settings.TryGetValue("scope.blacklist", out var bl))
             foreach (var b in Split(bl)) scope.Blacklist.Add(b);
 
@@ -2301,8 +2168,7 @@ internal static partial class CliVerbs
         if (r.Failed > 0) Out.Error(msg); else Out.Success(msg);
     }
 
-    // Closest known flag to a mistyped one, for "did you mean?" -- nearest by Levenshtein distance, but only
-    // when it's actually close (<=3 edits, or half the length), so we don't suggest nonsense.
+    // Closest known flag to a mistyped one
     internal static string? NearestFlag(string typed, System.Collections.Generic.IEnumerable<string> known)
     {
         string? best = null; int bestD = int.MaxValue;
@@ -2328,14 +2194,12 @@ internal static partial class CliVerbs
 
     internal static string? GetArgValue(string[] args, string name)
     {
-        // Preferred form: --name=value (one token, unambiguous -- no greedy multi-word capture). Works for
-        // paths with spaces when quoted by the shell (--primary="C:\My Games\Grog").
+        // Preferred form
         foreach (var a in args)
             if (a.Length > name.Length + 1 && a.StartsWith(name + "=", StringComparison.OrdinalIgnoreCase))
                 return a[(name.Length + 1)..];
 
-        // Legacy form: --name value [more words], capturing up to the next --flag so multi-word values like
-        // --title Quest of the Avatar read as one value.
+        // Legacy form
         for (int i = 0; i < args.Length - 1; i++)
             if (string.Equals(args[i], name, StringComparison.OrdinalIgnoreCase))
             {
@@ -2347,11 +2211,9 @@ internal static partial class CliVerbs
         return null;
     }
 
-    // Returns only positional tokens: drops --flags and, for value-taking flags, their values.
+    // Returns only positional tokens
     internal static System.Collections.Generic.IEnumerable<string> PositionalArgs(System.Collections.Generic.IEnumerable<string> args)
     {
-        // Every flag that takes a VALUE must be listed, or a value-flag placed before the positional gets its
-        // value mistaken for the positional (e.g. `import --mode adopt /path` targeting a folder named "adopt").
         string[] valuedFlags = { "--root", "--title", "--id", "--os", "--lang", "--parallel", "--limit-mbps", "--type", "--label", "--with", "--to", "--role", "--extra-type", "--title-regex", "--blacklist", "--client", "--mode", "--depth", "--keep", "--account", "--game" };
         var list = args.ToList();
         var result = new List<string>();

@@ -21,14 +21,6 @@ using Grog.App.Runtime;
 
 namespace Grog.App.ViewModels;
 
-/// <summary>
-/// The Storage page's view model: the backup locations and their capacity rows, the roots
-/// (add / change / remove / re-point / make primary / lost), the import wizard, the layout migration and
-/// the move jobs with their Activity pane, the two device grids, and the live volume watch. Split into
-/// partials by those topics. It owns no manifest or engine state: that is the session's; what it still
-/// needs from the shell (log, toasts, busy, navigation, the dashboard / health passes, the library scope)
-/// it reaches through <c>_root</c>'s small internal surface, which S3.4 will retire.
-/// </summary>
 public sealed partial class StorageViewModel : ObservableObject
 {
     private readonly MainWindowViewModel _root;
@@ -40,11 +32,8 @@ public sealed partial class StorageViewModel : ObservableObject
         _session = session;
     }
 
-    /// <summary>A primary backup folder is bound. Raised with <see cref="RaiseLocationState"/> whenever the
-    /// root changes (bind, first run, DEV reset, re-point).</summary>
     public bool HasLocation => !string.IsNullOrEmpty(_session.BackupRoot);
 
-    /// <summary>The HasLocation family: the shell calls this after every change of the backup root.</summary>
     internal void RaiseLocationState()
     {
         OnPropertyChanged(nameof(HasLocation));
@@ -56,8 +45,6 @@ public sealed partial class StorageViewModel : ObservableObject
     // ---- Backup Locations screen (per-location capacity + add/remove) ----
     public ObservableCollection<BackupLocationRow> BackupLocations { get; } = new();
 
-    /// <summary>An update archived a superseded build (KeepOldVersions on): record it in OldVersionFiles so
-    /// it stays tracked. Raised on a worker thread, so marshal to the UI thread; idempotent by FileKey.</summary>
     internal void OnOldVersionArchived(Grog.Core.Models.GameFile entry)
     {
         Dispatcher.UIThread.Post(() =>
@@ -75,18 +62,11 @@ public sealed partial class StorageViewModel : ObservableObject
         });
     }
 
-    /// <summary>Everything the storage rows need from the library for ONE root, gathered by a single pass over
-    /// Items x Files in RefreshBackupLocationsCore: it used to be ~5 separate walks per
-    /// root per 1 Hz tick (drive usage, file count, composition, coverage, health tally).</summary>
     private sealed class RootAgg
     {
-        /// <summary>Bytes present per BackupScope.IsPresent (the "Grog" share of the drive), partials excluded.</summary>
         public long GrogBytes;
-        /// <summary>Files with a local copy, superseded builds included.</summary>
         public int FileCount;
-        /// <summary>Bytes on disk by content bucket (composition strip), old versions as their own slice.</summary>
         public readonly Dictionary<string, long> Buckets = new(StringComparer.OrdinalIgnoreCase);
-        /// <summary>Coverage: in-scope files/bytes landed here, and games with any such file.</summary>
         public int HereN; public long HereB; public int HereGames;
     }
 
@@ -101,8 +81,6 @@ public sealed partial class StorageViewModel : ObservableObject
         return list;
     }
 
-    /// <summary>Two rows say the same thing: every displayed value equal, composition compared segment by
-    /// segment. The record's own equality is useless here because Composition is a list reference.</summary>
     // The one verify that can run at a time, for the card's "Verifying N / M" word. Progress arrives per file
     // from a pool thread; the card refresh is coalesced to twice a second.
     private string? _verifyingRootId; private int _verifyDone, _verifyTotal;
@@ -130,7 +108,6 @@ public sealed partial class StorageViewModel : ObservableObject
         return true;
     }
 
-    /// <summary>Where new files land. Not a rule with exceptions -- moving is always allowed.</summary>
     private string PolicyFor(string rootId, bool isPrimary)
     {
         // Purpose is not a field on the root: it derives from which roles are pinned to it.
@@ -145,9 +122,6 @@ public sealed partial class StorageViewModel : ObservableObject
         return isPrimary ? "Everything lands here" : "Overflow lands here";
     }
 
-    /// <summary>Storage rail second line: "{n} drive(s) · healthy|attention". Attention = any
-    /// location whose dot is not green (offline fixed drive, unplugged removable, or status not yet known).
-    /// The dots stay beside it: the text carries two states, the dots four.</summary>
     public string RailStorageSub
     {
         get
@@ -161,8 +135,6 @@ public sealed partial class StorageViewModel : ObservableObject
         }
     }
 
-    /// <summary>Storage's outstanding items. A drive whose status is not yet known
-    /// is NOT reported: "unknown" is not a fault, and saying so on every launch would cry wolf.</summary>
     public IReadOnlyList<RailException> RailStorageExceptions
     {
         get
@@ -189,12 +161,8 @@ public sealed partial class StorageViewModel : ObservableObject
         OnPropertyChanged(nameof(SecondaryIsDisconnected)); OnPropertyChanged(nameof(SecondaryJustReattached));
     }
 
-    /// <summary>True once a primary location is configured. Secondary is meaningless without one.</summary>
     public bool CanAddSecondary => HasLocation && BackupLocations.Count < 2;
 
-    /// <summary>OTHER STORAGE: a drive Grog knows about that holds no slot. Its
-    /// files stay recorded and counted as backed up; nothing downloads to it until it takes a slot. "Use as
-    /// Secondary/Primary" when that slot is free, "Swap with ..." when it is held; Forget is the plain remove.</summary>
     public sealed partial class OtherStorageRow : ObservableObject
     {
         public OtherStorageRow(string rootId, string label, string path, int fileCount, long bytes, bool isConnected,
@@ -202,7 +170,6 @@ public sealed partial class StorageViewModel : ObservableObject
         { RootId = rootId; Label = label; Path = path; FileCount = fileCount; Bytes = bytes; IsConnected = isConnected; Games = games; }
         public string RootId { get; } public string Label { get; } public string Path { get; }
         public int FileCount { get; } public long Bytes { get; } public bool IsConnected { get; }
-        /// <summary>What is on it, by game: the read-only view of the drive.</summary>
         public IReadOnlyList<OtherStorageGame> Games { get; }
         public string Summary => $"{FileCount} file{(FileCount == 1 ? "" : "s")} · {Grog.Core.Format.ByteFormat.Size(Bytes)}";
         public string StateText => IsConnected ? "Connected" : "Unplugged";
@@ -223,8 +190,6 @@ public sealed partial class StorageViewModel : ObservableObject
     public bool HasOtherStorage => OtherStorage.Count > 0;
     public string OtherStorageRailText => $"{OtherStorage.Count} other storage";   // number first, like "1 drive" above it
     public bool HasSecondary => BackupLocations.Count > 1;
-    /// <summary>The two devices as individual cells, so the cards can sit in the same two columns as the
-    /// grids below them (one shared, slideable divider lines everything up).</summary>
     public BackupLocationRow? PrimaryLocation => BackupLocations.FirstOrDefault(d => d.IsPrimary);
     public BackupLocationRow? SecondaryLocation => BackupLocations.FirstOrDefault(d => !d.IsPrimary);
 
@@ -238,9 +203,6 @@ public sealed partial class StorageViewModel : ObservableObject
     public bool SecondaryJustReattached => SecondaryLocation?.JustReattached ?? false;
     public string PrimaryButtonText => HasLocation ? "Change Primary Storage…" : "Set Primary Storage…";
 
-    /// <summary>Warm StorageReport's per-path drive sample for every known root OFF the UI thread (UI-thread
-    /// sweep): the first DriveSample call for a path probes the volume synchronously, and the storage rows
-    /// are built on the UI thread. Call (via Task.Run) at manifest bind time; later calls are cheap cache hits.</summary>
     internal void PreseedDriveSamples()
     {
         var m = _session.Manifest?.Current;
@@ -255,9 +217,6 @@ public sealed partial class StorageViewModel : ObservableObject
         }
     }
 
-    /// <summary>Rebuild the per-location rows (capacity, composition, coverage, the queue projection).</summary>
-    /// <param name="dashboardPass">True from the shell's RaiseDashboardCore: RaiseHealth follows this rebuild in the
-    /// same synchronous pass, so the health checks need not re-walk the library here.</param>
     internal void RefreshBackupLocations(bool dashboardPass = false, bool forceOtherStorage = false)
         => Services.UiWatch.Time("RefreshBackupLocations", () => RefreshBackupLocationsCore(dashboardPass, forceOtherStorage));
     private void RefreshBackupLocationsCore(bool dashboardPass, bool forceOtherStorage)
@@ -593,8 +552,6 @@ public sealed partial class StorageViewModel : ObservableObject
         }
         catch { return null; }   // unresolvable path: no hint rather than a wrong one
     }
-    /// <summary>Assistant-only: the harness's temp root is always the container's "/" with plenty free, so
-    /// the render forces the condition to check the banner's layout.</summary>
     internal bool ForceSystemDriveHint { get; set; }
     private BackupLocationRow? HintRow()
         => PrimaryOnSystemDrive() ?? (ForceSystemDriveHint ? BackupLocations.FirstOrDefault(r => r.IsPrimary) : null);
@@ -620,18 +577,13 @@ public sealed partial class StorageViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowSystemDriveHint));
     }
 
-    /// <summary>The rail "Folders" problem dot: field-backed so it can be DEBOUNCED -- a real problem persists,
-    /// while the startup blip (rows built from an empty path probe "offline") must not light the dot.</summary>
     public bool HasDeviceProblem => _hasDeviceProblem;
     private bool _hasDeviceProblem;
 
-    /// <summary>The instantaneous problem condition, gated on a known location + settled services.</summary>
     private bool RawDeviceProblem => _session.ServicesReady && HasLocation && BackupLocations.Any(d => d.IsProblem);
 
     private DispatcherTimer? _deviceProblemDebounce;
 
-    /// <summary>Recompute the debounced rail dot: clearing is immediate; asserting waits ~3s of the condition
-    /// staying true, so transient flashes are swallowed while a genuinely-missing drive still surfaces.</summary>
     private void UpdateDeviceProblem()
     {
         if (!RawDeviceProblem)
@@ -651,10 +603,6 @@ public sealed partial class StorageViewModel : ObservableObject
         _deviceProblemDebounce.Start();
     }
 
-    /// <summary>Folders-tab "Rescan &amp; Verify", read-frugal over BOTH devices: size-check every settled file,
-    /// MD5 only unverified files with a checksum; skips offline drives; serialized via the activity slot.</summary>
-    /// <summary>A verify reads files a running (or paused, half-moved) move is relocating: resolved at the
-    /// old place they read Missing and were re-queued. Every verify entry point asks here first.</summary>
     internal bool VerifyBlockedByMove()
     {
         if (!(IsReorgRunning || ReorgPaused)) return false;

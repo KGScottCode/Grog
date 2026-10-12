@@ -9,8 +9,6 @@ using Grog.Core.Tests.Framework;
 
 namespace Grog.Core.Tests;
 
-/// <summary>How full does in-order greedy placement leave a small primary against a library-sized queue? A realistic
-/// shape (700 files, 200 games, sizes from 2 MB manuals to 12 GB installers) must end within a few MB.</summary>
 public sealed class PlacementFillTests
 {
     [Test]

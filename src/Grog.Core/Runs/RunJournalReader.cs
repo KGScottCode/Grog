@@ -9,15 +9,8 @@ using Grog.Core.Scheduling;
 
 namespace Grog.Core.Runs;
 
-/// <summary>A finished (or abandoned) run, as recorded on disk. A null State means the summary never saw a
-/// finish line -- still "running" after a hard kill.</summary>
-/// <param name="ConnectionLost">The representative (first) failure was the connection going away, as classified
-/// where it was caught; the files keep their partials and Resume continues them.</param>
-/// <param name="FailedKeys">The failed files as "gogId|fileKey" lines (schema 2+ journals; empty when the journal predates them),
-/// so a reader can tell a failure that is already back in the queue from one that is not.</param>
 public readonly record struct RunOutcome(string RunId, ScheduleRunOutcome? State, int Failed, string? Reason, bool ConnectionLost = false, string FailedKeys = "")
 {
-    /// <summary>The failed files as (gogId, fileKey) pairs.</summary>
     public IEnumerable<(long GogId, string FileKey)> FailedFiles()
     {
         foreach (var line in FailedKeys.Split('\n', StringSplitOptions.RemoveEmptyEntries))
@@ -28,7 +21,6 @@ public readonly record struct RunOutcome(string RunId, ScheduleRunOutcome? State
     }
 }
 
-/// <summary>The live-summary file's shape, typed; <see cref="RunJournal"/> emits exactly these members.</summary>
 public sealed class RunSummary
 {
     [JsonPropertyName("schema")] public int Schema { get; set; }   // 0 = written before the field existed
@@ -44,12 +36,8 @@ public sealed class RunSummary
     [JsonPropertyName("eventsFile")] public string? EventsFile { get; set; }
 }
 
-/// <summary>Reads what <see cref="RunJournal"/> wrote; kept separate from the writer's append/flush machinery.</summary>
 public static class RunJournalReader
 {
-    /// <summary>Reads the last recorded run's outcome off disk; the journal is the only durable record that a
-    /// transiently-failed run was ever tried. Returns null when there is no journal, it is unreadable, or the
-    /// run finished cleanly -- callers only care about the bad news.</summary>
     public static RunOutcome? ReadLastFailure(string configDir) => ReadLastFailure(configDir, readUnfinished: false);
 
     /// <param name="readUnfinished">Also read a journal whose run never finished (a crash): startup's call.</param>
@@ -61,13 +49,7 @@ public static class RunJournalReader
             if (!File.Exists(path)) return null;
             var s = JsonSerializer.Deserialize<RunSummary>(File.ReadAllText(path));
             if (s is null || s.Failed <= 0) return null;
-            // A run still writing its journal is not the LAST run: its strikes read as "failed in the last backup run"
-            // while it was live, and Dismiss then deleted the live journal. A run that died without
-            // finishing stays "running" for good; its reader (startup) treats it like a finished one.
             if (ParseState(s.State ?? "") is null && !readUnfinished) return null;
-
-            // The summary counts failures but never says why; take the first failure's message from the event
-            // log as representative (a systemic cause repeats it on every line anyway).
             string? reason = null; bool network = false; var keys = new List<string>();
             if (s.EventsFile is not null)
             {
@@ -84,7 +66,6 @@ public static class RunJournalReader
                             string? keyLine = evt.RootElement.TryGetProperty("gogId", out var gid) && gid.ValueKind == JsonValueKind.Number && gid.GetInt64() > 0
                                 && evt.RootElement.TryGetProperty("fileKey", out var fk) && fk.ValueKind == JsonValueKind.String
                                 ? gid.GetInt64() + "|" + fk.GetString() : null;
-                            // A file that failed and then landed in the same run is not a failed file (C5).
                             if (kind == "file.completed" && keyLine is not null) { keys.RemoveAll(x => x == keyLine); continue; }
                             if (kind == "file.failed")
                             {
@@ -107,8 +88,6 @@ public static class RunJournalReader
         catch { return null; }
     }
 
-    /// <summary>Lines of the live events file. File.ReadLines opens with FileShare.Read, which a Windows writer
-    /// holding the stream denies; the journal opens its stream shared for read, write and delete, and so must a reader.</summary>
     public static IEnumerable<string> ReadSharedLines(string path)
     {
         using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
@@ -116,8 +95,6 @@ public static class RunJournalReader
         while (sr.ReadLine() is { } line) yield return line;
     }
 
-    /// <summary>The last run's summary, whatever its outcome: what a "last run" card shows across restarts.
-    /// Null when there is no journal or it is unreadable.</summary>
     public static RunSummary? ReadLast(string configDir)
     {
         try
@@ -129,11 +106,10 @@ public static class RunJournalReader
         catch { return null; }
     }
 
-    /// <summary>Maps the on-disk state word to the shared vocabulary, including legacy lowercase spellings.</summary>
     public static ScheduleRunOutcome? ParseState(string state) => state switch
     {
         "completed-with-failures" => ScheduleRunOutcome.Partial,
-        "cancelled" => ScheduleRunOutcome.Canceled,   // journals written before the US-spelling rename
+        "cancelled" => ScheduleRunOutcome.Canceled,   
         "running" or ""           => null,
         _ => Enum.TryParse<ScheduleRunOutcome>(state, ignoreCase: true, out var o) ? o : null,
     };

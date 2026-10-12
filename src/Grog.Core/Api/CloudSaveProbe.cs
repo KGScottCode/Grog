@@ -11,9 +11,6 @@ using Grog.Core.Auth;
 
 namespace Grog.Core.Api;
 
-/// <summary>Research probe for GOG cloud-save endpoints. DIAGNOSTIC, not a feature. Resolves the per-game
-/// clientId from the content-system build chain, then hits
-/// https://cloudstorage-adapter.gog.com/v1/{clientId}/{userId}/... with Grog's Galaxy OAuth token.</summary>
 public sealed class CloudSaveProbe
 {
     private readonly HttpClient _http;
@@ -69,7 +66,6 @@ public sealed class CloudSaveProbe
                         var metaUrl = linkEl.GetString()!;
                         var metaStep = await Try("DISCOVERY 2: build meta (zlib -- may look binary)", metaUrl);
                         steps.Add(metaStep);
-                        // Build meta is often zlib-compressed; try to find clientId textually anyway.
                         var metaRaw = await FetchRaw(metaUrl, session.AccessToken, ct);
                         clientId = ExtractClientId(metaRaw);
                     }
@@ -104,8 +100,6 @@ public sealed class CloudSaveProbe
         return await res.Content.ReadAsStringAsync(ct);
     }
 
-    /// <summary>Best-effort: find a clientId in build-meta text. GOG's goggame info / meta contains
-    /// a "clientId" (Galaxy client id, ~18-digit number distinct from the product id).</summary>
     private static string? ExtractClientId(string text)
     {
         var m = System.Text.RegularExpressions.Regex.Match(text, "\"clientId\"\\s*:\\s*\"?(\\d{10,})\"?");

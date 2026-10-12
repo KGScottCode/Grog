@@ -18,15 +18,9 @@ using Grog.Core.Tests.Framework;
 
 namespace Grog.Core.Tests;
 
-/// <summary>
-/// The whole download path against a fake GOG: downlink JSON, the CDN GET (Content-Disposition names the
-/// file, Range resumes it), and the checksum XML. Written before DownloadOneAsync was split into
-/// its stages, so the split had a net under it; keep it green through any engine change.
-/// </summary>
 [Trait("download")]
 public sealed class DownloadEngineEndToEndTests
 {
-    /// <summary>A body whose stream dies after <c>_good</c> bytes: a dropped connection, not a short file.</summary>
     private sealed class DroppingContent : HttpContent
     {
         private readonly byte[] _bytes; private readonly int _good;
@@ -380,9 +374,6 @@ public sealed class DownloadEngineEndToEndTests
         finally { Cleanup(rootDir); }
     }
 
-    /// <summary>The last gate: once the CDN has said how long the file REALLY is, and before a byte is
-    /// written, the remainder is compared with the drive's live free space. No room: the task is turned away as a
-    /// drive problem (no strike, held as won't-fit), nothing is written, and the real size is kept for the planner.</summary>
     [Test]
     public async Task A_file_the_drive_has_no_room_for_never_starts()
     {

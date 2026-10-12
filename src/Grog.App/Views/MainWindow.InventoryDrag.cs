@@ -16,12 +16,9 @@ using Grog.Core.Layout;
 
 namespace Grog.App.Views;
 
-// Storage page device grids: selection, expand/collapse and cross-grid drag.
+// Storage page device grids
 public partial class MainWindow
 {
-    /// <summary>Wire click-selection, expand/collapse and drag-and-drop for both device grids: a selected row
-    /// dropped onto the OTHER grid moves the selection to that device. Real files move, so the drag threshold
-    /// is bigger than the queue's.</summary>
     private void WireInventoryDrag()
     {
         WireGrid("PrimaryList", "SecondaryList", primary: true);
@@ -32,7 +29,6 @@ public partial class MainWindow
     {
         var list = Find<ItemsControl>(listName);
         if (list is null) return;
-        // The OTHER side's card wears .droptarget (amber frame) while a move-drag hovers it.
         var otherCard = Find<Border>(primary ? "GuideSecondaryFolder" : "GuidePrimaryFolder");
 
         bool dragging = false;
@@ -43,10 +39,6 @@ public partial class MainWindow
         {
             start = e.GetPosition(this);
             dragging = false;
-            // Only ARM a move-drag on an ALREADY-SELECTED file row, so a drag-to-select or click-then-move
-            // can never turn into a move (which shuffles gigabytes).
-            // A selected FILE row, or a game header whose files are all selected (dragging the
-            // whole game is the common case). The caret never arms: it toggles.
             var row = InventoryRowUnder(e.Source);
             var grp = row is null && !IsCaretHit(e.Source) ? GroupUnder(e.Source) : null;
             armed = DataContext is MainWindowViewModel vm0
@@ -86,7 +78,6 @@ public partial class MainWindow
 
             if (wasDragging)
             {
-                // Dropped on the OTHER grid => move this grid's selection to that device.
                 var other = Find<ItemsControl>(otherName);
                 if (other is not null && PointIsInside(other, e.GetPosition(this)))
                 {
@@ -97,8 +88,6 @@ public partial class MainWindow
                 return;
             }
 
-            // A plain click: caret toggles expand; a game row selects the game; a file row selects the file.
-            // Ctrl/Cmd extends the selection instead of replacing it.
             bool ctrl = e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.KeyModifiers.HasFlag(KeyModifiers.Meta);
             bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
             if (IsCaretHit(e.Source) && GroupUnder(e.Source) is { } cg) { vm.Storage.ToggleGroupExpanded(cg); return; }
@@ -109,14 +98,12 @@ public partial class MainWindow
 
     private static DeviceGridViewModel SideOf(MainWindowViewModel vm, bool primary) => primary ? vm.Storage.PrimaryGrid : vm.Storage.SecondaryGrid;
 
-    /// <summary>True if a window-space point falls inside a control's bounds.</summary>
     private bool PointIsInside(Control c, Point p)
     {
         var tl = c.TranslatePoint(new Point(0, 0), this);
         return tl is not null && new Rect(tl.Value, c.Bounds.Size).Contains(p);
     }
 
-    /// <summary>Walk up from a pointer event's source to the InventoryRow it sits in (null if none).</summary>
     private static InventoryRow? InventoryRowUnder(object? source)
     {
         var c = source as Control;
@@ -128,7 +115,6 @@ public partial class MainWindow
         return null;
     }
 
-    /// <summary>Walk up to the game rollup (InventoryGroupRow) the pointer sits in; null on a file row.</summary>
     private static InventoryGroupRow? GroupUnder(object? source)
     {
         var c = source as Control;
@@ -141,7 +127,6 @@ public partial class MainWindow
         return null;
     }
 
-    /// <summary>True if the press landed on the expand caret (Tag="caret"): toggles, never selects.</summary>
     private static bool IsCaretHit(object? source)
     {
         var c = source as Control;

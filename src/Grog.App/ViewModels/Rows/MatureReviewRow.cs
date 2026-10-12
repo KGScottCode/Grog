@@ -4,8 +4,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Grog.App.ViewModels;
 
-/// <summary>One game in the mature review: its ratings and the user's Keep choice.
-/// <see cref="GogOnly"/> = rated by GOG's own store rating and no retail board (ESRB/PEGI/USK/BR).</summary>
 public sealed partial class MatureReviewRow : ObservableObject
 {
     public MatureReviewRow(long gogId, string title, string ratings, bool gogOnly)

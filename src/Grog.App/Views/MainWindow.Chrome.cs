@@ -19,8 +19,6 @@ namespace Grog.App.Views;
 // Custom frameless window chrome: title bar drag, caption buttons, client-side edge resize.
 public partial class MainWindow
 {
-    // Client-side edge resize (Linux only): WindowDecorations.None removes the WM's resize borders, so a
-    // 6px band inside every edge maps to BeginResizeDrag. Cursors are cached; the handler runs per move.
     private const double ResizeBand = 6;
     private static readonly Cursor CurWE = new(StandardCursorType.SizeWestEast);
     private static readonly Cursor CurNS = new(StandardCursorType.SizeNorthSouth);
@@ -69,7 +67,6 @@ public partial class MainWindow
         return null;
     }
 
-    // ---- Custom frameless title bar (window chrome we draw ourselves) ----
     private void OnTitleBarPressed(object? sender, PointerPressedEventArgs e)
     {
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
@@ -82,6 +79,5 @@ public partial class MainWindow
     private void OnMaxRestore(object? sender, RoutedEventArgs e) =>
         WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
 
-    // Close routes through the normal Closing handler -> "Confirm Close or Minimize?" + pause-in-flight.
     private void OnClose(object? sender, RoutedEventArgs e) => Close();
 }

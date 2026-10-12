@@ -16,15 +16,12 @@ using Grog.Core.Layout;
 
 namespace Grog.App.Views;
 
-// Theme follow-through: window icon and About scene swap.
+// Theme follow-through
 public partial class MainWindow
 {
     private void OnThemeChanged(GrogTheme theme) =>
         Dispatcher.UIThread.Post(() => { ApplyThemeIcon(theme); ApplyAboutScene(theme); });
 
-    // both PNGs used to be read + decoded on the dispatcher (constructor and every
-    // theme change). The asset bytes / bitmap are now produced on a worker, cached per theme, and only the
-    // cheap assignment happens on the UI thread. A generation counter makes the LAST requested theme win.
     private readonly System.Collections.Generic.Dictionary<GrogTheme, WindowIcon> _themeIcons = new();
     private readonly System.Collections.Generic.Dictionary<GrogTheme, Avalonia.Media.Imaging.Bitmap> _aboutScenes = new();
     private int _themeIconGen, _aboutSceneGen;
@@ -50,8 +47,6 @@ public partial class MainWindow
                 try
                 {
                     if (bytes is null) return;
-                    // The platform icon object itself is created here (Win32 handles belong to the UI thread);
-                    // the asset read is what used to stall, and that already happened on the worker.
                     var icon = new WindowIcon(bytes);
                     _themeIcons[theme] = icon;
                     if (gen == _themeIconGen) Icon = icon;
@@ -62,8 +57,6 @@ public partial class MainWindow
         });
     }
 
-    /// <summary>About's scene art follows the theme like the window icon: gold, purple-graded, or the deep
-    /// Tavern cut. Swapped, not tinted -- no palette value fixes a bitmap.</summary>
     private void ApplyAboutScene(GrogTheme theme)
     {
         if (_aboutScenes.TryGetValue(theme, out var cached))

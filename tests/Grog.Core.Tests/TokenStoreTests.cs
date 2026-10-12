@@ -10,16 +10,6 @@ using Grog.Core.Tests.Framework;
 
 namespace Grog.Core.Tests;
 
-/// <summary>
-/// The token store is the one file whose failure mode is a SILENT LOGOUT: an unreadable store looks exactly
-/// like "never signed in". These tests exist because the encryption-at-rest change added a second on-disk
-/// format, and a format that cannot be read by the build that follows it costs every user their session.
-///
-/// <para>These run on whatever platform the suite runs on. That is the point of writing them against the
-/// public contract rather than against DPAPI or a keyring: the round-trip and the legacy-read must hold on
-/// all three, and any platform where they do not is a platform Grog must not ship on. LINUX AND macOS HAVE
-/// NOT BEEN WALKED BY HAND YET -- these tests prove the format logic, not the keyring integration.</para>
-/// </summary>
 [Trait("auth")]
 public sealed class TokenStoreTests
 {

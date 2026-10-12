@@ -7,10 +7,6 @@ using System.Text.Json.Serialization;
 
 namespace Grog.Core.Volumes;
 
-/// <summary>Persists the reorg journal to <c>&lt;configDir&gt;/reorg.json</c>. Lives in the profile
-/// config dir (not the backup drive) so it survives even if the drive being reorganized goes offline
-/// mid-move. Writes are atomic (temp flushed to disk, previous kept as .bak, then replace) so a crash never
-/// leaves a half-written journal, and a corrupt one falls back to the .bak on load.</summary>
 public sealed class ReorgJournalStore
 {
     public const string FileName = "reorg.json";
@@ -27,10 +23,6 @@ public sealed class ReorgJournalStore
 
     public bool Exists => File.Exists(_path);
 
-    /// <summary>Atomically write the journal: temp file flushed to disk, the previous primary kept as .bak,
-    /// then replace. A READ-ONLY destination makes the replace throw UnauthorizedAccessException (
-    /// : a reorg.json carrying the read-only attribute crashed the run at Save) -- clear the
-    /// attribute and retry once before giving up.</summary>
     public void Save(ReorgJob job)
     {
         var tmp = _path + ".tmp";
@@ -40,8 +32,6 @@ public sealed class ReorgJournalStore
             stream.Write(bytes, 0, bytes.Length);
             stream.Flush(flushToDisk: true);
         }
-        // Decided from the disk, not an instance flag: the App loads and saves through different instances. A
-        // primary that does not parse is corrupt, and rolling it into .bak would destroy the only good copy.
         if (TryLoad(_path) is not null)
         {
             try { File.Copy(_path, _path + ".bak", overwrite: true); } catch { /* best-effort: the primary still lands */ }
@@ -58,8 +48,6 @@ public sealed class ReorgJournalStore
         }
     }
 
-    /// <summary>Load a pending journal, or null if none / unreadable. A primary that fails to parse is
-    /// quarantined as .corrupt and the last-known-good .bak is used instead.</summary>
     public ReorgJob? Load()
     {
         if (!File.Exists(_path)) return null;
@@ -87,7 +75,6 @@ public sealed class ReorgJournalStore
 
     public void Delete()
     {
-        // The .bak goes too: a stale one must never resurface as a later job's fallback.
         try { if (File.Exists(_path)) File.Delete(_path); } catch { /* best-effort */ }
         try { if (File.Exists(_path + ".bak")) File.Delete(_path + ".bak"); } catch { /* best-effort */ }
     }

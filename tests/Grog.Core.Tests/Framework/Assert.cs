@@ -65,7 +65,6 @@ public static class Assert
         if (!items.Any()) throw new AssertException($"{Prefix(label)}Expected at least one item.");
     }
 
-    /// <summary>Asserts exactly one item and returns it (mirrors xunit's most useful helper).</summary>
     public static T Single<T>(IEnumerable<T> items, string? label = null)
     {
         var list = items.Take(2).ToList();

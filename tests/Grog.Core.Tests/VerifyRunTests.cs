@@ -16,7 +16,6 @@ using Grog.Core.Tests.Framework;
 using Grog.Core.Verify;
 using Grog.Core.Volumes;
 
-/// <summary>The one verify sequence that replaces the App's six VerifyService sites and the CLI's.</summary>
 [NewBatch]
 [Trait("run")]
 public class VerifyRunTests
@@ -43,7 +42,6 @@ public class VerifyRunTests
             BackupLayout.EnsurePrimary(Store.Current, Root);
         }
 
-        /// <summary>A product with one file recorded as Present; <paramref name="onDisk"/> writes its bytes.</summary>
         public LibraryItem Item(long id, bool onDisk, long size = 16)
         {
             var it = new LibraryItem { GogId = id, Title = $"Game {id}", Slug = $"game_{id}" };

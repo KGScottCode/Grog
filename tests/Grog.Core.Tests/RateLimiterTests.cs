@@ -11,12 +11,8 @@ using Grog.Core.Tests.Framework;
 
 namespace Grog.Core.Tests;
 
-/// <summary>The bandwidth limiter's contract: 0 skips throttling entirely (disabled = uncapped, never a
-/// stale cap), the rate is read live so a settings change reaches an in-flight transfer, and a rate
-/// change resets the accounting window so old-rate arrears cannot stall the new rate.</summary>
 public static class RateLimiterTests
 {
-    /// <summary>A limiter whose sleeps are recorded instead of slept: the assertions read the ledger.</summary>
     private static (RateLimiter Limiter, List<TimeSpan> Sleeps) Recorded(Func<long> rate)
     {
         var sleeps = new List<TimeSpan>();

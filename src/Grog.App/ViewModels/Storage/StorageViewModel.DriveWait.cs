@@ -11,23 +11,12 @@ using Grog.Core.Volumes;
 
 namespace Grog.App.ViewModels;
 
-/// <summary>
-/// Storage that went away mid-download: EVERYTHING stops. A missing drive is a broken state the user
-/// addresses before Grog continues; planning around a drive that may never come back is more than the app should guess.
-///   - The run pauses (the app's one Pause). Files headed to the drive take no strike, are not moved, and are not
-///     marked "no room" (Core: DriveWaits, DownloadSettlement.DriveOffline).
-///   - A dialog says so: [Go to Storage] [OK].
-///   - Reconnect it (same folder, back for 4 s) and downloads continue on their own, unless the user paused too.
-///   - Or Mark as Lost on the Storage page: the drive leaves Grog, the wait is dropped, its files re-queue elsewhere.
-/// Every queue read and manifest write here runs off the UI thread.
-/// </summary>
 public sealed partial class StorageViewModel
 {
     private string? _driveGoneRootId;        // the dialog's drive; null = no dialog
     // The drives Grog paused for. Reconnecting continues only THAT pause, once every one of them is back.
     private readonly HashSet<string> _pausedForDrives = new(StringComparer.Ordinal);
     internal void ForgetDrivePause() => _pausedForDrives.Clear();
-    /// <summary>Stop emptied the queue: nothing waits for a drive any more, so the pause and its dialog go too.</summary>
     internal void ForgetDriveWait()
     {
         _pausedForDrives.Clear();
@@ -47,7 +36,6 @@ public sealed partial class StorageViewModel
         return slot.Length > 0 && slot != r.Label ? $"\"{r.Label}\" ({slot})" : $"\"{r.Label}\"";
     }
 
-    /// <summary>The drive Grog paused for, while that pause stands: the Overview's "why paused" line names it.</summary>
     internal string? PausedForDriveLabel
         => _root.DownloadPaused && _pausedForDrives.FirstOrDefault(DriveWaits.Contains) is { } id ? DriveLabel(id) : null;
 
@@ -62,8 +50,6 @@ public sealed partial class StorageViewModel
             OnPropertyChanged(n);
     }
 
-    /// <summary>The presence watch saw a storage go away. During a backup that stops everything, like the engine's
-    /// own detection; while idle the Storage card's "Disconnected" already says it.</summary>
     internal void OnStorageDisconnected(string rootId)
     {
         if (_session.LiveEngine is null || _session.StopRequested || !_root.DownloadRunning) return;
@@ -73,7 +59,6 @@ public sealed partial class StorageViewModel
         OnDriveWentAway(rootId);
     }
 
-    /// <summary>The engine found a file's storage gone, or the watch saw it leave mid-backup: stop everything.</summary>
     internal void OnDriveWentAway(string rootId)
     {
         if (string.IsNullOrEmpty(rootId) || _pausedForDrives.Contains(rootId)) return;   // both detectors fire: act once
@@ -89,17 +74,13 @@ public sealed partial class StorageViewModel
         RaiseDriveWait();
     }
 
-    /// <summary>Kept for the run-end hook: the dialog needs no recount now.</summary>
     internal void RefreshDriveWait() => RaiseDriveWait();
 
     private bool IsOnlineNow(string id) => _prevOnline.TryGetValue(id, out var on) && on;
 
-    /// <summary>Something waits on this drive: the registry, or the live engine's own offline mark.</summary>
     private bool IsWaitedOn(string id)
         => DriveWaits.Contains(id) || (_session.LiveEngine?.OfflineRoots.Contains(id) ?? false);
 
-    /// <summary>Every watch tick, not only on a presence change: a flap shorter than the 2 s poll leaves the online
-    /// signature unchanged. Called on the watch's worker thread with its fresh probe.</summary>
     private void CheckWaitedDrivesBack(Dictionary<string, bool> now)
     {
         var engineOff = _session.LiveEngine?.OfflineRoots ?? (IReadOnlyCollection<string>)Array.Empty<string>();
@@ -128,8 +109,6 @@ public sealed partial class StorageViewModel
         });
     }
 
-    /// <summary>The watch saw a waiting drive's folder again. Act only once it has stayed for 4 s (a flaky
-    /// cable or a drive still spinning up flaps), and only if its folder is really there.</summary>
     private void NoteWaitingDriveBack(string id)
     {
         if (!_backPending.Add(id)) return;
@@ -147,8 +126,6 @@ public sealed partial class StorageViewModel
         }, TimeSpan.FromSeconds(4));
     }
 
-    /// <summary>The drive is back. If Grog paused for it (and the user has not paused or resumed since), downloads
-    /// continue; otherwise a toast says it is back and the user's own Pause stands.</summary>
     private async Task DriveBackAsync(string id)
     {
         var engine = _session.LiveEngine;
@@ -170,7 +147,6 @@ public sealed partial class StorageViewModel
         _root.ShowToast(_root.DownloadPaused ? $"{name} is back. Resume when you are ready." : $"{name} is back.", 0);
     }
 
-    /// <summary>OK: close the dialog. Downloads stay paused until the drive is back or Resume is pressed.</summary>
     [RelayCommand]
     private void DriveWaitKeep()
     {
@@ -178,7 +154,6 @@ public sealed partial class StorageViewModel
         RaiseDriveWait();
     }
 
-    /// <summary>Go to Storage: where Mark as Lost lives.</summary>
     [RelayCommand]
     private void DriveWaitGoToStorage()
     {

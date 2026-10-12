@@ -4,12 +4,8 @@ using Avalonia.Media;
 
 namespace Grog.App;
 
-/// <summary>Resolves named palette brushes from Styles/Palette.axaml for code-behind use, so C# status colors
-/// reference the same tokens as the views instead of hardcoded hex. Color = meaning; single source for both.</summary>
 public static class Palette
 {
-    // Application.Current is null under unit tests (no running Avalonia app); fall back to Transparent
-    // there, since nothing is being painted.
     private static IBrush B(string key)
         => Application.Current is { } app && app.TryGetResource(key, app.ActualThemeVariant, out var v) && v is IBrush br
             ? br : Brushes.Transparent;

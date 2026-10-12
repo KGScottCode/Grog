@@ -18,52 +18,29 @@ namespace Grog.App.ViewModels;
 
 public partial class GameRowViewModel : ObservableObject
 {
-    /// <summary>THE "this game has an update" rule, used by the rail count, the Status bucket and the
-    /// Updates quick-filter alike - three sites that used to carry their own copy of it.</summary>
-    /// <para>SCOPED: an outdated extra with extras out of scope is not an update the next run
-    /// will fetch, and counting it lit the rail's Updates figure for work that never happens.</para>
     public bool HasUpdate => Status == BackupStatus.Outdated
         || ScopedFiles.Any(f => f.State == FileState.Outdated);
 
     public long GogId { get; init; }
     public string Title { get; init; } = "";
-    /// <summary>This item is new to the library -- the small "New" chip beside the title
-    /// and the Status dropdown's "New" bucket both read it. From the item; a rebuild is what refreshes it.</summary>
     public bool IsNew => Item?.IsNew ?? false;
-    /// <summary>The "New" chip's ground and hairline -- the SAME construction as the Cloud
-    /// Saves status pill (translucent amber over the row), so the two chips read as one idea.</summary>
     public IBrush NewChipBg => RowBrushes.Translucent(Palette.AccentAmberSoft, 0x22);
     public IBrush NewChipBorder => RowBrushes.Translucent(Palette.AccentAmberSoft, 0x55);
     public ProductType Type { get; init; }
     public string OsSummary { get; init; } = "";
-    /// <summary>Formatted from TotalSizeBytes - the SAME value the column sorts by, so display and sort agree.
-    /// Under a gigabyte it reads in MB ("0.0 GB" is a rounding artifact, not a size); sorting stays numeric.</summary>
     public string TotalSizeText => TotalSizeBytes <= 0 ? ""
         : TotalSizeBytes >= 1L << 30 ? $"{TotalSizeBytes / (double)(1L << 30):F1} GB"
         : $"{TotalSizeBytes / (double)(1L << 20):F0} MB";
-    /// <summary>Files this row COUNTS: the scoped set, not every file GOG lists -- matching the Status column,
-    /// detail pane, queue, health tally and progress bar. A count you cannot act on is worse than no count.</summary>
-    /// <para>THE scoped set is <see cref="Grog.Core.Sync.BackupScope.Scoped"/>, the same one Status reads: a file
-    /// GOG refuses to serve (Unavailable) is in neither. A hand-rolled Scope.Includes here counted it, so a
-    /// Backed Up game read "4/5" beside a green tick.</para>
     private IEnumerable<GameFile> ScopedFiles =>
         Item is null ? Enumerable.Empty<GameFile>() : Grog.Core.Sync.BackupScope.Scoped(Item, Scope);
 
-    /// <summary>Total bytes, for correct numeric sorting. Scoped for the same reason as the counts:
-    /// otherwise the Size column advertises bytes that will never be downloaded.</summary>
     public long TotalSizeBytes => ScopedFiles.Sum(f => Grog.Core.Sync.Rollups.TotalBytesOf(f));
     public string ExtrasSummary { get; init; } = "";
 
-    /// <summary>Owner discs for the grid's Owner column. Empty (and the column hidden) on single-account
-    /// machines. Order is registration order, primary first; the tooltip carries the full names.</summary>
     public IReadOnlyList<AccountBadge> OwnerBadges =>
         Item is null ? Array.Empty<AccountBadge>() : ViewModels.OwnerBadges.For(Item.OwnerIds);
-    /// <summary>Side by side while there is room, overlapping as the count grows:
-    /// up to three discs sit with a small gap; four or more tuck under each other.</summary>
     public double OwnerSpacing => OwnerBadges.Count <= 3 ? 3 : -7;
 
-    /// <summary>Every cell reserves the FULL-STACK width (all registered accounts), so the column's Auto
-    /// measurement can never undershoot when co-owned stacks scroll in later. Cell-side MinWidth is layout-native.</summary>
     public double OwnerCellMinWidth
     {
         get
@@ -73,12 +50,8 @@ public partial class GameRowViewModel : ObservableObject
         }
     }
     public string OwnerNames => string.Join(", ", OwnerBadges.Select(b => b.Name));
-    /// <summary>Sort key for the Owner column: initials joined in registration order, so single-owner
-    /// games group by account and co-owned games sort after their first owner's solo games.</summary>
     public string OwnerSortKey => string.Join("|", OwnerBadges.Select(b => b.Initials));
 
-    /// <summary>Owner-column cells are computed off the static registry/filter state, so a filter change
-    /// must tell every visible row to re-read them.</summary>
     public void RaiseOwnersChanged()
     {
         OnPropertyChanged(nameof(OwnerBadges));
@@ -94,7 +67,6 @@ public partial class GameRowViewModel : ObservableObject
     public int TotalFileCount => Item is null ? FileCount : ScopedFiles.Count();
 
     // ---- Grid refresh: terse Folder value, type badge, extras square-swatches, idle-bar hide ----
-    /// <summary>Folder-column value: full words ("Primary"/"Secondary"/"Split"), with a clean dash when none.</summary>
     public string LocationShort
     {
         get
@@ -110,30 +82,17 @@ public partial class GameRowViewModel : ObservableObject
         }
     }
 
-    /// <summary>Type badge for the rare non-Game rows (the Type column is gone). Blank for plain games.</summary>
     public string TypeBadgeText => Type switch { ProductType.Mod => "MOD", ProductType.Movie => "MOVIE", _ => "" };
     public bool ShowTypeBadge => TypeBadgeText.Length > 0;
-    /// <summary>Badge color = the same content-type color used by the chips, squares and legends, so a Mod
-    /// row's badge is Mod-teal and a Movie row's is Movie-magenta.</summary>
     public IBrush TypeBadgeBrush => ExtraTypeSegment.ColorFor(Type == ProductType.Mod ? "Mod" : Type == ProductType.Movie ? "Movie" : "Other");
 
-    /// <summary>Hide the per-row progress bar on idle rows (0% and not running) -- empty gray troughs read
-    /// as "stuck". Backed-up (green) and in-flight rows still show it.</summary>
     public bool ShowRowProgress => BarValue > 0 || RowBusy;
 
-    /// <summary>One square per extras TYPE the game has (bucketed via ExtraClassifier), biggest-first, with
-    /// its file count. Color = the shared legend swatch; `Dim` is set by the active Extras filter.</summary>
     public sealed record ExtraChip(string Name, IBrush Brush, int Count, bool Dim);
-    /// <summary>The shared content-bucket key for a file, matching the filter chips exactly. Installers key
-    /// by product type ("Mod" for a mod, else "Game"); extras collapse to the 5 extra chip buckets.</summary>
     public static string ContentKey(GameFile f, ProductType type) => f.Kind != FileKind.Extra
         ? (type == ProductType.Mod ? "Mod" : "Game")
         : Grog.Core.Sync.ExtraClassifier.ShortLabel(Grog.Core.Sync.ExtraClassifier.Classify(f.Name, f.ExtraType));
-    /// <summary>Selected content-chip keys while a filter is active (null = all selected). When set, per-row
-    /// squares NOT in it render dimmed AND sort after the lit ones, so the matched type reads at a glance.</summary>
     public static IReadOnlySet<string>? ActiveExtraFilter;
-    /// <summary>Selected backup languages (null/empty = every language), set from the VM on grid rebuild.
-    /// An extra for a language NOT in this set leaves the per-row squares; language-neutral extras never do.</summary>
     public static IReadOnlyCollection<string>? ActiveLanguages;
     // Deliberately language-ONLY (not the full Scope): the chips are a "what does this game contain" inventory.
     // LATENT DRIFT: if ExtraClassifier ever tags an extra with a platform, switch to the row's full Scope.Includes.
@@ -165,16 +124,10 @@ public partial class GameRowViewModel : ObservableObject
     [ObservableProperty] private double _rowProgress;
     [ObservableProperty] private bool _rowBusy;
 
-    /// <summary>Whether extras count toward "complete" (mirrors the backup scope setting).</summary>
     public bool IncludeExtras { get; set; } = true;
     public bool IncludeGames { get; set; } = true;
-    /// <summary>The full backup scope this row was built for; drives the scope-aware Status dot +
-    /// CompletionPercent so the row agrees with the hero / Status / queue. Defaults to Both.</summary>
     public Grog.Core.Sync.Scope Scope { get; set; } = Grog.Core.Sync.Scope.Both;
 
-    /// <summary>FILE-COUNT completion for this game, scope-aware: present in-scope files over in-scope files
-    /// (; was byte-weighted, which drew a 1/5 game whose one file is small as an empty bar). The
-    /// fraction beside the bar and the bar now say the same thing.</summary>
     public double CompletionPercent
     {
         get
@@ -184,13 +137,8 @@ public partial class GameRowViewModel : ObservableObject
         }
     }
 
-    /// <para>Both operands are FILE-COUNT percents (RowProgress is <c>Rollups.GameFilePercent</c>): the bar
-    /// never mixes units.</para>
-    /// <summary>Live bar value: never less than the standing on-disk completion, rising to the live figure while
-    /// a sync feeds RowProgress. The Max covers paused and per-file paths, where RowProgress may be 0/stale.</summary>
     public double BarValue => System.Math.Max(CompletionPercent, RowBusy ? RowProgress : 0);
 
-    /// <summary>Bar fill color encodes state: red=at-risk, green=complete, amber=partial, gray track=empty.</summary>
     public IBrush BarBrush
     {
         get
@@ -207,21 +155,15 @@ public partial class GameRowViewModel : ObservableObject
     //      COLOR = health, GLYPH = what is happening, and the BAR only appears when it VARIES.
     //      Dim is NOT a failure; amber = a gap you can close; red = bytes you thought you had are not there.
 
-    /// <summary>True when this row's progress is worth drawing: incomplete, or live.</summary>
-    /// <summary>A bar only once something has landed or is landing: a queued or paused game with 0 files and
-    /// no bytes yet rests with the dash + count like any other 0/N row (an empty track down the
-    /// column said nothing the fraction did not).</summary>
     public bool ShowRowBar => RowBusy
         || (StatusText is "Downloading" or "Paused" or "Partial" or "Moving" && (FilesPresent > 0 || BarValue > 0))
         || (BarValue > 0 && BarValue < 99.5);
-    /// <summary>Complete and idle: a check, not a full bar.</summary>
     public bool ShowRowMark => !ShowRowBar;
 
     // ONE vocabulary, shared with the Folders grid's InventoryRow: see ConditionVocabulary.
     public string RowMarkGlyph => ConditionVocabulary.Glyph(StatusText);
     public IBrush RowMarkBrush => ConditionVocabulary.Brush(StatusText);
 
-    /// <summary>Files present / files in scope: the one figure the row bar and its label both use.</summary>
     public int FilesInScope
     {
         get { int n = 0; foreach (var _ in ScopedFiles) n++; return n; }
@@ -230,48 +172,25 @@ public partial class GameRowViewModel : ObservableObject
     {
         get { int n = 0; foreach (var f in ScopedFiles) if (Grog.Core.Sync.BackupScope.IsPresent(f)) n++; return n; }
     }
-    /// <summary>The incomplete row's whole story: "8/10 at 62%". Empty when the bar is not shown.</summary>
-    /// <summary>The fraction alone when idle (the percent would repeat it); the live percent joins it while a
-    /// download feeds RowProgress.</summary>
     public string RowPercentText => !ShowRowBar ? "" : RowBusy ? $"{FilesPresent}/{FilesInScope} · {System.Math.Round(BarValue)}%" : $"{FilesPresent}/{FilesInScope}";
 
-    /// <summary>The two figures SPLIT, so each sits in its own fixed, right-aligned cell and the digits
-    /// line up down the column.</summary>
-    /// <summary>The fraction beside the bar, and beside the resting dash too (the count must stay
-    /// visible on a row nothing has happened to; only the "Not in Scope" word has no figure).</summary>
     public string RowCountText => ShowRowCount ? $"{FilesPresent}/{FilesInScope}" : "";
-    /// <summary>The fraction shows on every row that has files in scope, done ones included ("users
-    /// should know how many files there are"); only the "Not in Scope" word stands alone.</summary>
     public bool ShowRowCount => ShowRowBar || ((ShowRowIdle || ShowRowDone) && !NotInScope);
-    /// <summary>The resting dash spans only the bar's cell when a count sits beside it; the "Not in Scope" word
-    /// keeps the whole column.</summary>
     public int RowIdleSpan => NotInScope ? 3 : 1;
-    /// <summary>The done tick spans only the bar's cell, like the resting dash, so its count sits beside it.</summary>
     public int RowDoneSpan => 1;
-    /// <summary>The live percent only while a download feeds the row; idle, the fraction says it all.</summary>
     public string RowPctText   => ShowRowBar && RowBusy ? $"{System.Math.Round(BarValue)}%" : "";
     public bool ShowRowPct => ShowRowBar && RowBusy;
 
-    /// <summary>The row is fully backed up: the tick alone, CENTERD in the status column between two fading
-    /// rules -- "Backed Up" beside a green tick would say the same thing twice.</summary>
     public bool ShowRowDone => ShowRowMark && StatusText == "Backed Up";
-    /// <summary>Nothing has happened to this row yet -- a RESTING state like "done": the word centered between
-    /// two fading rules, no glyph. "Not in Scope" is deliberately at rest too, so it wears the same treatment.</summary>
     public bool ShowRowIdle => ShowRowMark && (StatusText is "Not Downloaded" or "Not in Scope"
                                                || (FilesPresent == 0 && StatusText is "Queued" or "Paused" or "Downloading"));
 
-    /// <summary>Anything wrong: Missing, Corrupt, Update, Disconnected, Unavailable. NOT the centered, ruled
-    /// treatment -- an exception must not read as restful. Colored glyph + word, right-aligned.</summary>
     public bool ShowRowIssue => ShowRowMark && !ShowRowDone && !ShowRowIdle;
 
     public bool ShowRowLabel => ShowRowMark && StatusText != "Backed Up";
     public string RowLabelText => ShowRowLabel ? StatusText : "";
 
-    /// <summary>The resting cell's text: a dim dash for a row nothing has happened to yet
-    /// ("Not Downloaded" reads as a verdict when repeated down a column; the tooltip keeps the word), the
-    /// "Not in Scope" word for the deliberate exclusion. Active, partial and issue states are untouched.</summary>
     public string RowIdleText => NotInScope ? RowLabelText : "\u2014";
-    /// <summary>The idle cell's ink: dim for both resting states.</summary>
     public IBrush RowIdleBrush => Palette.InkDim;
 
     private void RaiseRowMark()
@@ -287,9 +206,6 @@ public partial class GameRowViewModel : ObservableObject
 
     partial void OnRowProgressChanged(double value) { OnPropertyChanged(nameof(BarValue)); OnPropertyChanged(nameof(BarBrush)); OnPropertyChanged(nameof(ShowRowProgress)); RaiseRowMark(); }
     partial void OnRowBusyChanged(bool value) { OnPropertyChanged(nameof(BarValue)); OnPropertyChanged(nameof(BarBrush)); OnPropertyChanged(nameof(ShowRowProgress)); RaiseRowMark(); }
-    /// <summary>Displayed status is DERIVED from files + scope at read time (domain invariant). It was set once
-    /// in FromItem, so a game whose last file landed mid-run kept "Partial" (amber, in the Partial bucket)
-    /// until a full rebuild. Every completion tick re-derives it from the same rule FromItem uses.</summary>
     public void RaiseCompletion() { if (Item is not null) Status = Grog.Core.Sync.BackupScope.Status(Item, Scope); OnPropertyChanged(nameof(CompletionPercent)); OnPropertyChanged(nameof(BarValue)); OnPropertyChanged(nameof(BarBrush)); OnPropertyChanged(nameof(ShowRowProgress)); RaiseRowMark(); }
 
     // --- cached portrait cover (grid column) ---
@@ -341,27 +257,17 @@ public partial class GameRowViewModel : ObservableObject
     // the old bitmap is disposed on the UI thread AFTER the property change lands, so a
     // still-bound Image never paints a disposed bitmap: null the field, raise, then dispose.
     public void RaiseCover() { _coverGen++; _coverTried = false; var old = _cover; _cover = null; OnPropertyChanged(nameof(CoverBitmap)); old?.Dispose(); }
-    /// <summary>Drop the decoded cover so it can be collected while Grog sits hidden in the tray. Keeps
-    /// _coverTried set so the hidden binding returns null WITHOUT re-decoding; RaiseCover re-arms the decode.</summary>
     public void DropCover() { _coverGen++; if (_cover is null) return; var old = _cover; _cover = null; OnPropertyChanged(nameof(CoverBitmap)); old.Dispose(); }   // 
     public string LocationText { get; init; } = "";
 
-    /// <summary>The source item, for count/logic access from the parent VM (not bound directly).</summary>
     public LibraryItem? Item { get; init; }
 
-    /// <summary>True when the current scope includes NONE of this game's files. The derived status is
-    /// Complete, but the DISPLAY must not claim a backup that never happened, so the row reads "Not in Scope".</summary>
     public bool NotInScope { get; init; }
     public string StoreUrl => Item?.StorePageUrl ?? "";
     public bool HasStoreUrl => !string.IsNullOrEmpty(StoreUrl);
 
-    /// <summary>Delisted games get a permanent subtle red row tint -- a per-row "at risk, don't delete
-    /// this" warning that lives on the game itself rather than as a dashboard number. A game whose owning
-    /// account is removed/signed out is a DIFFERENT, quieter state: a subtle ORANGE tint --
-    /// nothing is missing from GOG, it just can't be re-fetched until that account is reconnected.</summary>
     public bool IsDelisted => Item?.IsDelisted ?? false;
     public bool OwnerDisconnected { get; init; }
-    /// <summary>The removed/signed-out account id(s) the game belongs to, named in the tooltip when known.</summary>
     public string DisconnectedOwners { get; init; } = "";
     // OwnerDisconnected OUTRANKS a delisted flag: with the owning account gone, "delisted" is a claim
     // nobody can verify any more (the next sweep withdraws it). The full-row orange tint was dropped
@@ -370,11 +276,8 @@ public partial class GameRowViewModel : ObservableObject
     public IBrush RowBackground => !ShowOwnerCaption && IsDelisted
         ? Palette.SurfaceErrorDark2   // subtle red tint
         : new SolidColorBrush(Colors.Transparent);
-    /// <summary>Registered but signed out (no readable token): re-fetch needs only a Log In.</summary>
     public bool OwnerLoggedOut { get; init; }
     public bool ShowOwnerCaption => OwnerDisconnected || OwnerLoggedOut;
-    /// <summary>Second line under the status cell, naming WHY the row is flagged so the orange is
-    /// never a guess. Removed (needs re-add) and logged out (needs Log In) are named apart.</summary>
     public string OwnerCaption => OwnerDisconnected ? "(account removed)"
         : OwnerLoggedOut ? "(account logged out)" : "";
     public string? DelistedTip => OwnerLoggedOut
@@ -387,12 +290,9 @@ public partial class GameRowViewModel : ObservableObject
 
     [ObservableProperty] private BackupStatus _status;
 
-    /// <summary>The game's DERIVED activity: NOT stored state, with exactly ONE writer -- the VM's central
-    /// RecomputeActivity, driven by the persisted queues. Idle = show the on-disk Status.</summary>
     private Grog.Core.Sync.FileActivity _derivedActivity = Grog.Core.Sync.FileActivity.Idle;
     public bool HasActivity => _derivedActivity != Grog.Core.Sync.FileActivity.Idle;
 
-    /// <summary>Push the freshly-derived activity in (the single writer). Refreshes the dot/label + bar.</summary>
     public void SetActivity(Grog.Core.Sync.FileActivity a)
     {
         if (_derivedActivity == a) return;
@@ -518,7 +418,6 @@ public partial class GameRowViewModel : ObservableObject
     }
 }
 
-/// <summary>A selectable library game in the Find-match picker.</summary>
 public sealed record GamePick(long GogId, string Title);
 
 public sealed record SerialEntry(string Name, string Key)
@@ -526,12 +425,8 @@ public sealed record SerialEntry(string Name, string Key)
     public bool HasName => !string.IsNullOrEmpty(Name);
 }
 
-/// <summary>One age-rating board row in the detail pane's Ratings section: Board acronym, Age display text,
-/// hover Tooltip; HasRating is false when GOG lists no rating for this board (rendered "NA").</summary>
 public sealed record RatingEntry(string Board, string Age, string Tooltip, bool HasRating);
 
-/// <summary>Static facts about the age-rating boards GOG reports, keyed by the lowercase board key
-/// harvested from the v2 response (pegi/esrb/usk/br/gog). Drives the acronym label and the (?) tooltip.</summary>
 public static class RatingBoards
 {
     // key -> (display acronym, tooltip)
@@ -545,14 +440,11 @@ public static class RatingBoards
             ["gog"]  = ("GOG",  "GOG - GOG.com's own store age rating."),
         };
 
-    /// <summary>Fixed display order. Every game's card lists all of these; a board GOG doesn't rate shows "NA".</summary>
     private static readonly string[] Order = { "pegi", "esrb", "usk", "br", "gog" };
 
     public static string Acronym(string key) => Map.TryGetValue(key, out var v) ? v.Acronym : key.ToUpperInvariant();
     public static string Tip(string key) => Map.TryGetValue(key, out var v) ? v.Tip : key.ToUpperInvariant();
 
-    /// <summary>Every canonical board in display order, plus any board GOG adds later that we don't yet know
-    /// about (appended after the known set so nothing the API returns is silently dropped).</summary>
     public static IEnumerable<string> All(IEnumerable<string> presentKeys)
     {
         var extra = new HashSet<string>(presentKeys, StringComparer.OrdinalIgnoreCase);
@@ -560,6 +452,5 @@ public static class RatingBoards
         foreach (var k in extra) yield return k;
     }
 
-    /// <summary>The canonical five board keys, in display order.</summary>
     public static IReadOnlyList<string> Keys => Order;
 }

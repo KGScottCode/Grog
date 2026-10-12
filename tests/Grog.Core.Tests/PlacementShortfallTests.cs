@@ -9,9 +9,6 @@ using Grog.Core.Volumes;
 
 namespace Grog.Core.Tests;
 
-/// <summary>The out-of-space contract: files that fit are placed (spilling to the next device with room),
-/// files that fit nowhere are reported as such rather than dropped or force-assigned, and the shortfall
-/// names the bytes involved. PlanQueue's flattened map must agree with the detailed plan it derives from.</summary>
 public sealed class PlacementShortfallTests
 {
     private static GameFile File(string key, long bytes) =>

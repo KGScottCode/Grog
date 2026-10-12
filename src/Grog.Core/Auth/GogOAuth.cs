@@ -4,9 +4,6 @@ using System;
 
 namespace Grog.Core.Auth;
 
-/// <summary>GOG offers no public OAuth registration; third-party clients all use GOG Galaxy's own public
-/// client credentials. Users authenticate with their own account through GOG's real login page -- these
-/// constants only identify the application, never the user.</summary>
 public static class GogOAuth
 {
     public const string ClientId = "46899977096215655";
@@ -31,17 +28,12 @@ public static class GogOAuth
         "&grant_type=refresh_token" +
         "&refresh_token=" + Uri.EscapeDataString(refreshToken);
 
-    /// <summary>Refresh-token grant scoped to a specific GAME's client credentials (not Galaxy's).
-    /// GOG's per-game cloud-storage endpoint 403s the generic session token; it accepts a token minted
-    /// with the game's own clientId/clientSecret. Mirrors gogdl's cloud-save auth.</summary>
     public static string GameTokenUrl(string gameClientId, string gameClientSecret, string refreshToken) =>
         "https://auth.gog.com/token?client_id=" + Uri.EscapeDataString(gameClientId) +
         "&client_secret=" + Uri.EscapeDataString(gameClientSecret) +
         "&grant_type=refresh_token" +
         "&refresh_token=" + Uri.EscapeDataString(refreshToken);
 
-    /// <summary>Accepts what a user pastes after logging in -- the full on_login_success redirect URL or the
-    /// bare code value. Null when no code can be found.</summary>
     public static string? ExtractCode(string pasted)
     {
         if (string.IsNullOrWhiteSpace(pasted)) return null;

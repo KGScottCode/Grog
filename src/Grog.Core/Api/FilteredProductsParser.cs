@@ -1,9 +1,5 @@
 // Grog - GOG.com library backup tool
 // Licensed under GPL-3.0-or-later
-//
-// Parses embed.gog.com/account/getFilteredProducts, GOG's rich library listing. Its `url` field points
-// at a product's PARENT pack when it belongs to one -- the authoritative pack signal, no title guessing.
-// Paged: honor totalPages.
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -18,7 +14,6 @@ public sealed class FilteredProductsPage
     public List<OwnedProduct> Products { get; init; } = new();
 }
 
-/// <summary>One row from getFilteredProducts: a game/movie you own, with its parent link.</summary>
 public sealed record OwnedProduct(
     long Id,
     string Title,
@@ -27,15 +22,10 @@ public sealed record OwnedProduct(
     bool IsGame,
     bool IsMovie,
     int DlcCount,
-    string Url,            // "/en/game/<parent-or-self-slug>"; empty when GOG omits it
-    string Image = "",    // protocol-relative logo base ("//images.../<hash>"), "" when absent
-    /// <summary>GOG's own "new to this account" marker. Consulted ONLY when a run
-    /// starts with an EMPTY library, to seed the first scan; every later scan ignores it and decides
-    /// from the manifest instead.</summary>
+    string Url,            // "/en/game/<parent-or-self-slug>"
+    string Image = "",    // protocol-relative logo base ("//images.../<hash>"), "" 
     bool IsNew = false)
 {
-    /// <summary>The slug embedded in Url (the last path segment), or "" -- this is the parent
-    /// pack's slug for child products, or the product's own slug for standalone items.</summary>
     public string UrlSlug
     {
         get
@@ -46,8 +36,6 @@ public sealed record OwnedProduct(
         }
     }
 
-    /// <summary>True when this product's Url points at a DIFFERENT slug than its own -- i.e. it's
-    /// a child of a pack whose slug is UrlSlug.</summary>
     public bool IsChildOfPack => UrlSlug.Length > 0 && !string.Equals(UrlSlug, Slug, StringComparison.OrdinalIgnoreCase);
 }
 
@@ -98,5 +86,5 @@ public static class FilteredProductsParser
     private static int GetInt(JsonElement e, string p)
         => e.TryGetProperty(p, out var v) && v.TryGetInt32(out var i) ? i : 0;
     private static bool GetBool(JsonElement e, string p)
-        => e.TryGetProperty(p, out var v) && v.ValueKind == JsonValueKind.True;   // simplified; behaviour identical
+        => e.TryGetProperty(p, out var v) && v.ValueKind == JsonValueKind.True;   // simplified
 }

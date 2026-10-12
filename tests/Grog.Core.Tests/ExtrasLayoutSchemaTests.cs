@@ -7,9 +7,6 @@ using Grog.Core.Manifest;
 using Grog.Core.Models;
 using Grog.Core.Tests.Framework;
 
-/// <summary>The v6 schema contract: a FRESH library defaults to WithGame; a pre-v6 manifest derives its
-/// layout from the legacy ExtrasInsideGame bool so an existing library NEVER silently changes shape; and
-/// the bool mirror is kept honest on save for downgrade reads.</summary>
 [NewBatch]
 [Trait("manifest")]
 public class ExtrasLayoutSchemaTests

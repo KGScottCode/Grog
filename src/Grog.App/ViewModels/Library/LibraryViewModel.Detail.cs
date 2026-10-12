@@ -30,8 +30,6 @@ public sealed partial class LibraryViewModel
 
     partial void OnSelectedRowChanged(GameRowViewModel? value) => RaiseDetail();
 
-    /// <summary>The guide's example game, held so the pane keeps showing it after the tour clears the
-    /// selection (queueing the tour's file must clear it, or the primary reads "Back up . 1 item").</summary>
 
     internal GameRowViewModel? DetailSource => SelectedRow ?? _root.Guide.DetailKeep ?? Games.FirstOrDefault();
 
@@ -39,8 +37,6 @@ public sealed partial class LibraryViewModel
     // library falls back to the quiet placeholder.
     public bool DetailHasSelection => DetailSource is not null;
     private double _detailWidth = 470;   // room for art + details
-    /// <summary>Detail-pane width: stored and TwoWay-bound to the splitter, so a manual resize sticks
-    /// across row selections.</summary>
     public Avalonia.Controls.GridLength DetailColumnWidth
     {
         get => new(_detailWidth);
@@ -89,18 +85,11 @@ public sealed partial class LibraryViewModel
     }
     public string DetailSize => DetailSource?.TotalSizeText ?? "";
 
-    /// <summary>When the product entered the library, from GOG's order history (<see cref="Grog.Core.Runs.PurchaseDatesRun"/>).
-    /// Local date, no time: the hour money moved is noise. Some owned items appear in no order at all
-    /// (Connect imports, bundled DLC, pre-order grants), so the row HIDES rather than showing "--" -- an
-    /// absent date is a gap in GOG's history, not a fact about the game worth a line of its own.</summary>
     public string DetailAcquired => DetailSource?.Item?.DateAcquired is { } d ? d.ToLocalTime().ToString("d MMM yyyy") : "";
     public bool DetailHasAcquired => DetailSource?.Item?.DateAcquired is not null;
     public string DetailLanguages => DetailSource?.Item?.Languages is { Count: >0 } l ? string.Join(", ", l.Take(6)) : "--";
-    /// <summary>A section with nothing to say is hidden, not shown as "--".</summary>
     public bool DetailHasLanguages => DetailSource?.Item?.Languages is { Count: > 0 };
 
-    /// <summary>The pane's plain-words ownership line: ALL owners, ignoring the grid's owner filter -- the
-    /// pane states attribution truth, not the current view. Hidden with a single account.</summary>
     public bool DetailShowOwners => OwnerBadges.Show && DetailSource?.Item is not null;
     public string DetailOwners
     {
@@ -114,8 +103,6 @@ public sealed partial class LibraryViewModel
         }
     }
 
-    /// <summary>Per-board age ratings for the selected game, in canonical PEGI/ESRB/USK/BR order, each with
-    /// an acronym chip, an "N+" age, and a (?) tooltip. Empty when GOG lists no boards for the product.</summary>
     public IReadOnlyList<RatingEntry> DetailRatings
     {
         get
@@ -137,8 +124,6 @@ public sealed partial class LibraryViewModel
     public string DetailSerial => DetailSource?.Item?.SerialKey ?? "";
     public bool DetailHasSerial => !string.IsNullOrEmpty(DetailSerial);
 
-    /// <summary>Serial keys split into (product name, key) so the UI can bold the name apart from the key.
-    /// Handles the "Name: KEY" per-line form; a bare key becomes an entry with an empty name.</summary>
     public IReadOnlyList<SerialEntry> DetailSerials
     {
         get
@@ -162,12 +147,10 @@ public sealed partial class LibraryViewModel
 
     public ObservableCollection<DetailFileRow> DetailFiles { get; } = new();
     public ObservableCollection<DetailFileRow> DetailGameFiles { get; } = new();
-    /// <summary>One row per platform this game HAS installers for when none of them is in scope (the badge only).</summary>
     public ObservableCollection<DetailFileRow> DetailOutOfScopeOs { get; } = new();
     public bool HasOutOfScopeInstallers => DetailOutOfScopeOs.Count > 0;
     public ObservableCollection<DetailFileRow> DetailExtraFiles { get; } = new();
     public bool HasExtraFiles => DetailExtraFiles.Count > 0;
-    /// <summary>Downloaded files the current scope excludes: they hold bytes, so they stay listed (collapsed) for per-file Delete.</summary>
     public ObservableCollection<DetailFileRow> DetailOutOfScopeOnDisk { get; } = new();
     public bool HasOutOfScopeOnDisk => DetailOutOfScopeOnDisk.Count > 0;
     public string OutOfScopeOnDiskHeader => $"On disk, outside scope ({DetailOutOfScopeOnDisk.Count})";
@@ -255,19 +238,13 @@ public sealed partial class LibraryViewModel
         DetailChangelog = "";
     }
 
-    /// <summary>True when the in-scope library contains localization (language-pack) content -- the same
-    /// signal the Library extras breakdown uses, so both surfaces agree.</summary>
     public bool HasLocalizationContent =>
         _stats.ExtraTypes.Any(t => string.Equals(t.Name, "Localizations", StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>Alt versions (language-less alternate builds) present in the library -- drives its chip's
-    /// visibility. Unlike Localizations it is NOT scope-gated, so it shows whenever any such content exists.</summary>
     public bool HasAltVersionContent =>
         _stats.ExtraTypes.Any(t => string.Equals(t.Name, "Alternate versions", StringComparison.OrdinalIgnoreCase)
                                 || string.Equals(t.Name, "Alt Versions", StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>Show the Localizations chip only when in-scope localization content exists; show Alt versions
-    /// whenever the library has any. Called after the chip list is built and on stats/scope refresh.</summary>
     internal void RefreshConditionalChips()
     {
         foreach (var c in ExtraFilterChips)
@@ -277,15 +254,12 @@ public sealed partial class LibraryViewModel
         }
     }
 
-    /// <summary>The extras legend and the two conditional chips follow the stats: raised by the Overview's segment rebuild.</summary>
     internal void RaiseLegend()
     {
         OnPropertyChanged(nameof(HasLocalizationContent)); OnPropertyChanged(nameof(HasAltVersionContent)); OnPropertyChanged(nameof(TypeLegend));
         RefreshConditionalChips();
     }
 
-    /// <summary>Legend for the file-type colors under the two grids. Localizations appears only when real
-    /// localization content is in scope, matching the Library extras breakdown.</summary>
     public IReadOnlyList<ExtraTypeSegment> TypeLegend
     {
         get
@@ -318,7 +292,6 @@ public sealed partial class LibraryViewModel
         set { if (_settings.ShowGridArt == value) return; _settings.ShowGridArt = value; _settings.SaveSoon(); OnPropertyChanged(); foreach (var r in _allGames) r.RaiseCover(); }
     }
 
-    /// <summary>No art (or art switched off) means no band at all, rather than an empty gradient block.</summary>
     public bool HasDetailArt => DetailLogoBitmap is not null;
 
     // The decode used to run inline in this getter (File.Exists + OpenRead + decode on
@@ -330,7 +303,6 @@ public sealed partial class LibraryViewModel
     private Avalonia.Media.Imaging.Bitmap? _detailArt;
     private bool _detailArtProbing;
     private int _detailArtGen;
-    /// <summary>Art for the open item's detail banner (from the local cover cache).</summary>
     public Avalonia.Media.Imaging.Bitmap? DetailLogoBitmap
     {
         get
@@ -375,15 +347,12 @@ public sealed partial class LibraryViewModel
         }
     }
 
-    /// <summary>Open the selected game's GOG store page in the default browser.</summary>
     [RelayCommand]
     private void OpenStorePage()
     {
         _root.OpenUrl(DetailStoreUrl);
     }
 
-    /// <summary>Set by the startup existence pass: files the manifest holds as backed up but that are no
-    /// longer on disk. Lives on the storage card, next to the drives it is about.</summary>
     [ObservableProperty] private string _missingNotice = "";
     public bool HasMissingNotice => !string.IsNullOrEmpty(MissingNotice);
     partial void OnMissingNoticeChanged(string value) => OnPropertyChanged(nameof(HasMissingNotice));

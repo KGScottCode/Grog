@@ -14,8 +14,6 @@ using Grog.Core.Volumes;
 
 namespace Grog.Core.Preservation;
 
-/// <summary>Preservation reporting and integrity operations over the manifest and layout: health summary,
-/// delisted/at-risk report, serial-key export, zip-integrity checking, safe orphan handling (move-not-delete).</summary>
 public sealed class PreservationService
 {
     private readonly IManifestStore _store;
@@ -67,24 +65,19 @@ public sealed class PreservationService
         return h;
     }
 
-    // ---- delisted / at-risk ----------------------------------------------------------------
-
-    /// <summary>A product is "delisted / at-risk" when flagged by sync, or when a game/mod has no downloadable
-    /// files recorded -- anything the user should double-check is safely backed up.</summary>
+    // delisted / at-risk
     public static bool IsDelisted(LibraryItem i) =>
         i.IsDelisted ||
         (i.Type is ProductType.Game or ProductType.Mod && i.Files.Count == 0);
 
     public IReadOnlyList<LibraryItem> DelistedItems() => M.Items.Where(IsDelisted).ToList();
 
-    // ---- serial keys -----------------------------------------------------------------------
-
+    // serial keys
     public IReadOnlyList<(string title, string serial)> SerialKeys() =>
         M.Items.Where(i => !string.IsNullOrWhiteSpace(i.SerialKey))
                .Select(i => (i.Title, Grog.Core.Api.GameDetailsParser.CleanSerial(i.SerialKey) ?? i.SerialKey!))
                .OrderBy(x => x.Item1).ToList();
 
-    /// <summary>Writes serials to a text file in the config dir; returns the path (or null if none).</summary>
     public async Task<string?> ExportSerialsAsync(string configDir, CancellationToken ct = default)
     {
         var serials = SerialKeys();
@@ -105,10 +98,8 @@ public sealed class PreservationService
         return path;
     }
 
-    // ---- zip integrity ---------------------------------------------------------------------
+    // zip integrity
 
-    /// <summary>Opens each local .zip extra and checks its central directory / entries are readable.
-    /// Flags unreadable archives as Corrupt. Installers (.exe/.sh/.pkg/.bin) are skipped -- not zips.</summary>
     public async Task<ZipCheckResult> CheckZipsAsync(CancellationToken ct = default)
     {
         var result = new ZipCheckResult();
@@ -132,7 +123,6 @@ public sealed class PreservationService
                     try
                     {
                         using var zip = ZipFile.OpenRead(path);
-                        // Touch every entry header to force the central directory to be parsed.
                         foreach (var _ in zip.Entries) { }
                         return true;
                     }
@@ -156,16 +146,13 @@ public sealed class PreservationService
         return result;
     }
 
-    // ---- orphans ---------------------------------------------------------------------------
+    // orphans
 
-    /// <summary>Finds files on disk under online roots that no manifest entry claims. Optionally moves
-    /// them into &lt;root&gt;/.grog/orphaned/ (never hard-deletes). Dry-run by default.</summary>
     public OrphanResult HandleOrphans(bool move)
     {
         var result = new OrphanResult();
         var known = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        // OldVersionFiles too: the archive is recorded there, not in Files. Left out, every retained build read
-        // as an orphan and --move carried the irreplaceable Old Versions/ archive away.
+
         foreach (var f in M.Items.SelectMany(i => i.Files.Concat(i.OldVersionFiles)))
         {
             var p = _layout.ResolvePath(f);
@@ -193,13 +180,8 @@ public sealed class PreservationService
         return result;
     }
 
-    /// <summary>Where --move puts orphans. Itself never scanned, or a second run moves the first run's orphans.</summary>
     public const string OrphanedFolder = "_Grog_Orphaned";
 
-    /// <summary>Content files under a root: never Grog's own config dir, and never the places Grog keeps things
-    /// the manifest's Files list does not name -- partial downloads (.grog-tmp, .part), the Old Versions
-    /// archive (an untracked build there is still nothing to sweep up), the cloud-save archive, the root
-    /// marker, and the orphan folder itself.</summary>
     private static IEnumerable<string> EnumerateContentFiles(string rootPath)
     {
         IEnumerable<string> files;

@@ -1,4 +1,4 @@
-<!-- Cloud Saves page (CloudSavesViewModel via CloudVm). Split out of MainWindow.axaml 2026-09-02; DataContext is the window's MainWindowViewModel. -->
+
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Grog.App.ViewModels"
@@ -6,10 +6,7 @@
              x:Class="Grog.App.Views.Pages.CloudSavesPage"
              x:DataType="vm:MainWindowViewModel">
   <Grid Background="Transparent" RowDefinitions="Auto,*">
-    <!-- Row 0+1 read as ONE card: this Border carries the header strip and the page's controls with
-         a SQUARE bottom, and the list below it continues the same fill and side strokes. -->
-    <!-- No card: one subject on the page means a container separates it from nothing. The heading keeps
-         its amber and sits on the neutral rule - the app's page-section heading pattern. -->
+
     <Border Grid.Row="0" Background="Transparent" BorderThickness="0"
             Margin="14,69,14,0" Width="880" HorizontalAlignment="Left" VerticalAlignment="Top">
       <StackPanel Spacing="0">
@@ -20,32 +17,26 @@
           </Grid>
         </Border>
         <StackPanel Classes="sbody" Spacing="16">
-      <!-- The re-query sits in the space the description leaves: asking GOG again is the user's action.
-           Amber but OUTLINED - "Download all" below is this page's one filled primary. -->
+
       <Grid ColumnDefinitions="*,Auto">
         <TextBlock Grid.Column="0" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontBody}" TextWrapping="Wrap" VerticalAlignment="Center">
           <Run Text="Back up your GOG cloud saves as dated local saves."/><LineBreak/><Run Text="Each download keeps history. Older local saves are never overwritten."/>
         </TextBlock>
-        <!-- x:Name for the guide: with no saves known yet this is the cloud stop's target. -->
+
         <Button x:Name="GuideCloudCheckNew" Grid.Column="1" Classes="amber-soft" FontSize="{StaticResource FontCaption}" Padding="14,6" Content="Check for New Saves"
                 HorizontalAlignment="Right" VerticalAlignment="Center" Margin="16,0,0,0"
                 Command="{Binding CheckForNewSavesCommand}"/>
       </Grid>
-      <!-- Cloud-saves archive folder: defaults to <backup root>/Cloud Saves; overridable here -->
+
       <Border Padding="0,10" Background="Transparent" BorderBrush="{StaticResource StrokeSubtle}" BorderThickness="0,1,0,0">
         <Grid ColumnDefinitions="*,Auto,Auto">
           <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="1">
-            <!-- "Backup folder", the app's one word for where backups live - "archive" appeared
-                 nowhere else and read as a different concept. -->
+
             <TextBlock Text="{Binding CloudVm.CloudFolderHeader}" Foreground="{StaticResource AccentAmber}" FontSize="{StaticResource FontBody}" FontWeight="SemiBold"/>
-            <!-- Path uses the UI face (not Consolas) to match the Cloud Saves game-name field; a path
-                 is read as words, and nothing here stacks in a column that would need mono digits. -->
+
             <TextBlock Text="{Binding CloudFolderText}" Foreground="{StaticResource White}" FontSize="{StaticResource FontBody}" TextWrapping="Wrap"
                        IsVisible="{Binding !CloudVm.ShowCloudFolderRows}"/>
-            <!-- Multiple accounts: one folder row per account (disc + name : path), because each
-                 account's saves archive in their own area under the base. -->
-            <!-- Shared-size name column: every row's colon and path start at the same x, so the
-                 paths read as an aligned column; paths wrap within the remaining width. -->
+
             <ItemsControl ItemsSource="{Binding CloudVm.CloudFolderRows}" IsVisible="{Binding CloudVm.ShowCloudFolderRows}"
                           Grid.IsSharedSizeScope="True">
               <ItemsControl.ItemTemplate>
@@ -67,7 +58,7 @@
                     <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="{StaticResource InkBright}" FontSize="{StaticResource FontBody}" VerticalAlignment="Center"/>
                     <TextBlock Grid.Column="2" Text=":" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontBody}" VerticalAlignment="Center" Margin="8,0"/>
                     <TextBlock Grid.Column="3" Text="{Binding Path}" Foreground="{StaticResource White}" FontSize="{StaticResource FontBody}" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                    <!-- Per-row override: any account can live in a folder of its own. -->
+
                     <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6" Margin="10,0,0,0" VerticalAlignment="Center">
                       <Button Classes="ghost" FontSize="{StaticResource FontCaption}" Content="Use Default" Padding="8,2"
                               IsVisible="{Binding IsOverridden}"
@@ -83,7 +74,7 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
           </StackPanel>
-          <!-- Single-account only: with account rows each row carries its OWN Change; no tiered base-then-account folder editing. -->
+
           <Button Grid.Column="1" Classes="ghost" FontSize="{StaticResource FontCaption}" Content="Use Default" Margin="8,0,0,0" VerticalAlignment="Center"
                   Command="{Binding ResetCloudFolderCommand}">
             <Button.IsVisible>
@@ -99,14 +90,10 @@
                   Command="{Binding ChangeCloudFolderCommand}"/>
         </Grid>
       </Border>
-      <!-- The status line lives DOWN in the list well, centered (see the Grid.Row=1 note) - the same
-           statement Folders makes in the same place. -->
 
-      <!-- Search + sort, THEN the summary sub-head. Hidden until there are cloud games to act on. -->
       <StackPanel Spacing="12" IsVisible="{Binding HasCloudGames}">
         <Grid ColumnDefinitions="*,Auto">
-          <!-- The SAME search control as Library: magnifier glyph + borderless field + muted overlay
-               placeholder, so the app has one search field for the same act of searching. -->
+
           <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
             <Path Width="16" Height="16" Stretch="Uniform" Stroke="{StaticResource InkFaint}" StrokeThickness="2"
                   StrokeLineCap="Round" Margin="4,0,6,0" VerticalAlignment="Center"
@@ -120,9 +107,7 @@
                          IsVisible="{Binding CloudFilter, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
             </Grid>
           </StackPanel>
-          <!-- (UX 09-08 #4) ONE sort control: "Sort by" + a pill whose face is the current key and direction;
-               the flyout lists the four keys with their glyphs. Same SortCloud command as the old chips - picking
-               the current key again flips its direction. -->
+
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
             <TextBlock Text="Sort by" Foreground="White" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center" Margin="0,0,2,0"/>
             <Button Classes="sortpill" ToolTip.Tip="Change the sort order. Pick the current key again to flip its direction.">
@@ -146,13 +131,11 @@
             </Button>
           </StackPanel>
         </Grid>
-        <!-- Summary sub-head: games/localSaves/bytes + a NEUTRAL rule to the right; "Download all" is the
-             one filled-amber primary on this page. Cancel replaces it while a batch runs. -->
+
         <Grid ColumnDefinitions="Auto,*,Auto">
           <TextBlock Grid.Column="0" Text="{Binding CloudSummary}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" VerticalAlignment="Center"/>
           <Border Grid.Column="1" Height="1.5" Background="{StaticResource NeutralRuleFade}" Margin="14,0" VerticalAlignment="Center"/>
-          <!-- x:Name for the guide: the cloud stop rings the action that BACKS SAVES UP - the control that
-               makes local copies, not the one that merely asks GOG what exists. -->
+
           <Button x:Name="GuideCloudCheck" Grid.Column="2" Classes="primary" Content="{Binding DownloadAllText}" FontSize="{StaticResource FontCaption}" Padding="14,6"
                   VerticalAlignment="Center" IsEnabled="{Binding CanDownloadAll}"
                   IsVisible="{Binding !CloudAllRunning}" Command="{Binding DownloadAllCloudCommand}"
@@ -167,17 +150,6 @@
       </StackPanel>
     </Border>
 
-    <!-- The card CONTINUES through the list: side strokes carry the boundary and the fill dissolves over
-         a FIXED 90px under the header. Not gated on HasCloudGames - an empty card still has to close. -->
-    <!-- Side strokes only, stretched, so a list longer than the window keeps its boundary all the way
-         down. The fill and its fade live INSIDE the scroller, so the fade begins wherever the list ends. -->
-    <!-- side strokes and the fade are GONE with the fill: the rows' own hairlines carry the list. -->
-    <!-- The list itself: framed + scrollable, flat divider rows (no floating cards). -->
-    <!-- The LIST WELL, deliberately NOT a card: the recess that marks a set of same-shaped rows. Always
-         present, like Folders' grid region, so the page has the same shape empty as full and the empty
-         statement has somewhere to live. -->
-    <!-- Widened: per-account rows carry full paths, and the page has the
-         room - a stretch with a generous cap beats clipping or early wrapping. -->
     <Border Grid.Row="1" Margin="14,0,14,40" Width="880" HorizontalAlignment="Left"
             Background="{StaticResource SurfaceBg}" BorderBrush="{StaticResource FlatEdge}"
             BorderThickness="1,1,1,0" ClipToBounds="True">
@@ -188,8 +160,7 @@
                    TextWrapping="Wrap" HorizontalAlignment="Center" Margin="12,16"
                    IsVisible="{Binding HasCloudStatus}"/>
         <Border Background="Transparent">
-        <!-- Grouped by ACCOUNT when saves exist under more than one (cloud saves are per-account facts):
-             header row per account with disc, name, rollup and expand/collapse. One account = flat rows. -->
+
         <ItemsControl ItemsSource="{Binding CloudItems}">
           <ItemsControl.DataTemplates>
             <DataTemplate x:DataType="vm:CloudAccountHeaderRow">
@@ -214,17 +185,14 @@
               <Border Padding="12,8" Background="Transparent" BorderBrush="{StaticResource FlatRowLine}" BorderThickness="0,0,0,1">
                 <StackPanel Spacing="0">
                 <Grid ColumnDefinitions="Auto,*,Auto">
-                  <!-- Chevron: reveals this game's local save history. Only shown once a backup exists. -->
-                  <!-- FontRow, not FontCaption: Apple Symbols (the macOS glyph fallback) draws the
-                       chevron light, and at 14 it read anemic next to the row title. -->
+
                   <Button Grid.Column="0" Classes="ghost" Padding="4,0" MinWidth="20" FontSize="{StaticResource FontRow}" VerticalAlignment="Center"
                           Margin="0,0,8,0" Content="{Binding ExpandGlyph}" IsVisible="{Binding CanExpand}"
                           ToolTip.Tip="{Binding ExpandTip}"
                           Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).ToggleLocalSavesCommand}"
                           CommandParameter="{Binding}"/>
                   <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
-                    <!-- Line 1: title + the one status pill (New / Update available = amber action; Up to
-                         date = green), then dim size/local save context. The pill IS the answer. -->
+
                     <StackPanel Orientation="Horizontal" Spacing="10">
                       <TextBlock Text="{Binding Title}" Foreground="{StaticResource White}" FontWeight="SemiBold" FontSize="{StaticResource FontBody}" VerticalAlignment="Center"/>
                       <Border Background="{Binding StatusPillBg}" BorderBrush="{Binding StatusPillBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusChip}" Padding="7,1" VerticalAlignment="Center">
@@ -232,8 +200,7 @@
                       </Border>
                       <TextBlock Text="{Binding SizeSnapText}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <!-- Line 2: ONE plain-language line carrying the why. Dim lead, white datum; exact stamps live on
-                         hover instead of a third line. -->
+
                     <StackPanel Orientation="Horizontal" Spacing="0" ToolTip.Tip="{Binding StampTooltip}">
                       <TextBlock Text="{Binding EvidenceLead}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"/>
                       <TextBlock Text="{Binding EvidenceDatum1}" Foreground="{StaticResource White}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold" VerticalAlignment="Center" IsVisible="{Binding HasEvidenceDatum1}"/>
@@ -241,9 +208,7 @@
                       <TextBlock Text="{Binding EvidenceDatum2}" Foreground="{StaticResource White}" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold" VerticalAlignment="Center" IsVisible="{Binding HasEvidenceDatum2}"/>
                     </StackPanel>
                   </StackPanel>
-                  <!-- (UX 09-08 #4) Split button: ONE primary amber Download (to the configured folder) with an
-                       attached ▾ that opens "Download to folder…" (the Save As command). Two Buttons sharing an
-                       edge - left corners on the first, right corners on the second, a deep-amber hairline between. -->
+
                   <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Margin="16,0,0,0">
                     <Button Content="{Binding ButtonText}" Classes="primary" FontSize="{StaticResource FontCaption}" Padding="12,6"
                             CornerRadius="5,0,0,5" HorizontalAlignment="Left"
@@ -266,8 +231,6 @@
                   </StackPanel>
                 </Grid>
 
-                <!-- LocalSave history : each timestamped local save on disk, newest first,
-                     with open / restore / prune (prune is a two-step inline confirm). -->
                 <StackPanel IsVisible="{Binding IsExpanded}" Margin="0,6,0,0" Spacing="0">
                   <TextBlock IsVisible="{Binding ShowEmptyHistory}" Text="No local saves found on disk."
                              Foreground="{StaticResource InkFaint}" FontSize="{StaticResource FontCaption}" Margin="26,2,0,6"/>
@@ -281,7 +244,7 @@
                               <TextBlock Text="{Binding StampText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}" FontFamily="Consolas,monospace"/>
                               <TextBlock Text="{Binding DetailText}" Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontCaption}"/>
                             </StackPanel>
-                            <!-- Default actions -->
+
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
                                         IsVisible="{Binding !ConfirmingDelete}">
                               <Button Classes="ghost" FontSize="{StaticResource FontCaption}" Content="Open" ToolTip.Tip="Open this local save's folder"
@@ -294,7 +257,7 @@
                                       Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AskDeleteLocalSaveCommand}"
                                       CommandParameter="{Binding}"/>
                             </StackPanel>
-                            <!-- Two-step delete confirm -->
+
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
                                         IsVisible="{Binding ConfirmingDelete}">
                               <TextBlock Text="Delete this local save permanently?" Foreground="{StaticResource ErrorRed}" FontSize="{StaticResource FontCaption}" VerticalAlignment="Center"/>

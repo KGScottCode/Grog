@@ -6,12 +6,6 @@ using Grog.App.ViewModels;
 using Grog.Core.Models;
 using Grog.Core.Tests.Framework;
 
-/// <summary>
-/// The Folders inventory grid's per-grid TYPE FILTER. This grid drives the bulk-move buttons, so the filter
-/// is a SELECTION tool, not a browsing one: the guarantee under test is that nothing hidden can ever be
-/// moved. Two ways that could break -- a stale selection surviving a filter change, and "Move All" reading
-/// the unfiltered set -- and both are covered here.
-/// </summary>
 [NewBatch]
 [Trait("foldersfilter")]
 public class DeviceGridTypeFilterTests
@@ -32,7 +26,6 @@ public class DeviceGridTypeFilterTests
         return new InventoryGroupRow(title, id, rows, rows.Count, rows.Count);
     }
 
-    /// <summary>A game with one installer and one soundtrack, so every test has at least two types to filter.</summary>
     private static DeviceGridViewModel GridWithMixedTypes()
     {
         var g = Group("Baldur's Gate", 1,

@@ -7,12 +7,6 @@ using Grog.Core.Tests.Framework;
 
 namespace Grog.Core.Tests;
 
-/// <summary>
-/// The tour is an ordered list walked by a cursor, so these tests are about the LIST and the WALK, not
-/// about deriving a position from app state. The old guide recomputed its step on every render, which is
-/// why forward worked and backward did not: there was nothing to recompute backwards to. Position is held
-/// now, and the tests that matter are the symmetry ones.
-/// </summary>
 [Trait("guide")]
 public sealed class FirstRunTourTests
 {

@@ -13,12 +13,6 @@ using Grog.Core.Storage;
 using Grog.Core.Sync;
 using Grog.Core.Tests.Framework;
 
-/// <summary>
-/// The delisted sweep after the multi-account change. The red-grid bug: the add-account merge swept
-/// with ONE account's seen ids and flagged the rest of the shared catalog "delisted". Locked down:
-/// the sweep is one shared pass over the UNION of every scanned account's ids, single-account merges
-/// suppress it entirely, and a run that skipped any account sweeps nothing (partial knowledge).
-/// </summary>
 [NewBatch]
 [Trait("accounts")]
 public sealed class DelistedSweepTests
@@ -106,7 +100,7 @@ public sealed class DelistedSweepTests
             var paths = GrogPaths.Resolve(root);
             var store = new JsonManifestStore(paths);
             await store.LoadAsync();
-            store.Current.Accounts.Add(new GrogAccount { Id = "", Username = "kevin" });
+            store.Current.Accounts.Add(new GrogAccount { Id = "", Username = "acct" });
             store.Current.Accounts.Add(new GrogAccount { Id = "kids", Username = "kidsaccount" });
             store.Current.Items.Add(new LibraryItem { GogId = 1, Title = "Unseen but unswept" });
             store.Current.Items.Add(new LibraryItem { GogId = 2, Title = "Stays flagged", IsDelisted = true });

@@ -13,12 +13,9 @@ using Grog.Core.Tests.Framework;
 
 namespace Grog.Core.Tests;
 
-/// <summary>The rules the architecture pass moved out of the App into Core: the move ledger as an
-/// instance, a running move taking more files, pins that live on the job, the finish-current-files state, the
-/// typed failure kind, and the fitting count Resume reads.</summary>
 [NewBatch]
 [Trait("arch")]
-public sealed class ArchPass0922Tests
+public sealed class ArchitecturePassTests
 {
     private static ReorgMove Mv(long id, string key, ReorgMoveKind kind = ReorgMoveKind.CopyVerifyDelete, long size = 100, long copied = 0,
                                 ReorgMoveState state = ReorgMoveState.Pending, string to = "/b/x")

@@ -7,45 +7,24 @@ using Grog.Core.Models;
 
 namespace Grog.Core.Volumes;
 
-/// <summary>Front-run device placement: from each device's free space and every queued file's size, decides
-/// up front which device each file lands on (including where spill starts). Pure and deterministic; live
-/// out-of-space handling is a separate backstop.</summary>
 public static class PlacementPlanner
 {
-    /// <summary>A file to place: its routing inputs (game id + kind) and its size.</summary>
     public sealed record FileToPlace(string FileKey, long GameGogId, FileKind Kind, long Bytes)
     {
-        /// <summary>The file's WHOLE size, for a volume's per-file ceiling (DeviceSpace.MaxFileBytes). Bytes is what it
-        /// still needs; a 6 GB file with a 4 GB partial still cannot exist on FAT32. 0 = unknown, not tested.</summary>
         public long FullBytes { get; init; }
 
-        /// <summary>The root holding this file's partial, when Bytes is discounted by one (null = the routed root,
-        /// for records older than). The discount is room already spent on THAT volume only: anywhere else
-        /// the file costs <see cref="FullBytes"/> (a 5 GB file with 4.5 GB received on a full drive
-        /// "fit" a second drive with 1 GB free, and the engine then needed all 5 GB there).</summary>
         public string? PartialRootId { get; init; }
 
-        /// <summary>Where the queue has this file headed now. When that drive is WAITING (it went away
-        /// mid-run) the file stays on it: a file that spilled there because the primary was full must not be
-        /// moved back, or marked "no room", just because its drive is unplugged.</summary>
         public string? CurrentRootId { get; init; }
 
-        /// <summary>FullBytes is GOG's ROUNDED label, not a length the CDN gave (no <see cref="GameFile.WireSizeBytes"/>).
-        /// A "4 GB" label is 4 GiB exactly, one byte over FAT32's ceiling, on a part GOG cut to fit under it.</summary>
         public bool SizeIsLabel { get; init; }
     }
 
-    /// <summary>How far a rounded label can sit from the real length: 1 part in 50.</summary>
     public static long LabelSlack(long max) => max / 50;
 
-    /// <summary>Is this file over a volume's per-file ceiling? A REAL size answers exactly. A label within
-    /// <see cref="LabelSlack"/> above the ceiling does not say: it is planned as fitting, <see cref="Runs.CeilingSizeCheck"/>
-    /// asks the CDN for the real length before a run places it, and the engine's own check is the last gate.</summary>
     public static bool OverCeiling(FileToPlace f, long max)
         => f.FullBytes > max && !(f.SizeIsLabel && f.FullBytes - max <= LabelSlack(max));
 
-    /// <summary>Where a file was planned to go. <see cref="Fits"/> is false when nothing had room for it
-    /// (Manual mode, or genuinely out of combined space) -- the caller warns rather than silently dropping.</summary>
     public sealed record FilePlacement(string FileKey, string? RootId, bool Fits);
 
     /// <param name="FreeAfter">The online devices IN FILL ORDER with the free bytes left once every placed file
@@ -57,18 +36,6 @@ public static class PlacementPlanner
         public bool AllFit => ShortfallBytes == 0;
     }
 
-    /// <summary>Plans placement for files IN QUEUE ORDER against devices in fill order (primary first).
-    ///
-    /// ONE RULE: the queue order is the user's, and this never reorders, groups or chooses on
-    /// their behalf. Each file, in turn, lands on its routed device if that device still has room after the
-    /// files ahead of it; otherwise (unless Manual) on the first other device with room; otherwise it is
-    /// marked won't-fit and KEEPS ITS POSITION. Free space is decremented as files are placed, so a large file
-    /// that does not fit is skipped and the smaller files behind it still land. Inform, never choose.
-    ///
-    /// This replaces the whole-game knapsack, which chose WHICH games got the device and, on a
-    /// size-sorted queue, silently demoted the head rows the user had just put there. A partial game is now
-    /// possible; the Storage page shows per-game completeness, so the consequence is visible where the user
-    /// would look for it.</summary>
     public static PlacementPlan Plan(
         IReadOnlyList<FileToPlace> files,
         IReadOnlyList<DeviceSpace> devices,
@@ -77,12 +44,7 @@ public static class PlacementPlanner
         RoutingMode mode,
         ExtrasPlacement layout)
     {
-        // A drive files are waiting for is not a place to put anything, whatever a probe says: on macOS a
-        // force-detached /Volumes folder resolved to "/" (the boot volume) and its small free figure starved the
-        // primary's ledger ("276 files had no room" with 3 TB free,).
         var online = devices.Where(d => d.IsOnline && !DriveWaits.Contains(d.RootId)).ToList();
-        // One ledger per VOLUME (DeviceSpace.Key), not per root: roots sharing a drive spend the same free space.
-        // Each such root reports the volume's free figure less its own in-flight reservation, so the smallest is the truth.
         var free = new Dictionary<string, long>();
         foreach (var d in online) free[d.Key] = free.TryGetValue(d.Key, out var had) ? Math.Min(had, d.FreeBytes) : d.FreeBytes;
         var keyOf = online.ToDictionary(d => d.RootId, d => d.Key);
@@ -97,8 +59,6 @@ public static class PlacementPlanner
             var intended = routing.ResolveRootId(f.GameGogId, f.Kind, primaryRootId, layout);
             string? target = null;
             long Cost(string rid) => Storage.DriveResolver.OnDisk(CostOn(f, rid, intended, keyOf), clusterOf[rid]);
-            // Its storage went away mid-run: the file WAITS for it (owner's default). Not a spill to another
-            // drive (the user chooses that on the card) and not "won't fit" (it is not a space problem).
             string? waitOn = f.CurrentRootId is { } cr && !keyOf.ContainsKey(cr) && DriveWaits.Contains(cr) ? cr
                 : (f.CurrentRootId is null || f.CurrentRootId == intended) && !keyOf.ContainsKey(intended) && DriveWaits.Contains(intended) ? intended
                 : null;
@@ -118,8 +78,7 @@ public static class PlacementPlanner
             }
             else
             {
-                // Fits nowhere: stays in the queue at its position, flagged. The routed device is recorded so
-                // the row still says where it WOULD go.
+                // Fits nowhere
                 shortfall += f.Bytes;
                 placements.Add(new FilePlacement(f.FileKey, intended, false));
             }
@@ -127,10 +86,6 @@ public static class PlacementPlanner
         return new PlacementPlan(placements, shortfall, online.Select(d => d with { FreeBytes = free[d.Key] }).ToList());
     }
 
-    /// <summary>The device ONE file would land on given the room left per device, or null: the same rule as
-    /// <see cref="Plan"/> for one file (routed root first; spill to the next device in fill order only when the
-    /// mode is not Manual). The App's "Pull up if it fits" / "Download this next" gates and "Pull up what fits"
-    /// all ask this, so a move is never offered that the next plan would undo.</summary>
     public static string? WouldFit(FileToPlace f, IReadOnlyList<DeviceSpace> roomInFillOrder,
                                    RoutingPolicy routing, string primaryRootId, RoutingMode mode, ExtrasPlacement layout)
     {
@@ -143,9 +98,6 @@ public static class PlacementPlanner
         return roomInFillOrder.FirstOrDefault(d => d.IsOnline && d.RootId != intended && d.FreeBytes >= Cost(d.RootId) && !OverCeiling(f, d.MaxFileBytes))?.RootId;
     }
 
-    /// <summary>What <see cref="WouldFit"/> charged <paramref name="f"/> on <paramref name="rootId"/>: the same cost
-    /// <see cref="Plan"/> spends, so a caller walking several files through WouldFit decrements the room by the
-    /// planner's figure, not the file's bare remainder (the tail of a pull-up bounced back red).</summary>
     public static long CostOf(FileToPlace f, string rootId, IReadOnlyList<DeviceSpace> roomInFillOrder,
                               RoutingPolicy routing, string primaryRootId, ExtrasPlacement layout)
     {
@@ -154,9 +106,6 @@ public static class PlacementPlanner
         return Storage.DriveResolver.OnDisk(CostOn(f, rootId, intended, keyOf), roomInFillOrder.FirstOrDefault(d => d.RootId == rootId)?.ClusterBytes ?? 0L);
     }
 
-    /// <summary>What <paramref name="f"/> costs on <paramref name="rootId"/>: what it still needs on the VOLUME
-    /// that holds its partial, its whole size anywhere else. No partial (Bytes == FullBytes, or FullBytes unknown):
-    /// Bytes everywhere.</summary>
     private static long CostOn(FileToPlace f, string rootId, string intended, IReadOnlyDictionary<string, string> keyOf)
     {
         if (f.FullBytes <= f.Bytes) return f.Bytes;
@@ -165,17 +114,11 @@ public static class PlacementPlanner
         return keyOf.TryGetValue(partRoot, out var pk) && keyOf.TryGetValue(rootId, out var rk) && pk == rk ? f.Bytes : f.FullBytes;
     }
 
-    /// <summary>A file is priced at what it STILL NEEDS: the bytes of a resumable.part already sit on the
-    /// drive and are already out of its free figure. Every room test uses this, never the raw size.</summary>
     public static long StillNeeds(GameFile f)
         => Math.Max(0L, (f.PlanSizeBytes ?? 0L) - (f.HasPartial ? f.PartialBytes ?? 0L : 0L));
 
     public static FileToPlace ToPlace(GameFile f) => new(f.FileKey, f.GameGogId, f.Kind, StillNeeds(f)) { FullBytes = f.PlanSizeBytes ?? 0L, PartialRootId = f.HasPartial ? f.PartialRootId : null, SizeIsLabel = f.WireSizeBytes is null };
 
-    /// <summary>Same planning, keeping the WHOLE plan. <c>Placements[i]</c> is <paramref name="files"/>[i]:
-    /// index by position, never by FileKey alone (shared across games). PlanQueue flattens to FileKey -&gt; RootId and drops
-    /// <see cref="PlacementPlan.ShortfallBytes"/> and each placement's <see cref="FilePlacement.Fits"/>,
-    /// which is why a caller could place files correctly and still be unable to say what did not fit.</summary>
     public static PlacementPlan PlanQueueDetailed(
         IReadOnlyList<GameFile> files,
         IReadOnlyList<DeviceSpace> devicesInFillOrder,
@@ -185,9 +128,6 @@ public static class PlacementPlanner
         ExtrasPlacement layout,
         IReadOnlyList<string?>? currentRoots = null)
     {
-        // Priced at what each file STILL NEEDS (StillNeeds): charging the full size again read a fully received
-        // 190 MB partial as "won't fit" on a drive with 190 MB of room -- its own. The .part travels with the
-        // file to whichever device it lands on (PreparePartial adopts a stray), so the discount holds everywhere.
         var toPlace = files.Select((f, i) => currentRoots is null ? ToPlace(f) : ToPlace(f) with { CurrentRootId = currentRoots[i] }).ToList();
         return Plan(toPlace, devicesInFillOrder, routing, primaryRootId, mode, layout);
     }

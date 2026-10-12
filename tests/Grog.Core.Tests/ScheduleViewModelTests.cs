@@ -10,11 +10,6 @@ using Grog.App.ViewModels;
 using Grog.Core.Scheduling;
 using Grog.Core.Tests.Framework;
 
-/// <summary>
-/// The scheduler behind IScheduleHost: a fake window supplies the schedule, the facts and
-/// counters for the actions. Timers are never armed here (StartScheduleTimer is not called), so nothing
-/// needs a dispatcher. AppSettings.Save lands in the test-run temp dir (Program.cs sets GROG_CONFIG_DIR).
-/// </summary>
 [NewBatch]
 [Trait("schedule")]
 public sealed class ScheduleViewModelTests

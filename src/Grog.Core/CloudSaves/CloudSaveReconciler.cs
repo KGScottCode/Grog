@@ -10,17 +10,12 @@ using Grog.Core.Models;
 
 namespace Grog.Core.CloudSaves;
 
-/// <summary>Pure reconcile of GOG cloud-storage containers onto the manifest -- no HTTP, no save --
-/// so the GUI and CLI drive identical discovery and the mapping is unit-testable.</summary>
 public static class CloudSaveReconciler
 {
-    /// <summary>Flag which library items have cloud saves (caching size + space id) and clear the flag
-    /// on the rest. Returns display rows for matched items plus the container product ids that aren't in
-    /// the library (their titles are fetched separately, so cold-start discovery still works).</summary>
     public static (List<CloudSaveRow> Rows, List<long> UnmatchedIds) Apply(
         LibraryManifest manifest, IReadOnlyList<CloudContainer> containers)
     {
-        // The legacy single-session path: everything it sees belongs to the tokens.json slot ("").
+        // The legacy single-session path
         ApplyAccounts(manifest, new[] { ("", containers) });
         var known = new HashSet<long>(manifest.Items.Select(i => i.GogId));
         var rows = new List<CloudSaveRow>();
@@ -36,9 +31,6 @@ public static class CloudSaveReconciler
         return (rows, unmatched);
     }
 
-    /// <summary>Per-account reconcile (saves are per-account facts, never merged): each SCANNED account's
-    /// entries are replaced from its containers; unscanned accounts keep theirs, so a partial check is safe.
-    /// Entries stay in registration order; the legacy Cloud* fields re-mirror from the first entry.</summary>
     public static int ApplyAccounts(LibraryManifest manifest,
         IReadOnlyList<(string AccountId, IReadOnlyList<CloudContainer> Containers)> byAccount)
     {
@@ -57,8 +49,7 @@ public static class CloudSaveReconciler
         int games = 0;
         foreach (var it in manifest.Items)
         {
-            // Server-side facts are REPLACED per scanned account; local backup BOOKKEEPING carries over
-            // (the archive on disk did not change because GOG answered a listing call).
+            // Server-side facts are REPLACED per scanned account
             var old = it.CloudByAccount.Where(e => scanned.Contains(e.AccountId)).ToDictionary(e => e.AccountId);
             it.CloudByAccount.RemoveAll(e => scanned.Contains(e.AccountId));
             foreach (var (acct, _) in byAccount)
@@ -81,8 +72,6 @@ public static class CloudSaveReconciler
         return games;
     }
 
-    /// <summary>Gets (or adds) one account's cloud entry -- THE write path outside a reconcile: update the
-    /// entry, then <see cref="MirrorLegacy"/>; never write the legacy single-slot fields directly.</summary>
     public static CloudAccountSave Entry(LibraryItem it, string accountId)
     {
         var e = it.CloudByAccount.FirstOrDefault(c => c.AccountId == accountId);
@@ -90,8 +79,6 @@ public static class CloudSaveReconciler
         return e;
     }
 
-    /// <summary>Re-derives one account's local backup bookkeeping after pruning; an emptied history also
-    /// clears the backed-up fingerprint so the game honestly reads "not backed up". Re-mirrors legacy fields.</summary>
     public static void RecordLocalSaves(LibraryItem it, string accountId, int count, DateTimeOffset? newest)
     {
         var e = Entry(it, accountId);
@@ -106,8 +93,6 @@ public static class CloudSaveReconciler
         MirrorLegacy(it);
     }
 
-    /// <summary>Re-mirrors the legacy single-slot Cloud* fields from the first per-account entry (HasCloudSaves
-    /// = any); no entries drops the cached cloud identity too. Returns whether saves remain anywhere.</summary>
     public static bool MirrorLegacy(LibraryItem it)
     {
         var first = it.CloudByAccount.FirstOrDefault();
@@ -133,8 +118,6 @@ public static class CloudSaveReconciler
         return true;
     }
 
-    /// <summary>Migrates pre-account manifests: a single-slot-flagged game seeds one entry under the first
-    /// registered account. Idempotent -- fires only while the per-account list is empty, never with no accounts.</summary>
     public static void SeedLegacy(LibraryManifest manifest)
     {
         var owner = manifest.Accounts.FirstOrDefault()?.Id;
@@ -145,15 +128,12 @@ public static class CloudSaveReconciler
                 {
                     AccountId = owner, SizeBytes = it.CloudSaveSize, Files = it.CloudSaveFiles,
                     UpdatedUtc = it.CloudLatestChangeUtc, SpaceId = it.CloudSpaceId,
-                    // The legacy archive folder belongs to the tokens.json slot; its bookkeeping moves in.
                     LastBackup = it.CloudLastBackup, LocalSaveCount = it.CloudLocalSaveCount,
                     BackedUpSize = it.CloudBackedUpSize, BackedUpFiles = it.CloudBackedUpFiles,
                     BackedUpChangeUtc = it.CloudBackedUpChangeUtc,
                 });
     }
 
-    /// <summary>Folder name an account's saves live under: its username, filesystem-safe and lowercase
-    /// (same rule as token filenames, so Windows and Linux agree on one folder).</summary>
     public static string AccountDirName(LibraryManifest manifest, string accountId)
     {
         var a = manifest.Accounts.FirstOrDefault(x => x.Id == accountId);
@@ -163,8 +143,6 @@ public static class CloudSaveReconciler
         return cleaned.Replace(' ', '_');
     }
 
-    /// <summary>One account's cloud-save area: its CloudSavesFolder override when set, else
-    /// &lt;base&gt;/&lt;account name&gt;/. Game folders nest inside, so two accounts' saves can never mix.</summary>
     public static string AccountArchiveDir(LibraryManifest manifest, string cloudBaseDir, string accountId)
     {
         var a = manifest.Accounts.FirstOrDefault(x => x.Id == accountId);
@@ -172,9 +150,6 @@ public static class CloudSaveReconciler
         return System.IO.Path.Combine(cloudBaseDir, AccountDirName(manifest, accountId));
     }
 
-    /// <summary>One game's archive folder for one account. The first registered account reads the pre-account
-    /// flat layout (&lt;base&gt;/&lt;game&gt;) when an archive exists only there, so existing bytes stay live
-    /// in place; everything new writes under the account folder. A per-account override skips the fallback.</summary>
     public static string GameArchiveDir(LibraryManifest manifest, string cloudBaseDir, string accountId, string gameSlug)
     {
         var a = manifest.Accounts.FirstOrDefault(x => x.Id == accountId);

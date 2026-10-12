@@ -27,7 +27,6 @@ public sealed partial class OverviewViewModel
 {
     public string AvgSpeedText => _meter.AvgBytesPerSec > 0 ? ByteFormat.Size((long)_meter.AvgBytesPerSec) + "/s" : "--";
     public string ElapsedText => _meter.ActiveElapsed.TotalSeconds >= 1 ? FormatDuration(_meter.ActiveElapsed) : "--";
-    /// <summary>Sub-caption for ELAPSED: the clock does not run while paused, so say so once the run has been paused.</summary>
     public string ElapsedInlineText => _meter.ActiveElapsed.TotalSeconds < 1 ? "" : _root.DownloadPaused ? "paused; pauses not counted" : "downloading time";
 
     public string CurrentSpeedText => _meter.CurrentBytesPerSec > 0 ? ByteFormat.Size((long)_meter.CurrentBytesPerSec) + "/s" : "--";
@@ -62,7 +61,6 @@ public sealed partial class OverviewViewModel
         RaiseSpeedGraph();
     }
 
-    /// <summary>The speed-over-time card's readouts as ONE set (sample push + reset both raise it).</summary>
     private void RaiseSpeedGraph()
     {
         OnPropertyChanged(nameof(SpeedGraphGeometry));
@@ -82,8 +80,6 @@ public sealed partial class OverviewViewModel
         RaiseSpeedGraph();
     }
 
-    /// <summary>Filled area under the speed curve in a fixed 1000x100 box. Fixed per-second step, so adding a
-    /// sample never re-spaces existing ones; a Viewbox scales it, so the VM needs no pixel sizes.</summary>
     private Geometry? BuildSpeedGeometry()
     {
         int n = _speedSamples.Count;
@@ -115,7 +111,6 @@ public sealed partial class OverviewViewModel
       : $"{Math.Max(0, (int)t.TotalSeconds)}s";
 
     public string RemainingText => ByteFormat.Size(Math.Max(0, _stats.AllSizeBytes - _stats.AllDoneBytes));
-    /// <summary>Bytes on disk, on its own -- the storage card pairs it with RemainingText.</summary>
     public string DoneSizeText => ByteFormat.Size(_stats.AllDoneBytes);
 
     // Hero progress bar: scope-aware totals, so deselecting Games or Extras re-totals the headline --
@@ -131,15 +126,9 @@ public sealed partial class OverviewViewModel
     private int ScopedTotalFiles => (_includeGames ? _stats.GameFileCount : 0) + (_includeExtras ? _stats.ExtraFileCount : 0);
     public string LibraryFilesText => $"{ScopedDoneFiles} / {ScopedTotalFiles}";
 
-    /// <summary>Bytes still to move in the CURRENT run (active + waiting rows), not the whole library.</summary>
     internal long QueuedRemainingBytes =>
         ActiveRows.Concat(WaitingRows).Sum(r => r.RemainingBytes);
 
-    /// <summary>The rows this run can REACH: a won't-fit row is queued but has nowhere to land, so pricing it
-    /// into Files left / ETA / "finishes about" promised a week-long run over files that will not download
-    /// (748 left, 7d 12h, with every fitting file done). Same rule as DownloadStatsText.</summary>
-    /// Nor a row whose transfer this run has given up on (its engine task failed or was turned away,
-    /// and a run does not re-admit it) or that waits for a disconnected drive: "1 left" with an ETA over nothing moving.
     private IEnumerable<QueueRow> ReachableRows => ActiveRows.Concat(WaitingRows).Where(r => !r.WontFit && !UnreachableThisRun(r));
     private bool UnreachableThisRun(QueueRow r)
     {
@@ -165,29 +154,18 @@ public sealed partial class OverviewViewModel
     }
 
     // Run-stats pill: Files + Data groups for this run's queue; all read "--" until there's a run.
-    /// <summary>Must stay PUBLIC: a compiled binding cannot reach a non-public member.</summary>
     public bool RunActive => _root.DownloadRunning || _root.DownloadPaused || HasQueuedWork;
     public string FilesDoneText => RunActive ? _runFilesDone.ToString() : "--";
     public string FilesLeftText => RunActive ? ReachableCount.ToString() : "--";
     public string RunDataDoneText => _meter.SessionBytes > 0 ? ByteFormat.Size(_meter.SessionBytes) : "--";
     public string RunDataLeftText => RunActive && ReachableRemainingBytes > 0 ? ByteFormat.Size(ReachableRemainingBytes) : "--";
 
-    /// <summary>Downloading pane footer, worded exactly like the Moving pane's: how far through the run
-    /// this is, in files AND bytes. Without it the pane says what is next but never how much is left.</summary>
     public bool ShowDownloadStats => RunActive
         && (_runFilesDone + ActiveRows.Count + WaitingRows.Count) > 0;   // never "0 of 0 files · 0 B of 0 B"
-    /// <summary>The white half has something to say: files done or files that can land. With every queued row
-    /// red it read "0 of 0 files · 0 B of 0 B" beside the red segment; only the red half shows then.</summary>
     public bool ShowReachStats => _runFilesDone + ReachableCount > 0;
-    /// <summary>A queue row's total for FOOTER arithmetic: the learned length when known, never below
-    /// what has actually arrived - so a file GOG under-sized (or served without a length) cannot zero
-    /// its remaining while bytes still flow. That mismatch (session meter climbing, remaining clamped)
-    /// is what made the footer's denominator creep at download speed.</summary>
     private static long EffectiveRowTotal(Grog.Core.Download.DownloadTask t)
         => Math.Max(Math.Max(t.BytesTotal ?? 0, t.File.PlanSizeBytes ?? 0), t.BytesReceived);
     private static long StillNeedsOf(Grog.Core.Download.DownloadTask t) => Grog.Core.Volumes.PlacementPlanner.StillNeeds(t.File);
-    /// <summary>Bytes of files COMPLETED this run, at their learned sizes (companion to _runFilesDone).</summary>
-    /// <summary>Tasks whose completion the settle callback has already folded into <see cref="_runBytesSettled"/>.</summary>
     private readonly HashSet<Guid> _settledTaskIds = new();
     public string DownloadStatsText
     {
@@ -207,7 +185,6 @@ public sealed partial class OverviewViewModel
         }
     }
 
-    /// <summary>The red half of the footer: rows flagged won't-fit, count and bytes. Empty when there are none.</summary>
     public string WontFitStatsText
     {
         get
@@ -222,12 +199,8 @@ public sealed partial class OverviewViewModel
 
     // ---- Status page: readouts that answer a question the duration/count pair cannot ----
 
-    /// <summary>Failures this run. Deliberately NOT paired with a "verified" tally: HTTPS downloads do not
-    /// silently corrupt, so a verified counter reads 0/0 forever and trains the eye to ignore it.</summary>
     public string RunFailedText => _runFailed.ToString();
 
-    /// <summary>Status' own primary action: counts the library-wide gap, ignoring Library's filter chips and
-    /// row selection. <c>SyncBackupLabel</c> stays Library-scoped, where the narrowing is the point.</summary>
     public string StatusBackupLabel
     {
         get
@@ -239,13 +212,10 @@ public sealed partial class OverviewViewModel
         }
     }
 
-    /// <summary>Sub-lines for the telemetry cards. Kept as VM strings so the view holds no formatting.</summary>
     // Sub-lines carry a SECOND number the big value lacks; when there is none they are empty, not a placeholder.
     public string AvgSpeedInlineText   => _meter.AvgBytesPerSec > 0 ? $"avg {AvgSpeedText}" : "";
     public string FilesDoneInlineText  => RunActive && _runFilesDone > 0 ? $"{FilesDoneText} done this run" : "";
 
-    /// <summary>The row the free-space readouts speak for: the primary when it is online, else any online
-    /// device.</summary>
     private BackupLocationRow? PrimaryOnlineRow
         => _root.Storage.BackupLocations.FirstOrDefault(r => r.IsPrimary && r.IsOnline)
         ?? _root.Storage.BackupLocations.FirstOrDefault(r => r.IsOnline);
@@ -261,11 +231,8 @@ public sealed partial class OverviewViewModel
         }
     }
 
-    /// <summary>Any files given up on this run.</summary>
     public bool RunHasFailures => _runFailed > 0;
 
-    /// <summary>"finishes about 5:28 AM" -- a clock time, not a duration. Empty when there is no usable
-    /// estimate, so the caller can hide the line rather than print "--".</summary>
     public string FinishClockText
     {
         get
@@ -280,8 +247,6 @@ public sealed partial class OverviewViewModel
         }
     }
 
-    /// <summary>Where the primary folder lands once this run completes: makes a mid-run out-of-space
-    /// failure visible BEFORE it happens.</summary>
     public string FreeAfterRunText
     {
         get
@@ -297,7 +262,6 @@ public sealed partial class OverviewViewModel
         }
     }
 
-    /// <summary>True when the queued run does NOT fit on the destination. Drives the warning color.</summary>
     public bool RunWontFit
     {
         get
@@ -311,8 +275,6 @@ public sealed partial class OverviewViewModel
     // The ONE operation bar for whatever is live (scan OR download); leads with "Task: <desc>", dims to
     // "Idle", and owns the library-scan progress -- there is no separate scan bar.
 
-    /// <summary>The single "what's happening right now" label for the bottom bar's "Task:" lead. Kept short --
-    /// the breakdown lives on the cards up top and the specific file on the Current File line.</summary>
     public string CurrentTaskText
     {
         get
@@ -380,8 +342,6 @@ public sealed partial class OverviewViewModel
         OnPropertyChanged(nameof(ShowSpeedGraph));
         RaiseRunBar();
     }
-    /// <summary>Extras type segments, biggest first: legend entries plus the bar's proportional columns.
-    /// A fixed star-sized Grid gives exact proportions; unused slots collapse to zero width.</summary>
     public ObservableCollection<ExtraTypeSegment> ExtraSegments { get; } = new();
     public bool HasExtraSegments => ExtraSegments.Count > 0;
 
@@ -457,9 +417,6 @@ public sealed partial class OverviewViewModel
     public string GamesPercentText => Pct(_rollup.Games.Percent);
     public string ExtrasPercentText => Pct(_rollup.Extras.Percent);
 
-    /// <summary>One decimal, but never "0.0%" for something that IS held: 0.13 GB of 472 GB is 0.03%, the bar
-    /// shows its sliver, and a text that rounds it to nothing contradicts the bar beside it.
-    /// Same at the top: 99.97% is not "100.0%" until the last byte lands.</summary>
     private static string Pct(double p)
         => p <= 0 ? "0.0%"
          : p < 0.05 ? "<0.1%"
@@ -467,7 +424,6 @@ public sealed partial class OverviewViewModel
          : p > 99.95 ? ">99.9%"
          : $"{p:F1}%";
     public string TotalSummaryText => $"{TotalFilesText} files  \u00b7  {TotalSizeStripText}";
-    /// <summary>Green once everything in scope is backed up; amber while there's still work.</summary>
     public IBrush TotalBarBrush => _rollup.Whole.Percent >= 99.95 ? Palette.SuccessGreen : Palette.AccentAmber;
 
     // ---- Library coverage table ----
@@ -502,8 +458,6 @@ public sealed partial class OverviewViewModel
     public string TotalFilesText => $"{_stats.AllDoneFileCount} / {_stats.AllFileCount}";
     public string TotalSizeStripText => $"{ByteFormat.Size(_stats.AllDoneBytes)} of {ByteFormat.Size(_stats.AllSizeBytes)}";
 
-    /// <summary>The byte-rollup readouts (bars, percents, coverage) as ONE named set, raised by both the full
-    /// dashboard refresh and the in-flight update -- never duplicate this list at a call site.</summary>
     internal void RaiseByteRollup()
     {
         OnPropertyChanged(nameof(GamesPercent)); OnPropertyChanged(nameof(ExtrasPercent)); OnPropertyChanged(nameof(TotalPercent));

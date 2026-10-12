@@ -9,23 +9,16 @@ using Grog.Core.Runs;
 
 namespace Grog.Cli;
 
-/// <summary>Cloud-save and layout verbs that are thin shells over <see cref="CloudSaveRun"/> and
-/// <see cref="LayoutMigrationRun"/>: the verb parses flags, renders the result and picks the
-/// exit code; the sequence -- per-account sessions, dated archive, retention, bookkeeping, journaled moves --
-/// is Core's and shared with the App.</summary>
 internal static partial class CliVerbs
 {
-    /// <summary>Parses <c>--keep N</c> (0 = keep every local save). Null on a malformed value.</summary>
     private static int? ParseKeep(string[] args, out bool given, int libraryDefault = 0)
     {
         var raw = GetArgValue(args, "--keep");
         given = raw is not null;
-        if (raw is null) return libraryDefault;   // (S2.3) the library's retention setting unless --keep
+        if (raw is null) return libraryDefault;   
         return int.TryParse(raw, out var n) && n >= 0 ? n : null;
     }
 
-    /// <summary>Pre-flight for cloud verbs: a backup location (the archive lives under it) and a session that can
-    /// authenticate WITHOUT an interactive prompt. Null = fine; else the exit code already reported.</summary>
     private static async Task<int?> CloudPreflightAsync(CliContext ctx, string command)
     {
         if (string.IsNullOrWhiteSpace(ctx.ContentRoot()))
@@ -39,21 +32,12 @@ internal static partial class CliVerbs
                     "No account is signed in. Open the Grog app and connect your GOG account (or run 'grog login'), then re-run this.");
             return null;
         }
-        // Legacy single session: the token file is the cheap probe; a missing one would otherwise send
-        // EnsureAuthenticatedAsync into a blocking console login and look like a hang.
         if (await ctx.TokenStore.LoadAsync() is null)
             return Fail(command, Grog.Core.Cli.ExitCode.AuthExpired, "auth",
                 "Not logged in. Open the Grog app and connect your GOG account (or run 'grog login'), then re-run this.");
         return null;
     }
 
-    /// <summary>
-    /// <c>grogcli cloudsaves --all [--keep N] [--account &lt;id|name&gt;] [--force]</c>: back up every game GOG's
-    /// discovery confirmed has cloud saves, per account, into dated local saves -- the App's Download All. Games
-    /// already up to date are skipped unless <c>--force</c>. <c>--keep N</c> then keeps only the N newest local
-    /// saves per game and account (0 = keep all). Exit codes: all landed -> 0; a game failed -> 8; stopped -> 1;
-    /// no session -> 4; no backup location -> 3.
-    /// </summary>
     internal static async Task<int> CloudsavesAll(CliContext ctx)
     {
         var args = ctx.Args;
@@ -116,11 +100,6 @@ internal static partial class CliVerbs
         return Continue;
     }
 
-    /// <summary>
-    /// <c>grogcli cloudsaves prune --keep N</c>: retention only -- keep the N newest local saves of every
-    /// (game, account) archive, delete the rest, re-derive the bookkeeping from what is left. Nothing is
-    /// downloaded. <c>--keep</c> is required (0 would mean "keep everything" and do nothing).
-    /// </summary>
     internal static async Task<int> CloudsavesPrune(CliContext ctx)
     {
         var args = ctx.Args;
@@ -157,13 +136,6 @@ internal static partial class CliVerbs
         return Continue;
     }
 
-    /// <summary>
-    /// <c>grogcli reorg layout [--dry-run] [--verbose]</c>: the App's layout-migration prompt, headless. Plans
-    /// what is out of place for the current layout (only files actually on disk are reported, and nothing is
-    /// offered while an unfinished reorg journal owns the files -- run 'reorg resume'), then moves them with
-    /// the journaled runner. Exit codes: nothing to do / all moved -> 0; a move failed -> 8; paused (a drive
-    /// went away) or stopped -> 1; a needed drive is offline -> 3.
-    /// </summary>
     internal static async Task<int> ReorgLayout(CliContext ctx)
     {
         var args = ctx.Args;

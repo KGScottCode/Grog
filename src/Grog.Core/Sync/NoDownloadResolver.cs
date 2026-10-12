@@ -10,11 +10,6 @@ using Grog.Core.Models;
 
 namespace Grog.Core.Sync;
 
-/// <summary>
-/// Explains owned products that returned no downloadable details: records a real lookup status (never a
-/// bare "unknown") and decides whether each product's content is already covered by a base game in the
-/// local manifest, so real backup gaps stand out.
-/// </summary>
 public sealed class NoDownloadResolver
 {
     private readonly GogApiClient _api;
@@ -80,7 +75,7 @@ public sealed class NoDownloadResolver
         }
         catch { /* try account scope below */ }
 
-        // 2. Account-scoped: embed.gog.com can know a product as owned even when the public catalog 404s.
+        // 2. Account-scoped
         try
         {
             var acct = await _api.GetAccountProductInfoAsync(id, ct);
@@ -92,7 +87,6 @@ public sealed class NoDownloadResolver
         return ("(not found in public or account catalog)", "", "", "404");
     }
 
-    /// <summary>Heuristic coverage: does a parsed game's title contain, or share a strong stem with, this product?</summary>
     public static (CoverageKind kind, string? coveredBy) DetermineCoverage(string productTitle, IReadOnlyList<string> gameTitles)
     {
         if (string.IsNullOrWhiteSpace(productTitle) || productTitle.StartsWith("("))
@@ -114,7 +108,6 @@ public sealed class NoDownloadResolver
         return (CoverageKind.NotObviouslyCovered, null);
     }
 
-    /// <summary>Title up to the first separator (":", "-", "--") -- the base-game name for packs/DLC.</summary>
     private static string BaseStem(string title)
     {
         int cut = title.IndexOfAny(new[] { ':', '-', '\u2013', '\u2014' });

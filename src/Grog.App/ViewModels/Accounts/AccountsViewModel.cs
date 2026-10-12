@@ -18,13 +18,6 @@ using Grog.App.Runtime;
 
 namespace Grog.App.ViewModels;
 
-/// <summary>
-/// The Accounts page's view model: the account cards, add / log in / log out / remove, the
-/// primary registration, the SIGN-IN SECURITY card (token protection snapshot, plaintext opt-in), the rail's
-/// account dots and the connected-owner answer the library rows read. The interactive sign-in itself
-/// (Connect / ConnectCore, the scrim, RequireAccount, IsConnected) stays on the shell as session
-/// orchestration and is reached through <c>_root</c>.
-/// </summary>
 public sealed partial class AccountsViewModel : ObservableObject
 {
     private readonly MainWindowViewModel _root;
@@ -51,25 +44,15 @@ public sealed partial class AccountsViewModel : ObservableObject
     private bool Busy => _root.Busy;
     private void Log(string message, bool isError = false, LogCategory category = LogCategory.General) => _root.Log(message, isError, category);
 
-    /// <summary>The add slot's label and tip read Accounts.Count and IsConnected; the shell raises them with
-    /// its page-visibility set.</summary>
     internal void RaiseAddSlot() { OnPropertyChanged(nameof(AddAccountSlotText)); OnPropertyChanged(nameof(AddAccountSlotTip)); }
 
     // ---- Account panel ----
     public ObservableCollection<AccountRow> Accounts { get; } = new();
 
-    /// <summary>Rebuild the Accounts panel rows from the manifest. Fire-and-forget wrapper over
-    /// <see cref="RefreshAccountsAsync"/> for the many call sites that need no completion; the async body
-    /// carries its own try/catch.</summary>
     internal void RefreshAccounts() => _ = RefreshAccountsAsync();
 
-    /// <summary>Generation stamp: a refresh that finishes after a newer one started applies nothing.</summary>
     private int _refreshAccountsGen;
 
-    /// <summary>Rebuild the Accounts panel rows from the manifest. The per-account token probe (stat + open +
-    /// read and, for a keyring-sealed token, a keyring call) and the keyring protection readout run on the
-    /// thread pool; the bound ObservableCollection is only touched on the UI thread, after the await, and only
-    /// when this is still the newest refresh against the same manifest.</summary>
     internal async Task RefreshAccountsAsync()
     {
         if (!Dispatcher.UIThread.CheckAccess()) { await Dispatcher.UIThread.InvokeAsync(async () => await RefreshAccountsAsync()); return; }
@@ -150,8 +133,6 @@ public sealed partial class AccountsViewModel : ObservableObject
         catch (Exception ex) { Log($"Accounts panel refresh failed: {ex.Message}", isError: true); }
     }
 
-    /// <summary>Per-owner count of GAMES (not movies) with at least one file on disk. Owners-based
-    /// like ItemCountsByAccount: a co-owned game counts for every owner.</summary>
     private static Dictionary<string, int> BackedUpGamesByOwner(Grog.Core.Manifest.LibraryManifest manifest)
     {
         var counts = new Dictionary<string, int>();
@@ -175,7 +156,6 @@ public sealed partial class AccountsViewModel : ObservableObject
         catch { /* healing is best-effort; it must never break the panel */ }
     }
 
-    /// <summary>Diagnostic: a log line naming manifest count vs panel rows pins the layer at fault.</summary>
     private void LogAccountRows(int manifestCount)
     {
         // Mismatch-only: a healthy line every rebuild wallpapers the log; the job is the exception.
@@ -184,8 +164,6 @@ public sealed partial class AccountsViewModel : ObservableObject
                 isError: true);
     }
 
-    /// <summary>Register the FIRST account once its username is known (the id derives from it), and move the
-    /// scratch token into its own tokens-&lt;id&gt;.json; the session is then per-account.</summary>
     internal async Task RegisterPrimaryAsync(string username)
     {
         if (_manifest is null || string.IsNullOrWhiteSpace(username)) return;
@@ -222,8 +200,6 @@ public sealed partial class AccountsViewModel : ObservableObject
         catch { /* best-effort naming */ }
     }
 
-    /// <summary>For a primary with no registration row yet: fetch the username once (on the Accounts tab)
-    /// and register it, replacing the "This account" placeholder.</summary>
     internal async Task EnsurePrimaryRegisteredAsync()
     {
         if (_manifest is null || !IsConnected || _api is null) return;
@@ -243,11 +219,6 @@ public sealed partial class AccountsViewModel : ObservableObject
     // (their bytes stay -- untrack, never delete). "Don't show this again" skips the dialog entirely.
     [ObservableProperty] private bool _showRemoveAccountConfirm;
     [ObservableProperty] private bool _dontAskRemoveAccountAgain;
-    /// <summary>The OPT-IN half of Remove account: also untrack the games only this account owns.
-    /// Off by default and reset on every open: removing an account wipes its login and stops syncing it, and
-    /// changes NOTHING else. Before, removal always untracked them -- with one account that emptied the library,
-    /// the queue and the Storage page (on the release walk), and the rescan that "brings them back"
-    /// returned games with no file records.</summary>
     [ObservableProperty] private bool _alsoRemoveAccountGames;
     partial void OnAlsoRemoveAccountGamesChanged(bool value) => OnPropertyChanged(nameof(RemoveAccountWarningText));
     public string AlsoRemoveGamesLabel
@@ -262,8 +233,6 @@ public sealed partial class AccountsViewModel : ObservableObject
     public bool CanAlsoRemoveGames => _pendingRemoveRow is not null && _manifest is not null
         && Grog.Core.Sync.LibraryUntrack.SoleOwnedBy(_manifest.Current, _pendingRemoveRow.Id).Count > 0;
     private AccountRow? _pendingRemoveRow;
-    /// <summary>Names what stays (the never-delete rule) and what leaves: games owned ONLY by this
-    /// account come off the library grid with it. Downloaded bytes always stay.</summary>
     public string RemoveAccountWarningText
     {
         get
@@ -350,8 +319,6 @@ public sealed partial class AccountsViewModel : ObservableObject
         catch (Exception ex) { Log($"Couldn't remove account: {ex.Message}", isError: true); }
     }
 
-    /// <summary>Sign out of the primary GOG session: clears the stored token AND the in-memory auth, so the
-    /// next Connect shows the login page. Downloaded backups on disk are untouched.</summary>
     [RelayCommand]
     private async Task Logout()
     {
@@ -376,8 +343,6 @@ public sealed partial class AccountsViewModel : ObservableObject
         Log($"account: {_root.AccountDisplayName("")} - signed out (downloaded backups kept)", category: LogCategory.Auth);
     }
 
-    /// <summary>Log out of ONE account from its own card. Log Out ONLY forgets the stored token -- the
-    /// registration, items and bytes stay; Remove is its own red button. Signed out it reads "Log In".</summary>
     [RelayCommand]
     private async Task LogoutAccount(AccountRow? row)
     {
@@ -400,8 +365,6 @@ public sealed partial class AccountsViewModel : ObservableObject
         Log($"account: {row.Name} - logged out (the account and its backups stay)", category: LogCategory.Auth);
     }
 
-    /// <summary>The Accounts page's one add control. With no accounts it MUST be the primary connect (owns
-    /// tokens.json, registers Id ""); AddAccount is the second-account flow with its own token file.</summary>
     [RelayCommand]
     private async Task ConnectOrAddAccount()
     {
@@ -411,12 +374,8 @@ public sealed partial class AccountsViewModel : ObservableObject
         else await AddAccount();
     }
 
-    /// <summary>The token-safety block exists only where the keyring story does: Windows DPAPI needs no
-    /// explanation or escape hatch (it works in Task Scheduler), so the block hides there entirely.</summary>
     public bool ShowTokenSafetyOptions => !OperatingSystem.IsWindows();
 
-    /// <summary>The SIGN-IN SECURITY card's state line, badge and body, derived from what THIS machine does;
-    /// wording flips the instant the scheduled-tasks toggle changes.</summary>
     // FileTokenStore.Protection is a keyring probe on Linux/macOS; the bound getters read a snapshot taken on the
     // thread pool (RefreshAccounts, RaiseTokenSafety, the ResetAvailabilityCache sites) instead of probing on
     // every binding evaluation. Until the first snapshot lands the live value is read
@@ -424,7 +383,6 @@ public sealed partial class AccountsViewModel : ObservableObject
     private Grog.Core.Platform.TokenProtection? _tokenProtectionSnapshot;
     private Grog.Core.Platform.TokenProtectionReason? _tokenProtectionReasonSnapshot;
 
-    /// <summary>The last-known token protection; the guide reads this rather than probing the keyring itself.</summary>
     // Never probe from a getter: the Accounts page is in the tree at startup, and the
     // first binding read would spawn the keyring helper on the dispatcher. Until the first off-thread
     // snapshot lands the card reads as the honest fallback; the ctor kicks that probe at once.
@@ -440,8 +398,6 @@ public sealed partial class AccountsViewModel : ObservableObject
         if (changed) RaiseTokenSafetyProperties();
     }
 
-    /// <summary>Re-read the protection answer on the thread pool and apply it on the UI thread. Call after
-    /// anything that can change it (a keyring reset, a token save).</summary>
     internal async Task RefreshTokenProtectionSnapshotAsync()
     {
         try
@@ -481,8 +437,6 @@ public sealed partial class AccountsViewModel : ObservableObject
         }
     }
 
-    /// <summary>The scheduled-tasks opt-out (Core marker file, see FileTokenStore.PlainTextPreferred).
-    /// Flipping it re-saves every token NOW: decryption needs the keyring, only reachable in the GUI.</summary>
     public bool PlainTextTokenEnabled
     {
         get => Grog.Core.Auth.FileTokenStore.PlainTextPreferred;
@@ -550,9 +504,6 @@ public sealed partial class AccountsViewModel : ObservableObject
         _root.Guide?.RaiseDetail();
     }
 
-    /// <summary>Re-derives the SIGN-IN SECURITY card. Must run after ANY event that can change the
-    /// protection answer mid-session -- a login save minting the keyring key is the one the card missed
-    /// (card kept claiming "no keyring reachable" until restart).</summary>
     internal void RaiseTokenSafety()
     {
         RaiseTokenSafetyProperties();
@@ -570,15 +521,12 @@ public sealed partial class AccountsViewModel : ObservableObject
         _root.Guide?.RaiseDetail();   // the guide's sign-in reassurance reads the same snapshot
     }
 
-    /// <summary>Label and tooltip follow which flow the slot will actually run.</summary>
     public string AddAccountSlotText => IsConnected && Accounts.Count > 0
         ? "Add Another GOG Account" : "Connect Your GOG Account";
     public string AddAccountSlotTip => IsConnected && Accounts.Count > 0
         ? "Sign in to another GOG account; its list of games is combined with the existing _library."
         : "Sign in to GOG. A GOG login window opens; Grog never sees your password.";
 
-    /// <summary>Add a SECOND GOG account: an isolated token store + non-persistent WebView give a fresh login,
-    /// stored in its own tokens-&lt;id&gt;.json, then the library merges. Never touches _auth.</summary>
     private async Task AddAccount()
     {
         if (Busy || _manifest is null) return;
@@ -685,8 +633,6 @@ public sealed partial class AccountsViewModel : ObservableObject
         });
     }
 
-    /// <summary>One dot per registered account (first five): green = token present and readable. Rebuilt with
-    /// the dashboard and on Accounts refresh, so the rail cannot disagree with the cards.</summary>
     public sealed record AccountDot(Avalonia.Media.IBrush Brush, string Tip);
     public System.Collections.ObjectModel.ObservableCollection<AccountDot> RailAccountDots { get; } = new();
     // Rail-dot token readability, refreshed on the thread pool at most every 5 s; the 1 Hz pass reads the
@@ -750,8 +696,6 @@ public sealed partial class AccountsViewModel : ObservableObject
         }
     }
 
-    /// <summary>Registered accounts whose token is readable RIGHT NOW - the row-level "can this game's
-    /// owner still download" answer (same predicate as the Accounts page's Connected state).</summary>
     internal List<string> ConnectedAccountIds()
     {
         if (_manifest is null) return new List<string>();

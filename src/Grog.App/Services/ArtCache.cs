@@ -7,18 +7,12 @@ using Grog.Core.Api;
 
 namespace Grog.App.Services;
 
-/// <summary>Owns the local art cache: filenames plus the fetch/skip-if-present policy. Display-only, keyed
-/// by GogId; touches no manifest fact, so it lives in Grog.App rather than Core.</summary>
 public static class ArtCache
 {
-    /// <summary>Grid tile source: the vertical boxArtImage, cropped square by the view.</summary>
     public static string CoverPath(string dir, long gogId) => Path.Combine(dir, $"{gogId}_cover.jpg");
 
-    /// <summary>Detail-band source: galaxyBackgroundImage 392 crop (with fallbacks), from the API.</summary>
     public static string GalaxyPath(string dir, long gogId) => Path.Combine(dir, $"{gogId}_galaxy.jpg");
 
-    /// <summary>Fetch + cache one game's cover + band from a single v2 call. Incremental: skips the call
-    /// when both files already exist. Best-effort -- callers ignore failures.</summary>
     public static async Task<GameArt?> CacheProductAsync(GogApiClient api, long gogId, string dir, bool needMeta, CancellationToken ct)
     {
         var cover = CoverPath(dir, gogId);

@@ -11,17 +11,6 @@ using Grog.Core.Volumes;
 
 namespace Grog.App.ViewModels;
 
-/// <summary>
-/// "New storage added". Right after a second storage is added while the queue held files with
-/// nowhere to go, the queue has just been re-planned onto the new drive (RefreshFromManifest -> the idle
-/// RefreshBackupLocations branch runs ReplanWholeQueue). The one open question is what happens to the files
-/// already on the old primary, and this asks it once, with measured numbers:
-///   1. Leave them (default; nothing moves; K games end up split across the two drives).
-///   2. Move the split games: move only the K split games' present files to the new drive.
-///   3. Move everything to the new drive and make it primary.
-/// Choices 2 and 3 run through the ordinary move engine (copy, verify, delete source, resumable, visible in the
-/// Moving pane). The arithmetic is Core's (<see cref="StorageAdditionOffer"/>); this file only asks and dispatches.
-/// </summary>
 public sealed partial class StorageViewModel
 {
     [ObservableProperty] private bool _showStorageAddOffer;
@@ -30,7 +19,6 @@ public sealed partial class StorageViewModel
     private string? _addOfferNewRootId, _addOfferOldRootId;
     private string _addOfferNewPath = "", _addOfferOldPath = "", _addOfferNewLabel = "", _addOfferOldLabel = "";
     private long _addOfferFree;
-    /// <summary>Captured when the add begins: the offer exists only when the queue HAD rows with nowhere to go.</summary>
     private bool _addOfferQueueHadWontFit;
 
     public string AddOfferTitle => $"New storage added: {_addOfferNewPath} · {ByteFormat.Size(_addOfferFree)} free";
@@ -65,9 +53,6 @@ public sealed partial class StorageViewModel
         OnPropertyChanged(nameof(AddOfferChoiceMoveAll)); OnPropertyChanged(nameof(AddOfferActionLabel));
     }
 
-    /// <summary>Called by both add paths once the manifest is refreshed. Shows the dialog only when the queue had
-    /// won't-fit rows before the add AND at least one of them now targets the new root. Never during an unpaused
-    /// run (nothing was re-planned then). Measured, not projected: the numbers are the persisted queue's.</summary>
     private void MaybeOfferStorageAddition(string newRootId)
     {
         if (_session.Manifest is null || !_addOfferQueueHadWontFit) return;
@@ -94,7 +79,6 @@ public sealed partial class StorageViewModel
         ShowStorageAddOffer = true;
     }
 
-    /// <summary>HeadlessShots seeds a finished offer to render the dialog.</summary>
     internal void SeedStorageAddOfferForShots(StorageAdditionOffer.Result r, string newPath, string oldPath, long free)
     {
         _addOffer = r; _addOfferNewPath = newPath; _addOfferOldPath = oldPath; _addOfferNewLabel = "Secondary"; _addOfferOldLabel = "Primary"; _addOfferFree = free;

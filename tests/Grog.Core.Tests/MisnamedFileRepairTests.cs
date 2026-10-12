@@ -9,8 +9,6 @@ using Grog.Core.Manifest;
 using Grog.Core.Models;
 using Grog.Core.Tests.Framework;
 
-/// <summary>The 1060-1083 display-name save is detected by "on-disk name == sanitized label", renamed in
-/// place to the resolved real name, never overwrites an existing file, and converges to no candidates.</summary>
 [NewBatch]
 [Trait("download")]
 public class MisnamedFileRepairTests

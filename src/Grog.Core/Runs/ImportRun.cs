@@ -13,79 +13,50 @@ using Grog.Core.Volumes;
 
 namespace Grog.Core.Runs;
 
-/// <summary>How an import of one root ended.</summary>
 public enum ImportRunStatus
 {
-    /// <summary>The root is registered and flagged <see cref="BackupRoot.PendingImport"/>: the library has no
-    /// items yet, so there is nothing to match against. Runs after the first scan.</summary>
     Deferred,
-    /// <summary>A pending root whose folder was not reachable: left flagged for the next attempt.</summary>
     Unreachable,
-    /// <summary>Planned only (<see cref="ImportMode.Preview"/>); nothing changed.</summary>
     Previewed,
-    /// <summary>Planned and confident matches adopted (possibly zero).</summary>
     Adopted,
-    /// <summary>The plan or apply threw; <see cref="ImportRunResult.Error"/> says why. A pending root's flag is
-    /// already cleared by then (a failure is logged, not retried forever).</summary>
     Failed,
 }
 
-/// <summary>What one root's import did. <see cref="Problems"/> are the folders that need a human (ambiguous
-/// or unmatched game folders); <see cref="Plan"/> carries the full detail for a results screen.</summary>
 public sealed record ImportRunResult(BackupRoot Root, ImportRunStatus Status, ImportPlan? Plan, int Adopted,
                                      IReadOnlyList<string> Problems, Exception? Error = null)
 {
     public bool NeedsHuman => Problems.Count > 0;
-    /// <summary>The folder turned out to be a storage Grog already tracked (its files matched that root's
-    /// records): <see cref="Root"/> is that root, re-pointed to the folder, not a new one.</summary>
     public bool MatchedExisting { get; init; }
 }
 
-/// <summary>
-/// THE import sequence: register the folder as a root, and either defer (empty library: the flag lives on
-/// the manifest so a restart before the first scan does not forget the promise) or plan against the library
-/// and adopt the confident matches, stamped with the root's id. Both hosts had their own copy before
-/// (the App's AddIntentExisting / ImportRootAsync / RunPendingImportsAsync, the CLI's `import`).
-///
-/// <para>Disk work throughout (folder walks, size stats): call from a worker.</para>
-/// </summary>
 public static class ImportRun
 {
-    /// <summary>Planner progress (folders done, total) for hosts that draw a bar; the host's Log gets the summary.</summary>
     public sealed class Options
     {
         public Action<int, int>? Progress { get; init; }
-        /// <summary>How deep the planner walks before giving up on a folder (the CLI's --depth).</summary>
         public int MaxDepth { get; init; } = 2;
-        /// <summary>Verify what was adopted, straight after. On by default; tests of the adoption alone turn it off.</summary>
         public bool VerifyAdopted { get; init; } = true;
-        /// <summary>Handed to the verify pass (see <see cref="VerifyRequest.FetchCurrentServerMd5"/>).</summary>
         public Func<GameFile, CancellationToken, Task<string?>>? FetchCurrentServerMd5 { get; init; }
-        /// <summary>Also fetch and check GOG's checksum for adopted files with none on record (the CLI's
-        /// --verify-checksums); needs <see cref="FetchCurrentServerMd5"/>.</summary>
         public bool FetchMissingChecksums { get; init; }
     }
 
-    /// <summary>"Scan &amp; Add": register <paramref name="path"/> (idempotent; creates the folder) and import
-    /// it now, or mark it pending when the library is empty. Saves either way.</summary>
     public static async Task<ImportRunResult> AddAndImportAsync(IManifestStore store, string path, ImportMode mode,
                                                                 IBackupHost host, CancellationToken ct, Options? options = null)
     {
-        // A folder whose files are a storage Grog already tracks IS that storage, back under another path
-        // (a re-lettered stick, a renamed mount): re-point it instead of registering a second root beside an
-        // empty first one. The backup folder carries no marker of Grog's; its content is the identity.
         if (MatchExistingRoot(store, path, options?.MaxDepth ?? 2) is { } matched)
         {
             bool samePath = !string.IsNullOrEmpty(matched.PathHint) && string.Equals(Path.GetFullPath(matched.PathHint), Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase);
+
             if (!samePath) new VolumeService(store).RepointRoot(matched.Id, path);
-            // Offline (the layout binds it next scan) like AddRoot's own re-add of a Detached folder: LastSeen is Bind's to stamp.
+
             store.Mutate(_ => { if (matched.State is RootState.Detached or RootState.Lost) matched.State = RootState.Offline; });
             await store.SaveAsync(ct);
+
             if (!samePath) host.Log($"{matched.Label} is at {Path.GetFullPath(path)} now: its files matched, nothing re-downloads.");
             var r = await ImportExistingRootAsync(store, matched, path, mode, host, ct, options);
             return r with { MatchedExisting = !samePath };
         }
-        // AddRoot takes the gate itself for the Roots.Add; the folder create and path probe before it are disk.
+
         var root = new VolumeService(store).AddRoot(path);
         bool defer = store.Read(m => PendingImports.MustDefer(m));
         if (defer)
@@ -99,11 +70,6 @@ public static class ImportRun
         return await ImportExistingRootAsync(store, root, path, mode, host, ct, options);
     }
 
-    /// <summary>The storage already tracked whose records the folder's files belong to, or null. Plans the folder
-    /// against the library (read-only), then counts, per root that is not currently bound at another live path,
-    /// the matched files whose record already holds bytes on that root at the same relative path. The root with
-    /// the most such files wins when they are at least half of what the folder matched and the root's own hint
-    /// is not alive elsewhere (the same files present on two live drives are two storages). Disk work: worker only.</summary>
     public static BackupRoot? MatchExistingRoot(IManifestStore store, string path, int maxDepth = 2)
     {
         var full = Path.GetFullPath(path);
@@ -134,19 +100,19 @@ public static class ImportRun
                 }
         }
         if (tally.Count == 0) return null;
+
         var (bestId, best) = tally.OrderByDescending(kv => kv.Value).Select(kv => (kv.Key, kv.Value)).First();
+
         if (best * 2 < plan.MatchedFileCount) return null;   // most of the folder is something else
+
         var root = m.Roots.FirstOrDefault(r => r.Id == bestId);
+
         if (root is null) return null;
-        // The same storage cannot be at two live paths: a root whose own folder still answers is not this one.
         if (!string.IsNullOrEmpty(root.PathHint) && !string.Equals(Path.GetFullPath(root.PathHint), full, StringComparison.OrdinalIgnoreCase)
             && Directory.Exists(root.PathHint)) return null;
         return root;
     }
 
-    /// <summary>The imports deferred at add time, now that a scan has stored items: for each runnable root
-    /// whose folder answers, clear the flag, plan, adopt, save -- per root, so a crash mid-way forgets only
-    /// what already ran. A root that does not answer keeps its flag for the next scan.</summary>
     public static async Task<IReadOnlyList<ImportRunResult>> RunPendingAsync(IManifestStore store, IBackupHost host,
                                                                              CancellationToken ct, Options? options = null)
     {
@@ -155,7 +121,7 @@ public static class ImportRun
         foreach (var root in due)
         {
             ct.ThrowIfCancellationRequested();
-            // A sleeping USB or network root can take seconds to answer: this is why the whole run is a worker call.
+
             if (!Directory.Exists(root.PathHint))
             {
                 host.Log($"{root.Label} is not reachable; its import will run after the next scan.");
@@ -172,9 +138,6 @@ public static class ImportRun
         return results;
     }
 
-    /// <summary>The import half: plan <paramref name="path"/> against the library relative to
-    /// <paramref name="root"/>, adopt the confident matches unless previewing, save. Never deletes or moves.
-    /// Exceptions are caught into a <see cref="ImportRunStatus.Failed"/> result (cancellation is not).</summary>
     public static async Task<ImportRunResult> ImportExistingRootAsync(IManifestStore store, BackupRoot root, string path,
                                                                       ImportMode mode, IBackupHost host, CancellationToken ct,
                                                                       Options? options = null)
@@ -200,12 +163,8 @@ public static class ImportRun
                 return new ImportRunResult(root, ImportRunStatus.Previewed, plan, 0, problems);
             }
 
-            // Adopt the confident matches at once; problems stay for the host's Find-match. ApplyAsync gates
-            // its own graph change and saves.
             if (plan.MatchedFileCount > 0) await planner.ApplyAsync(plan, mode, ct);
             host.Log($"Adopted {plan.AdoptedFiles} file(s) into {root.Label}.");
-            // Adoption matches by name and size; that is not "the bytes are good". Every adopted
-            // file is verified at once, the way a download is: MD5 where GOG's checksum is known, size otherwise.
             if (plan.AdoptedKeys.Count > 0 && options.VerifyAdopted)
                 await VerifyAdoptedAsync(store, root, path, plan, host, options, ct).ConfigureAwait(false);
             if (problems.Count > 0)
@@ -225,8 +184,6 @@ public static class ImportRun
         host.Log($"Verifying {plan.AdoptedKeys.Count} adopted file(s) on {root.Label}…");
         var m = store.Current;
         var primaryPath = m.Roots.FirstOrDefault(r => r.Id == m.PrimaryRootId)?.PathHint;
-        // By GAME, not by file: VerifyRun's file scope is a size-only confirm by contract. Unverified mode reads
-        // only checksummed files that are not already Verified, so a game's other files cost a stat each.
         var request = VerifyRequest.ForItems(plan.AdoptedKeys.Select(k => k.GogId).Distinct(), Grog.Core.Verify.VerifyMode.Unverified) with
         {
             Progress = options.Progress is { } p ? vp => p(vp.Done, vp.Total) : null,

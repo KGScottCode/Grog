@@ -7,17 +7,8 @@ using Grog.Core.Sync;
 
 namespace Grog.Core.Guide;
 
-/// <summary>
-/// The guide's example-file selection policy: which single file the back-up step points at.
-/// Core-owned so the GUI never re-derives it and the rule is testable without a window.
-/// </summary>
 public static class GuideFilePicker
 {
-    /// <summary>Picks the smallest actionable (NotBackedUp/Missing/Outdated) in-scope game file with a positive
-    /// expected size; patches are excluded by kind AND by name, extras by kind. Ties break alphabetically by
-    /// game then file (GOG rounds sizes to whole MB, so ties are common). Null when nothing needs backing up.</summary>
-    /// <param name="alreadyInFlight">Files that show no download arrow right now (queued, or a paused partial):
-    /// the stop asks the user to CLICK the arrow, so a file whose arrow is not on screen is no demo.</param>
     public static (long GogId, string FileKey)? Pick(IEnumerable<LibraryItem> items, Scope scope,
                                                      Func<long, GameFile, bool>? alreadyInFlight = null)
     {

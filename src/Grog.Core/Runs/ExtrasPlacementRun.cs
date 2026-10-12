@@ -11,34 +11,8 @@ using Grog.Core.Volumes;
 
 namespace Grog.Core.Runs;
 
-/// <summary>
-/// THE extras-placement change: shape and storage committed together, as ONE move job.
-///
-/// Until these were two settings with two commit paths. The shape pills wrote
-/// <c>ExtrasLayout</c> and offered a reorg; the storage pills wrote <c>Routing.RoleRoots[Extras]</c>
-/// and offered nothing, because the only planner wired to that screen
-/// (<see cref="ReorgPlanner.ForLayoutChange"/>) plans same-root renames and never reads routing. A user
-/// could therefore select "Separate folder, on the second drive", be shown a folder preview promising
-/// exactly that, and end with every existing extra still on the primary -- silently, permanently, and with
-/// the UI insisting otherwise.
-///
-/// One entry point now answers "what has to move to make the preview true", composing the two existing
-/// planners rather than inventing a third: cross-root moves for extras that must change device, renames for
-/// everything still in the wrong shape on the device it is already on.
-/// </summary>
 public static class ExtrasPlacementRun
 {
-    /// <summary>Plans the moves that make the target placement true on disk, and commits the placement to the
-    /// manifest ONLY when that plan can run. Null when the placement was committed and nothing needs to move --
-    /// a preference with no files to move is not a failed migration.
-    ///
-    /// A plan whose job reports <see cref="ReorgJob.HasUnavailableDrives"/> is RETURNED with NOTHING committed
-    /// . Before, shape and storage were written and saved first and the offline drive was discovered
-    /// after: the manifest and the preview said "extras on drive 2", every extra stayed on the primary, the card
-    /// reset clean, and nothing ever re-offered the move -- the exact silent mismatch this run exists to kill.
-    /// The host names the drive; the card stays dirty so Apply is still there when the drive is back.</summary>
-    /// <param name="extrasRootId">Root the extras tree should live on. Ignored by
-    /// <see cref="ExtrasPlacement.WithGame"/>, where an extra always follows its game; pass the primary.</param>
     public static Task<LayoutMigrationPlan?> ApplyAndPlanAsync(
         IManifestStore store, string backupRoot, ExtrasPlacement placement, string extrasRootId,
         CancellationToken ct = default)
@@ -47,13 +21,7 @@ public static class ExtrasPlacementRun
             ct.ThrowIfCancellationRequested();
             var m = store.Current;
             var primary = m.PrimaryRootId ?? extrasRootId;
-
-            // WithGame overrides routing at placement time (RoutingPolicy.ResolveRootId), so storing anything
-            // but the primary for the Extras role would be a lie the next reader has to know to ignore.
             var targetExtrasRoot = placement == ExtrasPlacement.WithGame ? primary : extrasRootId;
-
-            // BackupLayout probes every root on disk: built off the gate. It reads shape and routing LIVE off the
-            // manifest, so PlanMoves can point it at the target without a commit.
             var layout = new BackupLayout(m, backupRoot);
             ReorgJob job;
             using (store.Gate.Enter())   // 
@@ -77,7 +45,6 @@ public static class ExtrasPlacementRun
             return new LayoutMigrationPlan(LayoutPlanKind.LayoutChange, job, moves, games, bytes);
         }, ct);
 
-    /// <summary>The two halves, written together. Caller holds the gate.</summary>
     private static void Commit(LibraryManifest m, ExtrasPlacement placement, string extrasRootId, string primary)
     {
         m.SetExtrasLayout(placement);
@@ -87,18 +54,9 @@ public static class ExtrasPlacementRun
         routing.SetRole(ContentRole.Extras, extrasRootId);
     }
 
-    /// <summary>Pure: the combined move set that makes <paramref name="placement"/> on <paramref name="extrasRootId"/>
-    /// true, for a manifest holding ANY committed state -- the manifest is left exactly as found. Separated from
-    /// the commit so it can be tested, and called, without a store or a save: the Settings card counts what
-    /// Apply would move before the user commits to anything. Caller holds the gate.</summary>
     public static ReorgJob PlanMoves(LibraryManifest m, IBackupLayout layout,
                                        ExtrasPlacement placement, string extrasRootId, string primaryRootId)
     {
-        // Plan AGAINST THE TARGET. ForLayoutChange, NewRelativeFor and the layout's SubPathFor all read the
-        // shape and the routing live off the manifest, so the target is placed there for the length of the
-        // plan and the committed values put back. Planning against the committed state returned the moves
-        // that UNDO the change: the card footer said "nothing to move" for a shape change over 400 extras,
-        // then Apply offered to move all 400. Caller holds the gate; nothing else reads a half-swap.
         var oldLayout = m.ExtrasLayout; var oldInside = m.ExtrasInsideGame;
         var oldMode = m.Routing.Mode;
         m.Routing.RoleRoots.TryGetValue(ContentRole.Games, out var oldGames);
@@ -117,10 +75,7 @@ public static class ExtrasPlacementRun
     private static ReorgJob PlanAgainstCurrent(LibraryManifest m, IBackupLayout layout,
                                                 ExtrasPlacement placement, string extrasRootId, string primaryRootId)
     {
-        // 1. Extras that must change DEVICE. A separate tree gathers every held extra on the extras root.
-        //    WithGame sends an extra to ITS GAME's drive: "nothing to move" was assumed here, which holds
-        //    only until a separate tree on the secondary has been applied once -- reverting then changed the
-        //    shape and left the extras on the secondary while their installers sat on the primary.
+        // 1. Extras that must change DEVICE
         var crossByTarget = new Dictionary<string, List<(LibraryItem Item, GameFile File)>>();
         foreach (var item in m.Items)
         {
@@ -129,8 +84,6 @@ public static class ExtrasPlacementRun
             foreach (var f in item.Files)
             {
                 if (f.Kind != FileKind.Extra) continue;
-                // A never-downloaded extra has no bytes to move (same test ForLayoutChange makes). Planned
-                // anyway, it reached the runner with FromAbs "" and paused the whole job.
                 if (string.IsNullOrEmpty(f.LocalRelativePath)) continue;
                 if ((f.RootId ?? primaryRootId) == home) continue;   // already there
                 if (!crossByTarget.TryGetValue(home, out var list)) crossByTarget[home] = list = new();
@@ -146,30 +99,18 @@ public static class ExtrasPlacementRun
             foreach (var d in part.UnavailableDrives) cross.NoteUnavailableDrive(d);
         }
 
-        // 2. Everything still in the wrong SHAPE on the device it already sits on. ForFileMoves already
-        //    lands its files in the correct shape (it asks the layout for the sub-path), so anything it
-        //    claimed is excluded here rather than planned twice -- two moves for one file would have the
-        //    second one fail on a source that is no longer there.
+        // 2. Everything still in the wrong SHAPE on the device it already sits on
         var claimed = new HashSet<(long, string)>(cross.Moves.Select(mv => (mv.GogId, mv.FileKey)));
         var renames = ReorgPlanner.ForLayoutChange(m, layout);
-
-        // Reason drives the resume prompt's wording, so it names what the job actually is: a device change
-        // where one exists, a shape change otherwise.
         var job = new ReorgJob { Reason = cross.Moves.Count > 0 ? ReorgReason.Relocate : ReorgReason.Layout };
         job.Moves.AddRange(cross.Moves);
         job.Moves.AddRange(renames.Moves.Where(mv => !claimed.Contains((mv.GogId, mv.FileKey))));
 
-        // An offline drive on EITHER side blocks the whole job; losing one half's warning would let a
-        // partial move run.
         foreach (var d in cross.UnavailableDrives) job.NoteUnavailableDrive(d);
         foreach (var d in renames.UnavailableDrives) job.NoteUnavailableDrive(d);
         return job;
     }
 
-    /// <summary>The drive a game LIVES on, for WithGame: where its held installers are (the routed drive
-    /// when they are split and it is one of them, else the drive holding the most of them); with none held,
-    /// where routing would put them (pin, else primary). Null = leave the extras be: the game sits on Other
-    /// storage, which is never written to.</summary>
     internal static string? GameHomeRoot(LibraryManifest m, LibraryItem item, string primaryRootId)
     {
         var routed = m.Routing.ResolveRootId(item.GogId, FileKind.Installer, primaryRootId, ExtrasPlacement.WithGame);

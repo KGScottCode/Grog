@@ -13,9 +13,6 @@ using Grog.Core.Models;
 using Grog.Core.Runs;
 using Grog.Core.Tests.Framework;
 
-/// <summary>Order history -> <see cref="LibraryItem.DateAcquired"/>. The payload
-/// shapes asserted here are the MEASURED ones from docs/dev/GOG_Orders_API_2026-.md: epoch-second
-/// dates, string product ids, one order dating many products.</summary>
 [NewBatch]
 [Trait("dates")]
 public class PurchaseDatesTests
@@ -40,15 +37,13 @@ public class PurchaseDatesTests
 
     // ---------------- parser ----------------
 
-    /// <summary>The two traps that would silently produce zero dates: `date` is epoch SECONDS (not ISO) and
-    /// a product `id` is a STRING (it is a number in every other GOG payload).</summary>
     [Test]
     void Parse_ReadsEpochSecondsAndStringProductIds()
     {
         var page = OrdersParser.Parse("""
         { "totalPages": 4, "orders": [
-            { "date": 1788870014, "publicId": "141857263d2b", "status": "purchase", "paymentMethod": "Free Order",
-              "products": [ { "id": "1472210676", "title": "A", "isRefunded": false },
+            { "date": 1700000000, "publicId": "0a1b2c3d4e5f", "status": "purchase", "paymentMethod": "Free Order",
+              "products": [ { "id": "1000000001", "title": "A", "isRefunded": false },
                             { "id": "99", "title": "B", "isRefunded": true } ] } ] }
         """);
         Assert.Equal(4, page.TotalPages, "total pages");
@@ -60,8 +55,6 @@ public class PurchaseDatesTests
         Assert.True(order.Products[1].IsRefunded, "isRefunded carried");
     }
 
-    /// <summary>The mandatory filter flags are part of the URL. Without them the endpoint answers 200 with an
-    /// EMPTY orders array, which reads exactly like an account that has never bought anything.</summary>
     [Test]
     void PageUrl_CarriesTheMandatoryFilterFlags()
     {
@@ -71,8 +64,6 @@ public class PurchaseDatesTests
         Assert.Contains("page=3", url, "page");
     }
 
-    /// <summary>A junk or missing date leaves the ORDER out rather than throwing: one bad row must not cost
-    /// a scan every other date on the page.</summary>
     [Test]
     void Parse_SkipsOrdersWithNoUsableDate()
     {
@@ -86,8 +77,6 @@ public class PurchaseDatesTests
         Assert.Equal("good", Assert.Single(page.Orders).PublicId, "only the dated order survives");
     }
 
-    /// <summary>An empty orders array parses to nothing, not an exception -- that is what the endpoint
-    /// answers when the filter flags are missing, and what a brand-new account answers legitimately.</summary>
     [Test]
     void Parse_EmptyOrdersIsNotAnError()
     {
@@ -95,8 +84,6 @@ public class PurchaseDatesTests
         Assert.Empty(page.Orders, "no orders");
     }
 
-    /// <summary>The same product in two orders keeps the EARLIEST: the question is when it entered the
-    /// library, not the last time money moved (gift first, repurchase later).</summary>
     [Test]
     void Fold_KeepsTheEarliestDatePerProduct()
     {
@@ -107,8 +94,6 @@ public class PurchaseDatesTests
         Assert.Equal(Epoch(1_500_000_000), map[7], "earliest wins");
     }
 
-    /// <summary>One order dates EVERY product inside it. This is the fact that makes the cost track order
-    /// count instead of library size, and it is what a free batch claim looks like.</summary>
     [Test]
     void Fold_OneOrderDatesEveryProductInIt()
     {
@@ -121,8 +106,6 @@ public class PurchaseDatesTests
 
     // ---------------- apply ----------------
 
-    /// <summary>Only items we OWN get dated; an order for something no longer in the library is ignored,
-    /// which is what makes refunds self-limiting without a refund rule of their own.</summary>
     [Test]
     void Apply_DatesOwnedItemsOnly()
     {
@@ -137,8 +120,6 @@ public class PurchaseDatesTests
         Assert.Null(store.Current.ItemById(2)!.DateAcquired, "item 2 appears in no order and stays undated");
     }
 
-    /// <summary>An item that already has a date is never rewritten: a purchase date does not change, and a
-    /// later gift order must not overwrite the original acquisition.</summary>
     [Test]
     void Apply_NeverOverwritesADateAlreadyHeld()
     {
@@ -151,7 +132,6 @@ public class PurchaseDatesTests
 
     // ---------------- mode choice ----------------
 
-    /// <summary>No evidence either way = the library has never been walked, so the run walks every page.</summary>
     [Test]
     void NeedsBackfill_TrueOnlyWhenThereIsNoEvidenceEitherWay()
     {
@@ -162,8 +142,6 @@ public class PurchaseDatesTests
         Assert.Equal(1, PurchaseDatesRun.UndatedCount(store.Current), "one still undated");
     }
 
-    /// <summary>A SETTLED item is evidence of a walk just as much as a dated one: a library whose every
-    /// product came back "no order record" must not keep re-backfilling forever.</summary>
     [Test]
     void NeedsBackfill_FalseWhenEverythingWasAnsweredNoRecord()
     {
@@ -174,8 +152,6 @@ public class PurchaseDatesTests
         Assert.Equal(2, PurchaseDatesRun.UndatedCount(store.Current), "both still show no date");
     }
 
-    /// <summary>The distinction the whole run is built on: "no date" is two different states, and only one
-    /// of them is worth a request.</summary>
     [Test]
     void Unanswered_SeparatesNotAskedYetFromAskedAndNotThere()
     {
@@ -187,7 +163,6 @@ public class PurchaseDatesTests
         Assert.Equal(3L, Assert.Single(PurchaseDatesRun.Unanswered(store.Current)).GogId, "the unasked one");
     }
 
-    /// <summary>Settling marks only what is undated, and never disturbs a date already held.</summary>
     [Test]
     void Settle_MarksTheUndatedAndLeavesDatedItemsAlone()
     {
@@ -199,8 +174,6 @@ public class PurchaseDatesTests
         Assert.Equal(0, PurchaseDatesRun.Settle(store), "settling twice changes nothing");
     }
 
-    /// <summary>A date arriving for a settled item clears the flag: the two states are mutually exclusive,
-    /// and leaving both set would be a manifest that contradicts itself.</summary>
     [Test]
     void Apply_ClearsNoPurchaseRecordWhenADateFinallyArrives()
     {
@@ -210,7 +183,6 @@ public class PurchaseDatesTests
         Assert.False(store.Current.ItemById(1)!.NoPurchaseRecord, "flag cleared");
     }
 
-    /// <summary>`--force` re-opens every settled answer so the next pass asks again from scratch.</summary>
     [Test]
     void Reopen_UnsettlesEverything()
     {
@@ -240,8 +212,6 @@ public class PurchaseDatesTests
         return store;
     }
 
-    /// <summary>The bug: only the primary's client was asked, so the second account's purchases were never
-    /// dated and were then settled as "no record".</summary>
     [Test]
     async Task EveryAccountsOrdersAreAsked_OnItsOwnClient()
     {
@@ -258,7 +228,6 @@ public class PurchaseDatesTests
         Assert.True(store.Current.ItemById(3)!.NoPurchaseRecord, "b's complete walk may settle b's undated item");
     }
 
-    /// <summary>A signed-out owner (no entry) or an incomplete walk never settles that owner's items.</summary>
     [Test]
     async Task AnItemIsSettledOnlyWhenEveryOwnerWasWalkedToTheEnd()
     {
@@ -271,13 +240,10 @@ public class PurchaseDatesTests
         Assert.Equal(1, r.Settled);
     }
 
-    /// <summary>An empty library never asks for a backfill: there is nothing to date.</summary>
     [Test]
     void NeedsBackfill_FalseOnAnEmptyLibrary()
         => Assert.False(PurchaseDatesRun.NeedsBackfill(new LibraryManifest()), "empty library");
 
-    /// <summary>The whole reason this is safe to run after every interactive scan: with every item dated it
-    /// returns immediately, spends NO requests, and saves nothing.</summary>
     [Test]
     async Task RunAsync_WithEverythingDatedSpendsNoRequests()
     {
@@ -290,9 +256,6 @@ public class PurchaseDatesTests
         Assert.Equal(0, store.Saves, "nothing saved");
     }
 
-    /// <summary>THE REGRESSION THIS FLAG EXISTS FOR: 53 of a 125-item library
-    /// appear in no order at all. Before settling, every scan spent a request re-asking about them forever.
-    /// Once answered, the pass costs nothing -- the null client proves it never reaches the network.</summary>
     [Test]
     async Task RunAsync_WithEverythingAnsweredNoRecordSpendsNoRequests()
     {
@@ -303,8 +266,6 @@ public class PurchaseDatesTests
         Assert.Equal(0, store.Saves, "nothing saved");
     }
 
-    /// <summary>A newly added product re-arms the pass on its own: it is unanswered by default, so nothing
-    /// has to remember to un-settle anything when the library grows.</summary>
     [Test]
     void ANewItemIsUnansweredByDefault()
     {

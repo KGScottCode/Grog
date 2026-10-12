@@ -5,8 +5,6 @@ using Grog.Core.Auth;
 
 namespace Grog.Core.Cli;
 
-/// <summary>Human readout of stored-session freshness. Informational, not a countdown -- GOG publishes
-/// no refresh-token max age. Pure (takes a clock).</summary>
 public static class TokenFreshness
 {
     public sealed record Readout(string LastRefreshed, string AccessToken, bool HasRefreshToken);
@@ -24,7 +22,6 @@ public static class TokenFreshness
         return new Readout(lastRefreshed, access, !string.IsNullOrEmpty(s.RefreshToken));
     }
 
-    /// <summary>Compact duration: "under a minute", "42 min", "3h 5m", "6d 2h".</summary>
     public static string Human(TimeSpan t)
     {
         if (t < TimeSpan.Zero) t = t.Negate();

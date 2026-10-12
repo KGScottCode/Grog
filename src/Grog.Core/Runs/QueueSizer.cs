@@ -10,16 +10,6 @@ using Grog.Core.Models;
 
 namespace Grog.Core.Runs;
 
-/// <summary>
-/// Learns the REAL size of queued files before they download. GOG lists a display size only (a 325 MB label for a
-/// 341,311,456-byte file; errors up to 45 MB were measured on one library), and the planner prices every unstarted
-/// file at that label, so on a nearly full drive each landing moved the fit line and "files left" would not step
-/// down with "done". The CDN's Content-Length is the only real figure GOG exposes, two requests per
-/// file (resolve the link, HEAD it), so the walk is bounded to what matters: files that are QUEUED and not yet
-/// sized, in queue order, one at a time under the API client's own rate gate, started when something is queued
-/// (never at launch, never after a plain scan). The answer is persisted on the record (<see cref="GameFile.WireSizeBytes"/>,
-/// kept across launches, cleared by a sync only when the file's version changes), so each file is asked once.
-/// </summary>
 public sealed class QueueSizer
 {
     private readonly IManifestStore _store;
@@ -31,7 +21,6 @@ public sealed class QueueSizer
     private CancellationTokenSource? _cts;
     private bool _again;
 
-    /// <summary>Raised off the UI thread after a batch of sizes landed (the host re-plans and saves).</summary>
     public event Action<int>? SizesLearned;
 
     /// <param name="realSize">The file's real byte count from the CDN for a manualUrl (FileKey), or null when GOG
@@ -43,13 +32,10 @@ public sealed class QueueSizer
         _store = store; _realSize = realSize; _inFlight = inFlight; _log = log ?? (_ => { });
     }
 
-    /// <summary>How many sizes one pass learns before it tells the host (a re-plan and a save per batch, not per file).</summary>
     public int BatchSize { get; init; } = 8;
-    /// <summary>Pause between files on top of the API client's own gate: the sizer is background work.</summary>
     public TimeSpan Pace { get; init; } = TimeSpan.FromMilliseconds(250);
     public bool IsRunning { get { lock (_gate) return _run is { IsCompleted: false }; } }
 
-    /// <summary>The queued files still priced at GOG's label (the work left), in queue order.</summary>
     public static List<(long GogId, string FileKey)> Unsized(LibraryManifest m)
     {
         var list = new List<(long, string)>();
@@ -62,7 +48,6 @@ public sealed class QueueSizer
         return list;
     }
 
-    /// <summary>Something was queued: size what is unsized. A running pass picks the new rows up on its next loop.</summary>
     public void Request()
     {
         lock (_gate)
@@ -73,7 +58,6 @@ public sealed class QueueSizer
         }
     }
 
-    /// <summary>Stop (sign-out, Fresh Library, quit). Sizes already learned stay.</summary>
     public void Stop()
     {
         lock (_gate) { _cts?.Cancel(); }
@@ -100,8 +84,6 @@ public sealed class QueueSizer
                     catch (OperationCanceledException) { throw; }
                     catch
                     {
-                        // This file keeps its label for now; the engine learns the size when it downloads. Three in a
-                        // row is the connection, not the files: stop the pass, the next queueing asks again.
                         if (++failures >= 3) { _log("Sizing paused: GOG's servers are not answering. It resumes the next time something is queued."); return; }
                     }
                     if (size is { } real && real > 0)

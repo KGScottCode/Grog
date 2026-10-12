@@ -7,12 +7,6 @@ using Grog.Core.Models;
 using Grog.Core.Sync;
 using Grog.Core.Tests.Framework;
 
-/// <summary>
-/// The manifest-resident backup scope (step 4 of the architecture plan). Two things under test:
-/// ScopeSettings.ToScope() speaks the ONE shared predicate vocabulary with exactly the GUI's semantics
-/// (empty = everything, extras inherit games until deliberately split), and the record survives a manifest
-/// round-trip - it is the contract that lets a Linux cron `grog backup` honor a Windows GUI's narrowing.
-/// </summary>
 [NewBatch]
 [Trait("scope")]
 public class ScopeSettingsTests

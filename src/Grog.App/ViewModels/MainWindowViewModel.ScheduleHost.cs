@@ -4,15 +4,10 @@ using System.Threading.Tasks;
 
 namespace Grog.App.ViewModels;
 
-// The window's side of the scheduler: IScheduleHost, explicitly implemented. No Changed event: nothing
-// bound on the window reads scheduler state (the one host effect, RaiseHealthStatus, is an action).
 public partial class MainWindowViewModel : IScheduleHost
 {
-    /// <summary>Automatic backups (timer, countdown, overdue, Settings card). Bound through
-    /// <c>DataContext="{Binding Schedule}"</c> in SettingsPage, OverviewPage and the window's foot cards.</summary>
     public ScheduleViewModel Schedule { get; }
 
-    /// <summary>The persisted schedule once services are up; the Health staleness window reads it too.</summary>
     internal Grog.Core.Scheduling.BackupSchedule? Sched => _servicesReady ? _manifest.Current.Schedule : null;
 
     Grog.Core.Scheduling.BackupSchedule? IScheduleHost.Schedule => Sched;
@@ -38,8 +33,6 @@ public partial class MainWindowViewModel : IScheduleHost
                toastBody: "Scheduled backup skipped - no account signed in.",
                attention: TrayAttentionWarning,    // a skip is a warning; failed transfers stay red
                fixNav: "Accounts");                // Fix goes where the fix IS: the sign-in page
-    // Chip-blind: content chips are VIEW state and Scope alone decides what is backed up, so an
-    // unattended run covers the full scope regardless of how the Library was left filtered.
     void IScheduleHost.StartScheduledBackup() => _ = SyncBackupCore(skipCatalogRefresh: false, ignoreContentChips: true, unattended: true);
     Task IScheduleHost.RunBackupNow() => SyncBackup();
     void IScheduleHost.Navigate(string view) => Navigate(view);

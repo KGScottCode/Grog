@@ -7,11 +7,6 @@ using Grog.Core.Scheduling;
 using Grog.Core.Sync;
 using Grog.Core.Tests.Framework;
 
-/// <summary>
-/// "Last run result": the schedule's memory of how a run ENDED, as opposed to when one last finished.
-/// The rule these pin down is a honesty rule, not a formatting one -- a slot the user stopped, or one
-/// skipped because nobody was signed in, must not be reported as a slot Grog slept through.
-/// </summary>
 [NewBatch]
 [Trait("schedule")]
 public class ScheduleRunOutcomeTests

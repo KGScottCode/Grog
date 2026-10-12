@@ -7,12 +7,6 @@ using Grog.Core.Models;
 using Grog.Core.Sync;
 using Grog.Core.Tests.Framework;
 
-/// <summary>
-/// The health tally, folded into LibraryStats from the GUI's RecomputeHealthTally (step 5 of the
-/// architecture plan). These pin the rules the verdict and vitals tiles depend on: full scope
-/// gating, Unavailable out of every completeness number, hidden legacy movies out of the health figures
-/// (but NOT out of the category magnitudes), verified counting, gap bytes, and the staleness stamp.
-/// </summary>
 [NewBatch]
 [Trait("health")]
 public class HealthTallyTests

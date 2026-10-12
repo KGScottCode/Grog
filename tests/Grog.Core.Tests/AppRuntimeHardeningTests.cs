@@ -14,13 +14,10 @@ using Grog.Core.Format;
 using Grog.Core.Manifest;
 using Grog.Core.Tests.Framework;
 
-/// <summary>Pure-static App runtime seams and the Core version trim: failure reporting that must say things
-/// once and clear itself when the next write lands.</summary>
 [NewBatch]
 [Trait("runtime")]
 public class AppRuntimeHardeningTests
 {
-    /// <summary>A store whose save always throws: its root sits under a plain file, so the directory create fails.</summary>
     private static JsonManifestStore BrokenStore(string dir)
     {
         var blocker = Path.Combine(dir, "blocker");

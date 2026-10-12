@@ -20,18 +20,10 @@ using Grog.Core.Storage;
 using Grog.Core.Sync;
 using Grog.Core.Tests.Framework;
 
-/// <summary>
-/// The New flag end to end: the first scan of an EMPTY library is the baseline and
-/// flags nothing, whatever GOG's isNew says; every later scan flags what the manifest never had and ignores isNew entirely; a rescan never
-/// touches an existing item's flag; the auto-clear fires only on real in-scope completeness; the explicit
-/// clears work; and a manifest written before the field existed reads back as not-new.
-/// </summary>
 [NewBatch]
 [Trait("sync")]
 public class NewItemsTests
 {
-    /// <summary>A fake GOG whose getFilteredProducts carries `isNew` per product, so the seeding rule can be
-    /// tested at the level it actually operates: the listing.</summary>
     private sealed class FakeGog : HttpMessageHandler
     {
         public List<long> Owned = new() { 1, 2 };
@@ -68,7 +60,6 @@ public class NewItemsTests
         public Task SignOutAsync() => Task.CompletedTask;
     }
 
-    /// <summary>A real temp dir + JsonManifestStore, like ImportRunTests: the flag has to survive a save.</summary>
     private sealed class Rig : IDisposable
     {
         public readonly string Dir;

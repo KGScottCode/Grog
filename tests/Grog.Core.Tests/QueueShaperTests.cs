@@ -9,9 +9,6 @@ using Grog.Core.Tests.Framework;
 
 namespace Grog.Core.Tests;
 
-/// <summary>The queue moves offered around the won't-fit line: where "the bottom of the white group"
-/// is, whether a red row could be lifted, and the greedy lift. All pure over a snapshot; the planner's own
-/// rules (routed root first, spill only outside Manual), so a move offered is never one the next re-plan undoes.</summary>
 [NewBatch]
 [Trait("placement")]
 public sealed class QueueShaperTests
@@ -42,9 +39,6 @@ public sealed class QueueShaperTests
 
     private static DeviceSpace[] Room(long p, long s) => new[] { new DeviceSpace("p", p, true), new DeviceSpace("s", s, true) };
 
-    /// <summary>The row says "too big for this drive" only when a per-file ceiling is what stops the file:
-    /// over every online drive's ceiling, or over the ceiling of a drive that has the room. A full drive with no
-    /// ceiling is plain "won't fit".</summary>
     [Test]
     public void FileLimitBlocking_names_the_ceiling_only_when_the_ceiling_is_the_reason()
     {
@@ -59,9 +53,6 @@ public sealed class QueueShaperTests
         Assert.Null(QueueShaper.FileLimitBlocking(big, new[] { stick with { IsOnline = false } }), "an offline drive says nothing");
     }
 
-    /// <summary>GOG's "4 GB" label is 4 GiB exactly, one byte over FAT32's ceiling, on a part cut to fit under
-    /// it. A label inside the rounding slack is planned as fitting and is unsettled until the CDN's length is known;
-    /// a real length answers exactly, either way.</summary>
     [Test]
     public void A_rounded_label_at_the_ceiling_fits_until_the_real_size_says_otherwise()
     {
@@ -98,8 +89,6 @@ public sealed class QueueShaperTests
         Assert.Null(b.WireSizeBytes, "unasked stays unsettled");
     }
 
-    /// <summary>KeeperFX at slot 11 (owner-measured): fitting and red rows interleave, and the slot is after
-    /// the LAST fitting row, not the first red one.</summary>
     [Test]
     public void EndOfFittingBlock_is_after_the_last_fitting_row_when_rows_interleave()
     {
@@ -135,8 +124,6 @@ public sealed class QueueShaperTests
         Assert.False(QueueShaper.CouldFit(m, f, Room(9, 0)));
     }
 
-    /// <summary>Greedy, in queue order, spending each device as the planner would; the lifted rows keep their
-    /// relative order and land right after the last fitting row. A re-plan over the result flips nothing back.</summary>
     [Test]
     public void PullUpWhatFits_lifts_in_order_and_is_stable_under_a_replan()
     {

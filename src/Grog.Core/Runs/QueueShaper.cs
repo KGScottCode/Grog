@@ -9,18 +9,8 @@ using Grog.Core.Volumes;
 
 namespace Grog.Core.Runs;
 
-/// <summary>The queue-order moves the Downloading pane offers around the won't-fit line, as PURE
-/// functions over a queue snapshot: where "the bottom of the fitting block" is, whether one flagged file could
-/// be lifted, and the greedy lift of every flagged file that fits. The App only renders and commits. Every rule
-/// here is the planner's own (<see cref="PlacementPlanner.WouldFit"/>), so a move is never offered that the
-/// next re-plan would undo.</summary>
 public static class QueueShaper
 {
-    /// <summary>The slot right after the LAST fitting row (ignoring <paramref name="moving"/>): where a drop on
-    /// the divider, "Pull up" and "Pull up what fits" land. Not "the first red slot": fitting and red rows
-    /// interleave once anything is dragged, and the drawn white group lists every fitting row in queue order,
-    /// so a row put above the first red file drew with white rows still under it.
-    /// The index is for <see cref="DownloadQueue.MoveTo"/>, which removes the row first. -1 when nothing fits.</summary>
     public static int EndOfFittingBlock(IReadOnlyList<QueuedDownload> snapshot, (long GogId, string FileKey)? moving = null)
     {
         int last = -1, i = 0;
@@ -33,15 +23,10 @@ public static class QueueShaper
         return last < 0 ? -1 : last + 1;
     }
 
-    /// <summary>Could this file land somewhere with the room left after every fitting file has its own?
-    /// A fitting file always can (it already does).</summary>
     public static bool CouldFit(LibraryManifest m, GameFile f, IReadOnlyList<DeviceSpace> roomInFillOrder)
         => m.PrimaryRootId is { } primary
            && PlacementPlanner.WouldFit(PlacementPlanner.ToPlace(f), roomInFillOrder, m.Routing, primary, m.Routing.Mode, m.ExtrasLayout) is not null;
 
-    /// <summary>Why a won't-fit file has nowhere to land: null = room, or a drive name such as "FAT32" when a per-file
-    /// ceiling is what stops it. True of a file that is over the ceiling of every online drive, or of one
-    /// that an online drive has the room for and still cannot hold. A label on the row, never a placement input.</summary>
     public static string? FileLimitBlocking(GameFile f, IReadOnlyList<DeviceSpace> roomInFillOrder)
     {
         var place = PlacementPlanner.ToPlace(f);
@@ -53,9 +38,6 @@ public static class QueueShaper
         return Grog.Core.Storage.DriveResolver.FileLimitName((blocked ?? over[0]).MaxFileBytes);
     }
 
-    /// <summary>Greedy lift: walk the flagged rows in queue order, and every one that fits in the room left
-    /// (spent device by device the way the planner spends it) moves, in that order, to right after the last
-    /// fitting row. Returns the new order and the keys that moved; empty when nothing fits.</summary>
     public static (List<(long GogId, string FileKey)> Order, List<(long GogId, string FileKey)> Pulled) PullUpWhatFits(
         LibraryManifest m, IReadOnlyList<QueuedDownload> snapshot, IReadOnlyList<DeviceSpace> roomInFillOrder)
     {

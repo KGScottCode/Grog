@@ -7,11 +7,6 @@ using System.Text.RegularExpressions;
 
 namespace Grog.Core.Sync;
 
-/// <summary>
-/// Sorts an extra into a collector-friendly bucket ("Soundtracks", "Art") rather than GOG's coarse types.
-/// Two passes in order: keyword match on the file's own name, then GOG's declared type mapped onto the
-/// same buckets. Unknown GOG types fall back to Add-ons, so a file can never come out unclassified.
-/// </summary>
 public static class ExtraClassifier
 {
     public const string Localizations = "Localizations";
@@ -20,12 +15,10 @@ public static class ExtraClassifier
     public const string AlternateVersions = "Alternate versions";
     public const string Video = "Video";
     public const string Art = "Art";
-    /// <summary>"Manuals" leads deliberately: biggest slice by file count and the word people look for.</summary>
     public const string GuidesAndDocs = "Manuals, Guides & Docs";
     public const string LevelEditors = "Level editors";
     public const string AddOns = "Add-ons";
 
-    /// <summary>Display order: biggest/most-wanted first, catch-alls last.</summary>
     public static readonly IReadOnlyList<string> Buckets = new[]
     {
         Soundtracks, Art, GuidesAndDocs, Video, Localizations, AlternateVersions, LevelEditors, AudioOther, AddOns,
@@ -60,10 +53,6 @@ public static class ExtraClassifier
 
     private static Regex Rx(string p) => new(p, RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    /// <summary>THE short display label for a bucket: what the legend, the filter chips, the per-row type
-    /// chip and the details descriptor all show. "Manuals, Guides &amp; Docs" is the classifier's name;
-    /// "Manuals" is what fits on a chip. Four copies of this map had drifted apart before (the
-    /// details pane still said "Level editors" where the legend said "Other").</summary>
     public static string ShortLabel(string bucket) => bucket switch
     {
         AlternateVersions => "Alt Versions",
@@ -73,8 +62,6 @@ public static class ExtraClassifier
         _                 => bucket,
     };
 
-    /// <summary>Bucket for one extra. <paramref name="name"/> is GOG's file label, <paramref name="gogType"/>
-    /// its declared type. Never returns null or empty.</summary>
     public static string Classify(string? name, string? gogType)
     {
         // GOG names can carry trailing spaces that defeat word-boundary rules; trim before matching.
@@ -127,8 +114,6 @@ public static class ExtraClassifier
         ["magyar"] = "Hungarian",
     };
 
-    /// <summary>Fold GOG's native-name spellings onto one canonical English name, so a language appears
-    /// exactly once and selecting it takes all of its files.</summary>
     public static string CanonicalLanguage(string raw)
     {
         var r = (raw ?? "").Trim();
@@ -140,8 +125,6 @@ public static class ExtraClassifier
         return char.ToUpperInvariant(r[0]) + r[1..];
     }
 
-    /// <summary>The language an extra is FOR, read from its name, or null when it isn't language-specific.
-    /// Language-neutral extras must never be filtered out.</summary>
     public static string? LanguageOf(string? name)
     {
         var n = (name ?? "").Trim();
@@ -151,8 +134,6 @@ public static class ExtraClassifier
         return null;
     }
 
-    /// <summary>Folder name for a bucket. Buckets are already filesystem-safe, but "&amp;" and parentheses
-    /// are normalized so paths stay boring across platforms.</summary>
     public static string FolderFor(string bucket) => bucket switch
     {
         GuidesAndDocs => "Manuals, Guides and Docs",

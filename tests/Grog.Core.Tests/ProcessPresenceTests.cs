@@ -7,7 +7,6 @@ using System.IO;
 using Grog.Core.Storage;
 using Grog.Core.Tests.Framework;
 
-/// <summary>App-over-CLI presence: the lock is the truth, the file is only the message.</summary>
 [Trait("storage")]
 public class ProcessPresenceTests
 {

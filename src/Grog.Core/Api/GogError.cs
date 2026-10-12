@@ -6,8 +6,6 @@ using System.Threading.Tasks;
 
 namespace Grog.Core.Api;
 
-/// <summary>Turns raw network/GOG exceptions into short, actionable messages so neither the GUI nor the
-/// CLI ever shows a stack-trace-flavored string like "An error occurred while sending the request."</summary>
 public static class GogError
 {
     public static string Describe(Exception ex) => ex switch
@@ -29,17 +27,12 @@ public static class GogError
         _ => $"GOG returned an unexpected response ({code}). Try again.",
     };
 
-    /// <summary>True when the failure looks like an expired/invalid session, so callers can prompt a reconnect.</summary>
     public static bool IsAuthFailure(Exception ex) =>
         ex is HttpRequestException { StatusCode: HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden };
 }
 
-/// <summary>Entitlement refusal: GOG lists the file but will not serve it to this account -- not transport
-/// failure, not corruption. Retrying cannot change the answer, so the pipeline must not count retry strikes
-/// or mark the file Corrupt. Carries GOG's own wording for display.</summary>
 public sealed class GogUnavailableException : Exception
 {
-    /// <summary>GOG's own explanation, already trimmed for display. Never null or empty.</summary>
     public string Reason { get; }
     public int StatusCode { get; }
 

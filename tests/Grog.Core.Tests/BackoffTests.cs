@@ -13,13 +13,6 @@ using Grog.Core.Api;
 using Grog.Core.Auth;
 using Grog.Core.Tests.Framework;
 
-/// <summary>
-/// The 429/5xx backoff (design agreed): per-run, in-memory, exponential 2s doubling to a
-/// 5-minute cap, Retry-After honored, one log line per wait. 429 retries as long as GOG keeps saying
-/// wait; a 5xx is retried a few times then SURFACED - a permanently broken endpoint must fail loudly.
-/// Transport failures are retried per call with a fixed 1 s pause, never through the shared schedule.
-/// The delay seam replaces real waiting so these run in milliseconds.
-/// </summary>
 [NewBatch]
 [Trait("api")]
 public sealed class BackoffTests

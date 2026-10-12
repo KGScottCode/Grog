@@ -4,11 +4,8 @@ using Grog.Core.Scheduling;
 
 namespace Grog.App.ViewModels;
 
-/// <summary>The user-facing wording for a run outcome. Presentation only -- the grade lives in Core
-/// (ScheduleRunOutcomeInfo.SeverityOf) and the brush in SeverityBrush.For, so each layer owns its half.</summary>
 public static class ScheduleRunCopy
 {
-    /// <summary>The word shown on the SCHEDULE card.</summary>
     public static string Label(ScheduleRunOutcome o) => o switch
     {
         ScheduleRunOutcome.Completed   => "Completed",
@@ -20,8 +17,6 @@ public static class ScheduleRunCopy
         _                              => "Unknown",
     };
 
-    /// <summary>The overdue-on-launch sentence's tail, given what (if anything) ended at that slot. Null means
-    /// nothing ended there, so the honest reading is still "Grog wasn't running".</summary>
     public static string? OverdueBecause(ScheduleRunOutcome o) => o switch
     {
         ScheduleRunOutcome.Canceled   => "but you stopped it before it finished.",
