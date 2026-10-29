@@ -1,12 +1,8 @@
 ## What's new in v0.1.3
 
-- **Overview:** the Library Coverage numbers no longer clip on libraries with four- or five-digit file counts; the columns size to the numbers. (#1)
-- **Include patches:** a toggle in Settings > Content > What to back up. Off, patch files leave the backup scope and the queue; anything already downloaded stays on disk. Default on. (#2)
-- **Patches are now recognised:** GOG's "Patch (a to b)" installers are tagged as patches instead of counted as game installers. A rescan picks them up.
-- **Patches chip:** the Library filter row has a terracotta Patches chip, and patch files carry a matching chip in the detail pane beside the OS badge.
-- **Scope-aware chips:** filter chips for content you have excluded from backup (games, extras or patches) are hidden instead of filtering to nothing.
+- **Patches** ([issue #2](https://github.com/KGScottCode/Grog/issues/2)): GOG's "Patch (a to b)" downloads are now recognised as their own file type, separate from Game and Mod. They are backed up by default; Settings > Content > **Include patches** turns them off, which drops them from the scope and the queue while leaving anything already downloaded on disk. The Library gains a **Patches** filter chip, patch files carry a matching chip in the product details, and chips for content you have excluded from backup are hidden rather than filtering to nothing. A rescan picks up the new type. CLI: `--skip-patches` per run, `scope set --patches|--no-patches` to persist, `scope show` lists it; `--installers-only` still includes patches, `--skip-installers` now skips them too.
+- **Overview** ([issue #1](https://github.com/KGScottCode/Grog/issues/1)): the Library Coverage numbers no longer clip on four- and five-digit file counts; the columns size to the numbers.
 - **Library selection:** after a rescan the Rescan button no longer stays on "Rescan Selected" with nothing selected; Esc clears a stuck selection.
-- **CLI:** `download`/`backup` take `--skip-patches`; `scope set` takes `--patches|--no-patches` and `scope show` lists patches. `--installers-only` still includes patches; `--skip-installers` now also skips them.
 
 ## What's new in v0.1.2
 
