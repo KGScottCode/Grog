@@ -75,6 +75,20 @@ public class DownloadScopeTests
     }
 
     [Test]
+    void OsPriority_AppliesToPatchesLikeInstallers()
+    {
+        var g = Game(3, "Patched");
+        g.Files.Add(F(FileKind.Installer, "l", "linux"));
+        g.Files.Add(F(FileKind.Installer, "w", "windows"));
+        g.Files.Add(F(FileKind.Patch, "pl", "linux"));
+        g.Files.Add(F(FileKind.Patch, "pw", "windows"));
+        var scope = new DownloadScope { IncludeExtras = false, OsFallback = true };
+        scope.OsPriority.Add("linux");
+        var picked = DownloadFileSelector.Select(new[] { g }, scope).Select(x => x.file.Name).OrderBy(n => n).ToList();
+        Assert.Equal("l,pl", string.Join(",", picked), "windows patch filtered with the windows installer");
+    }
+
+    [Test]
     void Blacklist_SkipsMatchingFiles()
     {
         var scope = new DownloadScope();

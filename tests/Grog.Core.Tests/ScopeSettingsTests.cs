@@ -100,4 +100,19 @@ public class ScopeSettingsTests
         }
         finally { Directory.Delete(dir, recursive: true); }
     }
+
+    [Test]
+    void IncludePatches_DefaultsOn_PersistsAndReachesScope()
+    {
+        var s = new ScopeSettings();
+        Assert.True(s.IncludePatches, "default on");
+        Assert.True(s.ToScope().IncludePatches, "default reaches Scope");
+        s.IncludePatches = false;
+        Assert.False(s.ToScope().IncludePatches, "off reaches Scope");
+        var json = System.Text.Json.JsonSerializer.Serialize(s);
+        var back = System.Text.Json.JsonSerializer.Deserialize<ScopeSettings>(json)!;
+        Assert.False(back.IncludePatches, "round-trips");
+        var legacy = System.Text.Json.JsonSerializer.Deserialize<ScopeSettings>("{\"IncludeGames\":true}")!;
+        Assert.True(legacy.IncludePatches, "a pre-0.1.3 manifest reads as on");
+    }
 }

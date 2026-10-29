@@ -107,6 +107,7 @@ public sealed record ExtraTypeSegment(string Name, IBrush Brush)
         // CONTENT types: muted editorial hues so the bright PLATFORM family below reads as a separate axis.
         // Spread around the wheel, clear of the amber that means "Game"; each RGB channel a multiple of 8.
         ["Mod"]           = Br(96, 168, 160),    // muted teal -- software, distinct from the accent that means "Game"
+        ["Patches"]       = Br(214, 128, 86),    // terracotta: orange family next to Game's amber, clearly its own chip
         ["Soundtracks"]   = Br(112, 144, 208),   // dusty blue
         ["Manuals"]       = Br(184, 176, 88),    // olive gold
         // Videos is NOT here -- it's theme-aware (muted violet default / amber GOG), resolved via Palette.TypeVideos.

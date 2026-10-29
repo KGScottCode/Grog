@@ -59,7 +59,7 @@ public static class DownloadFileSelector
             HashSet<string>? allowedOs = null;
             if (scope.OsPriority.Count > 0)
             {
-                var present = g.Files.Where(f => f.Kind is FileKind.Installer or FileKind.DlcInstaller)
+                var present = g.Files.Where(f => f.Kind is FileKind.Installer or FileKind.DlcInstaller or FileKind.Patch)
                     .Select(f => f.Os).Where(s => !string.IsNullOrEmpty(s))
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
                 if (scope.OsFallback)
@@ -80,7 +80,7 @@ public static class DownloadFileSelector
             {
                 if (!scope.KindIncluded(f.Kind)) continue;
 
-                if (f.Kind is FileKind.Installer or FileKind.DlcInstaller && allowedOs is not null
+                if (f.Kind is FileKind.Installer or FileKind.DlcInstaller or FileKind.Patch && allowedOs is not null
                     && !string.IsNullOrEmpty(f.Os) && !allowedOs.Contains(f.Os)) continue;
 
                 if (scope.Languages.Count > 0 && !string.IsNullOrEmpty(f.Language)

@@ -1,3 +1,13 @@
+## What's new in v0.1.3
+
+- **Overview:** the Library Coverage numbers no longer clip on libraries with four- or five-digit file counts; the columns size to the numbers. (#1)
+- **Include patches:** a toggle in Settings > Content > What to back up. Off, patch files leave the backup scope and the queue; anything already downloaded stays on disk. Default on. (#2)
+- **Patches are now recognised:** GOG's "Patch (a to b)" installers are tagged as patches instead of counted as game installers. A rescan picks them up.
+- **Patches chip:** the Library filter row has a terracotta Patches chip, and patch files carry a matching chip in the detail pane beside the OS badge.
+- **Scope-aware chips:** filter chips for content you have excluded from backup (games, extras or patches) are hidden instead of filtering to nothing.
+- **Library selection:** after a rescan the Rescan button no longer stays on "Rescan Selected" with nothing selected; Esc clears a stuck selection.
+- **CLI:** `download`/`backup` take `--skip-patches`; `scope set` takes `--patches|--no-patches` and `scope show` lists patches. `--installers-only` still includes patches; `--skip-installers` now also skips them.
+
 ## What's new in v0.1.2
 
 - **Sign-in on Linux/Wayland:** detects a failed GTK login-window creation and falls back to X11 automatically.
@@ -7,40 +17,17 @@
 - **SECURITY.md** now describes exactly how sign-in works on each platform and when tokens are stored unencrypted.
 - **Code:** doc-comment and markup-comment cleanup across the codebase.
 
----
+## What's new in v0.1.1
 
-Grog backs up your GOG.com library (installers, extras and cloud saves) to your own
-drives, verified against GOG's checksums. A desktop app and a command-line tool for Windows, macOS and Linux.
+- **macOS 26 icon:** Grog's icon now fills the shape like other apps (no grey tile); sized correctly on macOS 14-15 too.
+- **Queue sizes:** rows show each file's real size once it's known, not GOG's rounded label, and the Size sort uses it.
+- **Clearer status:** after closing Grog mid-backup, Overview says "paused when Grog last closed".
+- **Smoother startup on macOS and Linux:** a drive check no longer runs on the window's thread.
+- **Install guides:** macOS covers installing without admin rights; the portable uninstall steps now keep your backups.
 
-> Unofficial; not affiliated with or endorsed by GOG.com. Grog uses the same API GOG's own clients use, signed in
-> with your account.
+## v0.1.0
 
-## Highlights
-
-### Back up everything you own
-- **Back Up Now** queues everything missing or out of date.
-- **Installers, extras, DLC and cloud saves**, per game and per account; installers verified by checksum.
-- **Library dashboard**: backup status per file, per game and for the whole library.
-- **What's new**: after a rescan, **Back Up New Now** queues just the new games and files.
-- **Import** a folder of installers you already have.
-
-### Keeps your backups safe
-- **Fix Now** re-downloads a file that goes missing or corrupt; **Try Again** retries exactly what failed.
-- **At-risk flags**: red for games GOG no longer sells, orange for games from a signed-out account.
-- **Private**: you sign in on GOG's own page, tokens are encrypted on disk, and there is no telemetry.
-
-### Handles the unexpected
-- **Resumable downloads**, and **safe moves** between drives (copy, verify, then delete).
-- **A drive disconnects**: downloads pause and continue when it's back. Gone for good? Mark it as lost.
-- **Out of space**: what doesn't fit stays queued and is shown plainly.
-- **App and `grogcli` never clash**: while the app is open, `grogcli` can't change the library.
-
-### Works your way
-- **Extras** with each game, or in their own folder tree, even on another drive.
-- **Several drives**: the primary fills first, the rest go to the next.
-- **Ratings, languages and an optional mature-content filter.**
-- **Download speed limit.**
-- **Command-line tool** for scheduled and unattended runs ([docs/CLI.md](https://github.com/KGScottCode/Grog/blob/master/docs/CLI.md)).
+First public release. What Grog does, and how to install it, is in the [README](https://github.com/KGScottCode/Grog#readme).
 
 ## Downloads
 
@@ -53,15 +40,4 @@ drives, verified against GOG's checksums. A desktop app and a command-line tool 
 Grog is unsigned, so Windows and macOS ask you to confirm the first launch; the guides show how. SHA-256
 checksums are attached.
 
-## Known issues
-
-- **Windows 11 Smart App Control**, when on, blocks Grog from starting (it blocks all unsigned apps).
-- **macOS:** a locked login Keychain makes Grog look signed out. Unlock it, or log out and back in.
-- **Windows network paths** (`\\server\share`) can't be backup locations yet. Map a drive letter instead.
-
-## Platform notes
-
-- **Linux:** install `libsecret-tools` (or `libsecret`) so your sign-in is protected by the desktop keyring.
-- **macOS:** notifications appear inside the app, not in Notification Center.
-
-GPL-3.0-or-later.
+> Unofficial; not affiliated with or endorsed by GOG.com. GPL-3.0-or-later.

@@ -93,7 +93,7 @@
                       </ItemsControl.ItemTemplate>
                     </ItemsControl>
 
-                    <Border Classes="chipdiv"/>
+                    <Border Classes="chipdiv" IsVisible="{Binding ShowChipDivider}"/>
 
                     <ItemsControl ItemsSource="{Binding ExtraFilterChips}" VerticalAlignment="Center">
                       <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="5"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>

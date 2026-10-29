@@ -124,9 +124,7 @@ public sealed partial class StorageViewModel
         var fileName = f?.ResolvedFileName
             ?? (!string.IsNullOrWhiteSpace(m.ToRel) ? System.IO.Path.GetFileName(m.ToRel) : null)
             ?? f?.Name ?? m.Title;
-        var brush = f is { Kind: FileKind.Extra }
-            ? ExtraTypeSegment.ColorFor(Grog.Core.Sync.ExtraClassifier.Classify(f.Name, f.ExtraType))
-            : ExtraTypeSegment.ColorFor("Game");
+        var brush = ExtraTypeSegment.ColorFor(f is null ? "Game" : Grog.Core.Sync.ExtraClassifier.TypeLabelOf(f));
         // A hidden game's move is a row like any other (order, count and bytes are facts), unnamed.
         bool nameHidden = QueueRow.IsHiddenGame(m.GogId);
         return new ReorgMoveRow
@@ -135,7 +133,7 @@ public sealed partial class StorageViewModel
             FileName = nameHidden ? "" : fileName, TypeBrush = brush,
             GogId = m.GogId, FileKey = m.FileKey, SizeText = ByteFormat.Size(m.SizeBytes),
             SizeBytes = m.SizeBytes, StateText = state,
-            OsBadge = f is { Kind: FileKind.Installer } ? PlatformNames.Badge(f.Os) : "",
+            OsBadge = f is { Kind: FileKind.Installer or FileKind.Patch } ? PlatformNames.Badge(f.Os) : "",
         };
     }
 

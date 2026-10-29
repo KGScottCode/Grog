@@ -7,7 +7,8 @@ namespace Grog.Core.Sync;
 
 public readonly record struct Scope(bool Games, bool Extras, IReadOnlyCollection<string>? Languages = null,
                                    IReadOnlyCollection<string>? Platforms = null,
-                                   IReadOnlyCollection<string>? ExtraLanguages = null)
+                                   IReadOnlyCollection<string>? ExtraLanguages = null,
+                                   bool IncludePatches = true)
 {
     // Language scope is split games vs extras
     public static readonly Scope Both = new(true, true);
@@ -31,6 +32,7 @@ public readonly record struct Scope(bool Games, bool Extras, IReadOnlyCollection
     public Scope WithLanguages(IReadOnlyCollection<string>? languages) => this with { Languages = languages };
     public Scope WithExtraLanguages(IReadOnlyCollection<string>? languages) => this with { ExtraLanguages = languages };
     public Scope WithPlatforms(IReadOnlyCollection<string>? platforms) => this with { Platforms = platforms };
+    public Scope WithPatches(bool include) => this with { IncludePatches = include };
 
     public static string? PlatformOf(GameFile f)
     {
@@ -51,7 +53,9 @@ public readonly record struct Scope(bool Games, bool Extras, IReadOnlyCollection
     }
 
     public bool Includes(FileKind kind)
-        => kind == FileKind.Extra ? Extras : Games;   // Installer, Patch, LanguagePack, DlcInstaller
+        => kind == FileKind.Extra ? Extras
+         : kind == FileKind.Patch ? Games && IncludePatches
+         : Games;   // Installer, LanguagePack, DlcInstaller
 
     public bool Includes(GameFile f)
     {

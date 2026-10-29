@@ -49,7 +49,7 @@ public partial class DetailFileRow : ObservableObject
         return string.Join(' ', words);
     }
     public bool IsExtra => _f.Kind == FileKind.Extra;
-    public double BadgeColumnMinWidth => IsExtra ? 116 : 48;
+    public double BadgeColumnMinWidth => IsPatch ? 128 : IsExtra ? 116 : 48;
     public string OsBadge => PlatformNames.Badge(_f.Os);
     public bool ShowOsBadge => OsBadge.Length > 0;
     // The OS reads in its own bright platform hue (a separate axis from the content-type colors).
@@ -59,9 +59,13 @@ public partial class DetailFileRow : ObservableObject
 
     private string ExtraBucket => Grog.Core.Sync.ExtraClassifier.Classify(_f.Name, _f.ExtraType);
 
-    public string Descriptor => IsExtra ? Grog.Core.Sync.ExtraClassifier.ShortLabel(ExtraBucket) : "";
+    // The type chip: an extra's bucket, or "Patches" for a patch. A plain installer draws none (it is the default).
+    private const string PatchesLabel = "Patches";
+    public bool IsPatch => _f.Kind == FileKind.Patch;
+    public string Descriptor => IsExtra ? Grog.Core.Sync.ExtraClassifier.ShortLabel(ExtraBucket) : IsPatch ? PatchesLabel : "";
 
-    public IBrush ExtraTypeBrush => IsExtra ? ExtraTypeSegment.ColorFor(ExtraBucket) : Brushes.Transparent;
+    public IBrush ExtraTypeBrush => IsExtra ? ExtraTypeSegment.ColorFor(ExtraBucket)
+                                  : IsPatch ? ExtraTypeSegment.ColorFor(PatchesLabel) : Brushes.Transparent;
 
     // Type badge = EXACTLY the active filter-pill treatment (fill = base hue @0x2E, border = base brush, text
     // = base hue full opacity); same ColorFor source, so a type's badge and filter pill are pixel-identical.

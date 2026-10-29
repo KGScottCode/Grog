@@ -57,6 +57,8 @@ var alpha = new LibraryItem { GogId = 101, Title = "Neverwinter Nights 2 Complet
                               DateAcquired = new DateTimeOffset(2019, 11, 27, 18, 4, 0, TimeSpan.Zero) };
 alpha.Files.Add(Present(File2("a1", "setup_nwn2_(83148)-1.bin", FileKind.Installer, FileState.Verified, 4_000_000_000), "sec", 4_000_000_000, "nwn2/setup1.bin"));
 alpha.Files.Add(File2("a2", "setup_nwn2_(83148)-2.bin", FileKind.Installer, FileState.NotBackedUp, 4_000_000_000, 1_600_000_000)); // paused ~40%
+alpha.Files.Add(Present(File2("a2p", "Patch (1.23 to 1.23.1765)", FileKind.Patch, FileState.Verified, 42_000_000), "primary", 42_000_000, "nwn2/patch.exe"));
+alpha.Files.Last(f => f.FileKey == "a2p").Version = "1.23.1765";
 alpha.Files.Add(Present(File2("a3", "setup_nwn2_(83148)-3.bin", FileKind.Installer, FileState.Verified, 3_900_000_000), "primary", 3_900_000_000, "nwn2/setup3.bin"));
 alpha.Files.Add(Present(File2("a4", "Soundtrack (FLAC).zip", FileKind.Extra, FileState.Verified, 640_000_000), "primary", 640_000_000, "nwn2/soundtrack.zip", "soundtrack"));
 alpha.Files.Add(Present(File2("a5", "Manual (PDF).zip", FileKind.Extra, FileState.Verified, 12_000_000), "primary", 12_000_000, "nwn2/manual.zip", "manual"));

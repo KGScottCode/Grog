@@ -157,4 +157,17 @@ public class TypeGroupedLayoutTests
         }
         finally { Directory.Delete(Path.GetFullPath(Path.Combine(root, "..")), true); }
     }
+
+    [Test]
+    void TypeLabelOf_IsTheOneVocabulary()
+    {
+        var patch = new GameFile { Kind = FileKind.Patch, Name = "Patch (1.0 to 1.1)" };
+        var inst  = new GameFile { Kind = FileKind.Installer, Name = "setup.exe" };
+        var dlc   = new GameFile { Kind = FileKind.DlcInstaller, Name = "setup_dlc.exe" };
+        var ost   = new GameFile { Kind = FileKind.Extra, Name = "soundtrack (MP3)", ExtraType = "audio" };
+        Assert.Equal("Patches", ExtraClassifier.TypeLabelOf(patch), "patch");
+        Assert.Equal("Game", ExtraClassifier.TypeLabelOf(inst), "installer");
+        Assert.Equal("Game", ExtraClassifier.TypeLabelOf(dlc), "dlc installer reads Game");
+        Assert.Equal(ExtraClassifier.Soundtracks, ExtraClassifier.TypeLabelOf(ost), "extra -> its bucket");
+    }
 }

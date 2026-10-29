@@ -33,6 +33,44 @@ public class ScopeTallyTests
         => new() { FileKey = "x" + name + size, Kind = FileKind.Extra, Name = name,
                    ExpectedSizeBytes = size, State = state };
 
+    static GameFile Patch(long size, string os = "")
+        => new() { FileKey = "p" + os + size, Kind = FileKind.Patch, Name = "patch.exe", Os = os,
+                   ExpectedSizeBytes = size, State = FileState.Present };
+
+    // The patch toggle: a Games sub-choice. Off, patches leave Games and Both; the Patches bucket still
+    // prices them (its own axis lifted) so the toggle's row shows what turning it back on would add.
+    [Test]
+    void PatchesOff_LeaveGamesAndBoth_ButStayPricedOnTheirOwnRow()
+    {
+        var m = Library(Game(100), Patch(30), Extra(5));
+        var on  = ScopeTally.ByContent(m, Scope.Both);
+        var off = ScopeTally.ByContent(m, Scope.Both.WithPatches(false));
+        Assert.Equal(130L, on.Games.Bytes, "patches count as games when on");
+        Assert.Equal(100L, off.Games.Bytes, "patches leave games when off");
+        Assert.Equal(105L, off.Both.Bytes, "and leave the total");
+        Assert.Equal(30L, on.Patches.Bytes, "patch row priced when on");
+        Assert.Equal(30L, off.Patches.Bytes, "and still priced when off");
+        Assert.Equal(1, off.Patches.Files, "one patch");
+    }
+
+    [Test]
+    void PatchesOff_StillNarrowedByPlatform()
+    {
+        var m = Library(Patch(30, "windows"), Patch(40, "linux"));
+        var t = ScopeTally.ByContent(m, Scope.Both.WithPlatforms(new[] { "linux" }));
+        Assert.Equal(40L, t.Patches.Bytes, "platform narrows the patch row too");
+    }
+
+    [Test]
+    void ScopeIncludes_PatchFollowsGamesAndTheToggle()
+    {
+        var p = Patch(1);
+        Assert.True(Scope.Both.Includes(p), "default: in");
+        Assert.False(Scope.Both.WithPatches(false).Includes(p), "toggle off: out");
+        Assert.False(Scope.ExtrasOnly.Includes(p), "no games: out regardless");
+        Assert.True(Scope.Both.WithPatches(false).Includes(Game(1)), "installers unaffected");
+    }
+
     // THE rule. Priced under the current pick, "Extras only" would read 0 B while extras are switched off --
     // which is exactly the number a user weighing whether to switch them ON must not be shown.
     [Test]

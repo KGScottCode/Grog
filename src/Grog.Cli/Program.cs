@@ -65,13 +65,13 @@ var sessions = new Grog.Core.Auth.AccountSessions(manifest, paths, http) { OnThr
         "--ignore-saved-scope","--installers-only","--json","--label","--lang","--largest","--limit","--limit-mbps","--local","--mode",
         "--move","--moved","--no-dlc","--no-verify","--non-interactive","--os","--os-fallback","--parallel",
         "--primary","--removable","--retry-failed","--role","--root","--secondary","--show-config","--silent","--skip-extras",
-        "--skip-installers","--title","--title-regex","--to","--type","--updates","--verbose","--with","--yes",
+        "--skip-installers","--skip-patches","--title","--title-regex","--to","--type","--updates","--verbose","--with","--yes",
         "--keep","--failed","--corrupt","--missing","--game",   // (S2.1) fix / cloudsaves --all / prune
         "--new",   // list --new / backup --new
         "--verify-checksums",   // import: fetch GOG's checksum for adopted files with none on record
         "--version",
         "--ignore-pause",   // backup: run even while the queue is paused
-        "--with-extras","--games","--no-games",   // scope set
+        "--with-extras","--games","--no-games","--patches","--no-patches",   // scope set
     };
     foreach (var a in args)
     {

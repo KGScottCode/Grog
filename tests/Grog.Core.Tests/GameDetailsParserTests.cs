@@ -110,6 +110,20 @@ public class GameDetailsParserTests
         Assert.Empty(d.Extras, "no extras");
         Assert.Empty(d.Dlcs, "no dlcs");
     }
+
+    [Test]
+    void Mapper_TagsGogPatchRowsAsPatch()
+    {
+        Assert.True(Grog.Core.Api.GameDetailsMapper.IsPatch("Patch (1.0 to 1.11)"), "plain");
+        Assert.True(Grog.Core.Api.GameDetailsMapper.IsPatch("Patch (Dagon_2021-10-24 to Dagon_2021-10-28)"), "dated");
+        Assert.True(Grog.Core.Api.GameDetailsMapper.IsPatch("Patch 1.31"), "bare version");
+        Assert.True(Grog.Core.Api.GameDetailsMapper.IsPatch("Patch 1.31 (Part 1 of 2)"), "multi-part");
+        Assert.False(Grog.Core.Api.GameDetailsMapper.IsPatch("Patchwork Adventures"), "a game named Patch...");
+        Assert.False(Grog.Core.Api.GameDetailsMapper.IsPatch("Patchwork: Journey to X"), "...even with ' to '");
+        Assert.False(Grog.Core.Api.GameDetailsMapper.IsPatch("Patch Quest"), "a game whose title starts with the word");
+        Assert.False(Grog.Core.Api.GameDetailsMapper.IsPatch("setup.exe"), "installer");
+        Assert.False(Grog.Core.Api.GameDetailsMapper.IsPatch(null), "null");
+    }
 }
 
 public class GameDetailsParserShapeTests

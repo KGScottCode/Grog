@@ -89,9 +89,12 @@ public partial class GameRowViewModel : ObservableObject
     public bool ShowRowProgress => BarValue > 0 || RowBusy;
 
     public sealed record ExtraChip(string Name, IBrush Brush, int Count, bool Dim);
-    public static string ContentKey(GameFile f, ProductType type) => f.Kind != FileKind.Extra
-        ? (type == ProductType.Mod ? "Mod" : "Game")
-        : Grog.Core.Sync.ExtraClassifier.ShortLabel(Grog.Core.Sync.ExtraClassifier.Classify(f.Name, f.ExtraType));
+    public static string ContentKey(GameFile f, ProductType type)
+    {
+        var label = Grog.Core.Sync.ExtraClassifier.TypeLabelOf(f);
+        if (f.Kind == FileKind.Extra) return Grog.Core.Sync.ExtraClassifier.ShortLabel(label);
+        return label == "Game" && type == ProductType.Mod ? "Mod" : label;
+    }
     public static IReadOnlySet<string>? ActiveExtraFilter;
     public static IReadOnlyCollection<string>? ActiveLanguages;
     // Deliberately language-ONLY (not the full Scope): the chips are a "what does this game contain" inventory.

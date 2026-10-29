@@ -53,6 +53,15 @@ public static class ExtraClassifier
 
     private static Regex Rx(string p) => new(p, RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+    // THE type word for any file, as the chips, legend, Storage grid, queue and move rows all show it:
+    // an extra's bucket, "Patches" for a patch, "Game" for everything else that installs.
+    public static string TypeLabelOf(Models.GameFile f) => f.Kind switch
+    {
+        Models.FileKind.Extra => Classify(f.Name, f.ExtraType),
+        Models.FileKind.Patch => "Patches",
+        _ => "Game",
+    };
+
     public static string ShortLabel(string bucket) => bucket switch
     {
         AlternateVersions => "Alt Versions",

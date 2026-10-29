@@ -56,16 +56,26 @@ public sealed partial class LibraryViewModel
         SoftwareChips.Clear(); ExtraFilterChips.Clear();
         Add(SoftwareChips, "Game", "Game", ExtraTypeSegment.ColorFor("Game"));
         Add(SoftwareChips, "Mod", "Mod", ExtraTypeSegment.ColorFor("Mod"));
+        Add(SoftwareChips, "Patches", "Patches", ExtraTypeSegment.ColorFor("Patches"));
         foreach (var (key, label) in ExtraDefs) Add(ExtraFilterChips, key, label, ExtraTypeSegment.ColorFor(key));
         RecomputeSelectedContent();
         RefreshConditionalChips();
     }
 
-    private void RecomputeSelectedContent()
+    // Returns true when the selected set or the "all selected" flag changed, so callers that did not come
+    // through a chip click know to re-filter.
+    private bool RecomputeSelectedContent()
     {
-        _selectedContent = AllChips.Where(c => c.IsActive).Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        _allContentSelected = _selectedContent.Count == SoftwareChips.Count + ExtraFilterChips.Count;
+        // Hidden chips (kind out of scope, or no such content) are neither selected nor counted: a chip the user
+        // cannot see must not be the reason a filter reads as active.
+        var shown = AllChips.Where(c => c.IsVisible).ToList();
+        var next = shown.Where(c => c.IsActive).Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        bool all = next.Count == shown.Count;
+        if (all == _allContentSelected && next.SetEquals(_selectedContent)) return false;
+        _selectedContent = next;
+        _allContentSelected = all;
         GameRowViewModel.ActiveExtraFilter = _allContentSelected ? null : _selectedContent;   // drives square dim/sort
+        return true;
     }
 
     private void OnChipsChanged()
@@ -398,6 +408,17 @@ public sealed partial class LibraryViewModel
         _root.RaiseBarState();   // primary is selection-aware ("Back up · 3 selected")
     }
 
+    // The multi-select mirrors the grid's SelectedItems. A rebuild replaces row instances in Games, and the
+    // grid drops a replaced item from its selection silently, so without this the mirror keeps rows that are
+    // no longer selectable and the action labels stay on "Selected" with nothing highlighted.
+    internal void PruneStaleSelection()
+    {
+        if (SelectedRows.Count == 0) return;
+        var live = new HashSet<GameRowViewModel>(Games, ReferenceEqualityComparer.Instance);
+        if (SelectedRows.All(live.Contains)) return;
+        UpdateSelection(SelectedRows.Where(live.Contains).ToList());
+    }
+
     public string FilterCountText
     {
         get
@@ -706,7 +727,7 @@ public sealed partial class LibraryViewModel
     internal void ClearSelection() => SelectionClearRequested?.Invoke();
 
     // Software content-chip keys; everything else is an extras bucket. Used to decide games-vs-files noun.
-    private static readonly HashSet<string> _softwareChipKeys = new(StringComparer.OrdinalIgnoreCase) { "Game", "Mod" };
+    private static readonly HashSet<string> _softwareChipKeys = new(StringComparer.OrdinalIgnoreCase) { "Game", "Mod", "Patches" };
 
     internal bool GuideWantsWholeLibrary => _root.Guide.GuideActive && _root.Guide.CurrentStepKey == "back-up-all";
 
@@ -737,20 +758,20 @@ public sealed partial class LibraryViewModel
     // . The epoch bumps in RaiseDashboardCore and RebuildRows; a chip change swaps the
     // _selectedContent set instance (Library.cs), which the key catches by reference.
     private long _pendingCountEpoch;
-    private (long Epoch, object? Chips, bool AllContent, bool Movies, bool Games, bool Extras, int Value) _pendingCountMemo;
+    private (long Epoch, object? Chips, bool AllContent, bool Movies, bool Games, bool Extras, bool Patches, int Value) _pendingCountMemo;
     internal void InvalidatePendingFileCount() => _pendingCountEpoch++;
     private int FilteredPendingFileCount()
     {
         if (_manifest is null) return 0;
-        var key = (_pendingCountEpoch, (object?)_selectedContent, _allContentSelected, ShowLegacyMovies, _includeGames, _includeExtras);
+        var key = (_pendingCountEpoch, (object?)_selectedContent, _allContentSelected, ShowLegacyMovies, _includeGames, _includeExtras, _includePatches);
         var memo = _pendingCountMemo;
         if (memo.Epoch == key.Item1 && ReferenceEquals(memo.Chips, key.Item2) && memo.AllContent == key.Item3
-            && memo.Movies == key.Item4 && memo.Games == key.Item5 && memo.Extras == key.Item6)
+            && memo.Movies == key.Item4 && memo.Games == key.Item5 && memo.Extras == key.Item6 && memo.Patches == key.Item7)
             return memo.Value;
         // Same rule as the enqueue (SelectionOptions); no layout = no volume scan on a label refresh.
         int n = Grog.Core.Runs.BackupQueueBuilder.Build(_manifest.Current, null,
             _root.SelectionOptions(updatesOnly: false, onlyGameIds: null, fromQueue: false, EffectiveScope, _allContentSelected)).Count;
-        _pendingCountMemo = (key.Item1, key.Item2, key.Item3, key.Item4, key.Item5, key.Item6, n);
+        _pendingCountMemo = (key.Item1, key.Item2, key.Item3, key.Item4, key.Item5, key.Item6, key.Item7, n);
         return n;
     }
 

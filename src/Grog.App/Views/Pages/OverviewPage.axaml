@@ -82,9 +82,15 @@
           </Border>
 
           <Border Grid.Row="3" Classes="section" BorderThickness="0" Padding="20,10,20,8">
-            <StackPanel Spacing="9">
+            <StackPanel Spacing="9" Grid.IsSharedSizeScope="True">
 
-              <Grid ColumnDefinitions="Auto,*,84,14,150" Margin="0,0,13,2">
+              <Grid Margin="0,0,13,2">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto" MinWidth="84" SharedSizeGroup="CovFiles"/>
+                  <ColumnDefinition Width="14"/>
+                  <ColumnDefinition Width="Auto" MinWidth="150" SharedSizeGroup="CovData"/>
+                </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" Text="LIBRARY COVERAGE" Foreground="White" FontSize="{StaticResource FontCaption}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="2" Text="FILES" Foreground="White" FontSize="12" FontWeight="SemiBold" LetterSpacing="0.6" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,-1"/>
                 <Border Grid.Column="3" Width="1" Background="{StaticResource StrokeSubtle}" HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0,4,0,-2"/>
@@ -97,7 +103,13 @@
                       BorderBrush="{StaticResource FlatEdge}" BorderThickness="1">
                 <StackPanel Spacing="7">
 
-              <Grid ColumnDefinitions="72,72,*,84,14,150" RowDefinitions="Auto,7,Auto,6,Auto,4,Auto">
+              <Grid RowDefinitions="Auto,7,Auto,6,Auto,4,Auto">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="72"/><ColumnDefinition Width="72"/><ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto" MinWidth="84" SharedSizeGroup="CovFiles"/>
+                  <ColumnDefinition Width="14"/>
+                  <ColumnDefinition Width="Auto" MinWidth="150" SharedSizeGroup="CovData"/>
+                </Grid.ColumnDefinitions>
 
                 <Border Grid.Column="4" Grid.RowSpan="7" Width="1" Background="{StaticResource StrokeSubtle}" HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
                 <TextBlock Grid.Column="0" Text="Games" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontRow}" VerticalAlignment="Center"/>
@@ -106,12 +118,14 @@
                              Foreground="{StaticResource AccentAmber}" Background="{StaticResource PlotRecess}"
                              BorderBrush="{StaticResource SurfaceStroke}" BorderThickness="1"/>
                 <TextBlock Grid.Column="1" Text="{Binding GamesBytePercentText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontRow}" FontWeight="SemiBold" FontFamily="Consolas,monospace" HorizontalAlignment="Right" Margin="0,0,12,0" VerticalAlignment="Center"/>
-                <Grid Grid.Row="0" Grid.Column="3" ColumnDefinitions="*,Auto,*" VerticalAlignment="Center">
+                <Grid Grid.Row="0" Grid.Column="3" HorizontalAlignment="Right" VerticalAlignment="Center">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" SharedSizeGroup="CovFilesDone"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto" SharedSizeGroup="CovFilesTotal"/></Grid.ColumnDefinitions>
                   <TextBlock Grid.Column="0" Text="{Binding GamesFilesDoneText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontFeatures="tnum" HorizontalAlignment="Right"/>
                   <TextBlock Grid.Column="1" Text=" / " Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontBody}"/>
                   <TextBlock Grid.Column="2" Text="{Binding GamesFilesTotalText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontFeatures="tnum" HorizontalAlignment="Right"/>
                 </Grid>
-                <Grid Grid.Row="0" Grid.Column="5" ColumnDefinitions="*,Auto,*" VerticalAlignment="Center">
+                <Grid Grid.Row="0" Grid.Column="5" HorizontalAlignment="Right" VerticalAlignment="Center">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" SharedSizeGroup="CovDataDone"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto" SharedSizeGroup="CovDataTotal"/></Grid.ColumnDefinitions>
                   <TextBlock Grid.Column="0" Text="{Binding GamesDataDoneText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontFeatures="tnum" HorizontalAlignment="Right"/>
                   <TextBlock Grid.Column="1" Text=" / " Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontBody}"/>
                   <TextBlock Grid.Column="2" Text="{Binding GamesDataTotalText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontFeatures="tnum" HorizontalAlignment="Right"/>
@@ -138,12 +152,14 @@
                   </Grid>
                 </Border>
                 <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ExtrasBytePercentText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontRow}" FontWeight="SemiBold" FontFamily="Consolas,monospace" HorizontalAlignment="Right" Margin="0,0,12,0" VerticalAlignment="Center"/>
-                <Grid Grid.Row="2" Grid.Column="3" ColumnDefinitions="*,Auto,*" VerticalAlignment="Center">
+                <Grid Grid.Row="2" Grid.Column="3" HorizontalAlignment="Right" VerticalAlignment="Center">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" SharedSizeGroup="CovFilesDone"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto" SharedSizeGroup="CovFilesTotal"/></Grid.ColumnDefinitions>
                   <TextBlock Grid.Column="0" Text="{Binding ExtrasFilesDoneText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontFeatures="tnum" HorizontalAlignment="Right"/>
                   <TextBlock Grid.Column="1" Text=" / " Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontBody}"/>
                   <TextBlock Grid.Column="2" Text="{Binding ExtrasFilesTotalText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontFeatures="tnum" HorizontalAlignment="Right"/>
                 </Grid>
-                <Grid Grid.Row="2" Grid.Column="5" ColumnDefinitions="*,Auto,*" VerticalAlignment="Center">
+                <Grid Grid.Row="2" Grid.Column="5" HorizontalAlignment="Right" VerticalAlignment="Center">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" SharedSizeGroup="CovDataDone"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto" SharedSizeGroup="CovDataTotal"/></Grid.ColumnDefinitions>
                   <TextBlock Grid.Column="0" Text="{Binding ExtrasDataDoneText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontFeatures="tnum" HorizontalAlignment="Right"/>
                   <TextBlock Grid.Column="1" Text=" / " Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontBody}"/>
                   <TextBlock Grid.Column="2" Text="{Binding ExtrasDataTotalText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontFeatures="tnum" HorizontalAlignment="Right"/>
@@ -170,12 +186,14 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
                 </Grid>
-                <Grid Grid.Row="6" Grid.Column="3" ColumnDefinitions="*,Auto,*" VerticalAlignment="Center">
+                <Grid Grid.Row="6" Grid.Column="3" HorizontalAlignment="Right" VerticalAlignment="Center">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" SharedSizeGroup="CovFilesDone"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto" SharedSizeGroup="CovFilesTotal"/></Grid.ColumnDefinitions>
                   <TextBlock Grid.Column="0" Text="{Binding TotalCovFilesDoneText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontWeight="SemiBold" FontFeatures="tnum" HorizontalAlignment="Right"/>
                   <TextBlock Grid.Column="1" Text=" / " Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontBody}"/>
                   <TextBlock Grid.Column="2" Text="{Binding TotalCovFilesTotalText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontWeight="SemiBold" FontFeatures="tnum" HorizontalAlignment="Right"/>
                 </Grid>
-                <Grid Grid.Row="6" Grid.Column="5" ColumnDefinitions="*,Auto,*" VerticalAlignment="Center">
+                <Grid Grid.Row="6" Grid.Column="5" HorizontalAlignment="Right" VerticalAlignment="Center">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" SharedSizeGroup="CovDataDone"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto" SharedSizeGroup="CovDataTotal"/></Grid.ColumnDefinitions>
                   <TextBlock Grid.Column="0" Text="{Binding TotalCovDataDoneText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontWeight="SemiBold" FontFeatures="tnum" HorizontalAlignment="Right"/>
                   <TextBlock Grid.Column="1" Text=" / " Foreground="{StaticResource InkDim}" FontSize="{StaticResource FontBody}"/>
                   <TextBlock Grid.Column="2" Text="{Binding TotalCovDataTotalText}" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontBody}" FontWeight="SemiBold" FontFeatures="tnum" HorizontalAlignment="Right"/>

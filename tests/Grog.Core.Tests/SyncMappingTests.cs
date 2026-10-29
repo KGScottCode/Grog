@@ -69,6 +69,20 @@ public class GameDetailsMapperTests
     }
 
     [Test]
+    void ToLibraryItem_TagsPatchRowsAndKeepsTitleInstallers()
+    {
+        var details = new GameDetails
+        {
+            Title = "Patch Quest",
+            Installers = { new InstallerFile("/dl/win0", "Patch Quest", "windows", "English", "1.0", "1 GB"),
+                           new InstallerFile("/dl/win1", "Patch (1.0 to 1.1)", "windows", "English", "1.1", "50 MB") },
+        };
+        var item = GameDetailsMapper.ToLibraryItem(556, details);
+        Assert.Equal(FileKind.Installer, item.Files.Single(f => f.FileKey == "/dl/win0").Kind, "the game's own installer");
+        Assert.Equal(FileKind.Patch, item.Files.Single(f => f.FileKey == "/dl/win1").Kind, "the patch row");
+    }
+
+    [Test]
     void ToLibraryItem_PullsDlcExtrasOntoParent()
     {
         // Mirrors Shadowrun Returns: base game + a Deluxe DLC whose extras (soundtrack, artbook)

@@ -245,14 +245,34 @@ public sealed partial class LibraryViewModel
         _stats.ExtraTypes.Any(t => string.Equals(t.Name, "Alternate versions", StringComparison.OrdinalIgnoreCase)
                                 || string.Equals(t.Name, "Alt Versions", StringComparison.OrdinalIgnoreCase));
 
+    // A chip offers to narrow within the Settings scope; a chip whose whole kind is out of scope can match nothing,
+    // so it hides. Localizations and Alt Versions also hide when the library has none of that content.
     internal void RefreshConditionalChips()
     {
+        var scope = EffectiveScope;
+        foreach (var c in SoftwareChips)
+            c.IsVisible = string.Equals(c.Value, "Patches", StringComparison.OrdinalIgnoreCase)
+                ? scope.Includes(Grog.Core.Models.FileKind.Patch)
+                : scope.Games;
         foreach (var c in ExtraFilterChips)
         {
-            if (string.Equals(c.Value, "Localizations", StringComparison.OrdinalIgnoreCase)) c.IsVisible = HasLocalizationContent;
-            else if (string.Equals(c.Value, "Alt Versions", StringComparison.OrdinalIgnoreCase)) c.IsVisible = HasAltVersionContent;
+            bool content = string.Equals(c.Value, "Localizations", StringComparison.OrdinalIgnoreCase) ? HasLocalizationContent
+                         : string.Equals(c.Value, "Alt Versions", StringComparison.OrdinalIgnoreCase) ? HasAltVersionContent
+                         : true;
+            c.IsVisible = scope.Extras && content;
+        }
+        OnPropertyChanged(nameof(ShowChipDivider));
+        // The grid must follow a change in what counts as "all". Before a manifest is adopted (chip seeding in
+        // the constructor) there are no rows yet and the first rebuild filters them anyway.
+        if (RecomputeSelectedContent() && _manifest is not null)
+        {
+            ApplyFilter();
+            foreach (var g in _allGames) g.RaiseExtraChips();
+            RaiseChipDerived();
         }
     }
+
+    public bool ShowChipDivider => EffectiveScope.Games && EffectiveScope.Extras;
 
     internal void RaiseLegend()
     {
@@ -267,11 +287,16 @@ public sealed partial class LibraryViewModel
             var list = new List<ExtraTypeSegment>
             {
                 new("Game", Palette.AccentAmber),
+            };
+            if (EffectiveScope.Includes(Grog.Core.Models.FileKind.Patch))
+                list.Add(new ExtraTypeSegment("Patches", ExtraTypeSegment.ColorFor("Patches")));
+            list.AddRange(new ExtraTypeSegment[]
+            {
                 new("Soundtracks", ExtraTypeSegment.ColorFor("Soundtracks")),
                 new("Videos", ExtraTypeSegment.ColorFor("Videos")),
                 new("Art", ExtraTypeSegment.ColorFor("Art")),
                 new("Manuals", ExtraTypeSegment.ColorFor("Manuals")),
-            };
+            });
             if (HasLocalizationContent)
                 list.Add(new ExtraTypeSegment("Localizations", ExtraTypeSegment.ColorFor("Localizations")));
             list.Add(new ExtraTypeSegment("Alt Versions", ExtraTypeSegment.ColorFor("Alt Versions")));

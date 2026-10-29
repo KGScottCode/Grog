@@ -45,8 +45,7 @@ public sealed partial class InventoryRow : ObservableObject
     public long SizeBytes => Grog.Core.Sync.Rollups.HeldBytesOf(File);
     public string SizeText => ByteFormat.Size(SizeBytes);
 
-    public string TypeLabel => File.Kind == FileKind.Extra
-        ? Grog.Core.Sync.ExtraClassifier.Classify(File.Name, File.ExtraType) : "Game";
+    public string TypeLabel => Grog.Core.Sync.ExtraClassifier.TypeLabelOf(File);
     // Type chip: EXACTLY the shared treatment of the details file-row, download pill and queue row (fill = base
     // hue @0x2E, border = base brush, text = full opacity). EXTRAS ONLY -- color marks the game/extra distinction.
     public bool IsExtra => File.Kind == FileKind.Extra;
@@ -128,7 +127,7 @@ public sealed partial class DeviceGridViewModel : ObservableObject
     }
 
     private static readonly string[] TypeSequence =
-        { "Game", "Mod", "Soundtracks", "Manuals", "Videos", "Art", "Localizations", "Alt Versions", "Movie", "Old versions", "Other" };
+        { "Game", "Mod", "Patches", "Soundtracks", "Manuals", "Videos", "Art", "Localizations", "Alt Versions", "Movie", "Old versions", "Other" };
     private static int TypeOrder(string t)
     {
         int i = Array.FindIndex(TypeSequence, s => string.Equals(s, t, StringComparison.OrdinalIgnoreCase));

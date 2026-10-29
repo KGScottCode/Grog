@@ -146,13 +146,14 @@ public sealed partial class LibraryViewModel
 
             return;
         }
-        _includeGames = ms.IncludeGames; _includeExtras = ms.IncludeExtras;
+        _includeGames = ms.IncludeGames; _includeExtras = ms.IncludeExtras; _includePatches = ms.IncludePatches;
         _languages = ms.Languages.ToList();
         _extraLanguages = ms.ExtraLanguagesChosen && ms.ExtraLanguages is { } ex ? ex.ToList() : null;
         _platforms = ms.Platforms.ToList();
         // Raise here: the header button binds before the manifest scope loads and would keep the pre-scope answer.
         // The two language BUTTON labels are not in RaiseState's set; raise them or they stay stale.
         OnPropertyChanged(nameof(GamesLanguageLabel)); OnPropertyChanged(nameof(ExtrasLanguageLabel));
+        RefreshConditionalChips();   // the chips were seeded before the saved scope was known
     }
 
     private Grog.Core.Sync.ScopeSettings ManifestScope()
@@ -161,7 +162,8 @@ public sealed partial class LibraryViewModel
     internal Grog.Core.Sync.Scope EffectiveScope => new(_includeGames, _includeExtras,
         _languages.Count > 0 ? _languages : null,
         _platforms.Count > 0 ? _platforms : null,
-        ExtraLanguagesForScope);
+        ExtraLanguagesForScope,
+        _includePatches);
 
     private IReadOnlyCollection<string>? ExtraLanguagesForScope
         => _extraLanguages is null ? null : (_extraLanguages.Count > 0 ? _extraLanguages : System.Array.Empty<string>());
@@ -169,7 +171,8 @@ public sealed partial class LibraryViewModel
     internal Grog.Core.Sync.Scope ScopeFor(bool games, bool extras) => new(games, extras,
         _languages.Count > 0 ? _languages : null,
         _platforms.Count > 0 ? _platforms : null,
-        ExtraLanguagesForScope);
+        ExtraLanguagesForScope,
+        _includePatches);
     private List<string> _languages = new();
     private List<string>? _extraLanguages;
     private bool _editingExtraLanguages;
@@ -279,6 +282,31 @@ public sealed partial class LibraryViewModel
 
     public ObservableCollection<ContentOption> ContentOptions { get; } = new();
 
+    // Patches are a sub-choice of Games: priced against the other axes like the content rows, toggled in place.
+    public bool IncludePatches
+    {
+        get => _includePatches;
+        set { if (_includePatches != value) ApplyPatches(value); }
+    }
+    public string PatchesCostText { get; private set; } = "";
+    public bool ShowPatchesToggle => _includeGames;
+
+    private void ApplyPatches(bool include)
+    {
+        if (_manifest is null) { OnPropertyChanged(nameof(IncludePatches)); return; }   // snap the box back
+        _includePatches = include;
+        var msScope = ManifestScope();
+        msScope.IncludePatches = include;
+        Runtime.ManifestSaves.Default.SaveInBackground(_manifest, "scope");
+        PruneQueuedOutOfScope();
+        _root.RefreshFromManifest();
+        RaiseDetail();
+        RaiseScopeButtons();
+        _root.Settings.RaisePolicySummaryText();
+        _root.Settings.RaisePolicyState();
+        OnPropertyChanged(nameof(IncludePatches));
+    }
+
     public string ContentLabel => ScopeGamesOn ? "Games only" : ScopeExtrasOn ? "Extras only" : "Games & Extras";
 
     public string PlatformsLabel
@@ -306,6 +334,8 @@ public sealed partial class LibraryViewModel
         ContentOptions.Add(new ContentOption("both", "Games & Extras", t.Both.Files, t.Both.Bytes, ScopeBothOn));
         ContentOptions.Add(new ContentOption("games", "Games only", t.Games.Files, t.Games.Bytes, ScopeGamesOn));
         ContentOptions.Add(new ContentOption("extras", "Extras only", t.Extras.Files, t.Extras.Bytes, ScopeExtrasOn));
+        PatchesCostText = $"{Grog.Core.Format.ByteFormat.Size(t.Patches.Bytes)} \u00b7 {t.Patches.Files:N0} files";
+        OnPropertyChanged(nameof(PatchesCostText)); OnPropertyChanged(nameof(ShowPatchesToggle));
 
         // The total is the bucket the CURRENT pick names, taken from the same walk, so the header can never
         // disagree with the flyout row the user just read.
@@ -380,6 +410,7 @@ public sealed partial class LibraryViewModel
         // numbers inside it as well as which row is current: rebuild, never just re-raise the label.
         RebuildContentOptions();
         OnPropertyChanged(nameof(ContentLabel)); OnPropertyChanged(nameof(PlatformsLabel));
+        RefreshConditionalChips();   // a kind that left the scope takes its chips with it
     }
 
     public string ScopeLabel =>
@@ -395,6 +426,7 @@ public sealed partial class LibraryViewModel
 
     private bool _includeExtras = true;
     private bool _includeGames = true;
+    private bool _includePatches = true;
 
     // ---- Language scope: built from the library's OWN tags; empty selection = everything ----
     public ObservableCollection<LanguageOption> LanguageOptions { get; } = new();

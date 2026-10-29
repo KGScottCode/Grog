@@ -47,9 +47,7 @@ public sealed partial class QueueRow : ObservableObject, IDropTargetRow
     public string Name => IsNameHidden ? HiddenLabel : Task.ResolvedFileName ?? Task.File.Name;
     public string GameTitle => IsNameHidden ? HiddenLabel : Task.GameTitle;
     public string LabelText => IsNameHidden ? HiddenLabel : Task.File.Name;
-    public string TypeLabel => Task.File.Kind == FileKind.Extra
-        ? Grog.Core.Sync.ExtraClassifier.Classify(Task.File.Name, Task.File.ExtraType)
-        : "Game";
+    public string TypeLabel => Grog.Core.Sync.ExtraClassifier.TypeLabelOf(Task.File);
     public string FileNameText
     {
         get

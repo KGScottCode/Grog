@@ -45,16 +45,18 @@ internal static partial class CliVerbs
                 return Continue;
             case "set":
             {
-                bool anyChange = Has("--os") || Has("--lang") || Has("--installers-only") || Has("--with-extras") || Has("--games") || Has("--no-games");
+                bool anyChange = Has("--os") || Has("--lang") || Has("--installers-only") || Has("--with-extras") || Has("--games") || Has("--no-games") || Has("--patches") || Has("--no-patches");
                 if (!anyChange)
                 {
-                    Out.Usage("Usage: scope set [--os <a[,b]>] [--lang <a[,b]>] [--installers-only|--with-extras] [--games|--no-games]");
+                    Out.Usage("Usage: scope set [--os <a[,b]>] [--lang <a[,b]>] [--installers-only|--with-extras] [--games|--no-games] [--patches|--no-patches]");
                     return (int)Grog.Core.Cli.ExitCode.UsageError;
                 }
                 if (Has("--installers-only") && Has("--with-extras"))
                     return Fail("scope", Grog.Core.Cli.ExitCode.UsageError, "usage", "--installers-only and --with-extras exclude each other.");
                 if (Has("--games") && Has("--no-games"))
                     return Fail("scope", Grog.Core.Cli.ExitCode.UsageError, "usage", "--games and --no-games exclude each other.");
+                if (Has("--patches") && Has("--no-patches"))
+                    return Fail("scope", Grog.Core.Cli.ExitCode.UsageError, "usage", "--patches and --no-patches exclude each other.");
                 var os = Has("--os") ? Split(GetArgValue(args, "--os")) : null;
                 var lang = Has("--lang") ? Split(GetArgValue(args, "--lang")) : null;
                 if (os is not null && os.Any(p => p is not ("windows" or "mac" or "linux")))
@@ -63,6 +65,7 @@ internal static partial class CliVerbs
                 Grog.Core.Sync.SavedScope.Set(manifest,
                     includeGames: Has("--games") ? true : Has("--no-games") ? false : null,
                     includeExtras: Has("--with-extras") ? true : Has("--installers-only") ? false : null,
+                    includePatches: Has("--patches") ? true : Has("--no-patches") ? false : null,
                     languages: lang is null ? null : lang.Contains("all") ? new List<string>() : lang,
                     platforms: os is null ? null : os.Contains("all") ? new List<string>() : os);
                 int pruned = Grog.Core.Sync.SavedScope.PruneQueuedOutOfScope(manifest).Count;
@@ -77,14 +80,14 @@ internal static partial class CliVerbs
                 return Continue;
             }
             default:
-                Out.Usage("Usage: scope [show|set --os <list> --lang <list> [--installers-only|--with-extras] [--games|--no-games]]");
+                Out.Usage("Usage: scope [show|set --os <list> --lang <list> [--installers-only|--with-extras] [--games|--no-games] [--patches|--no-patches]]");
                 return (int)Grog.Core.Cli.ExitCode.UsageError;
         }
     }
 
     private static object ScopeDoc(Grog.Core.Sync.ScopeSettings? s) => s is null
         ? new { saved = false }
-        : new { saved = true, games = s.IncludeGames, extras = s.IncludeExtras, os = s.Platforms, lang = s.Languages,
+        : new { saved = true, games = s.IncludeGames, patches = s.IncludePatches, extras = s.IncludeExtras, os = s.Platforms, lang = s.Languages,
                 extraLang = s.ExtraLanguagesChosen ? s.ExtraLanguages : null };
 
     private static void ShowScope(CliContext ctx, Grog.Core.Sync.ScopeSettings? s)
@@ -94,6 +97,7 @@ internal static partial class CliVerbs
         static string ListOrAll(List<string>? l) => l is { Count: > 0 } ? string.Join(",", l) : "all";
         Out.Heading("Saved scope (the base filter every backup/download run applies):");
         Out.Info($"  games      {(s.IncludeGames ? "yes" : "no")}");
+        Out.Info($"  patches    {(s.IncludeGames && s.IncludePatches ? "yes" : "no")}");
         Out.Info($"  extras     {(s.IncludeExtras ? "yes" : "no")}");
         Out.Info($"  os         {ListOrAll(s.Platforms)}");
         Out.Info($"  lang       {ListOrAll(s.Languages)}");

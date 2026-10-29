@@ -76,11 +76,13 @@
             <TextBlock Text="{Binding RowTitle}" Foreground="White" FontSize="{StaticResource FontBody}" TextTrimming="CharacterEllipsis"/>
             <TextBlock Text="{Binding RowSubtitle}" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}" IsVisible="{Binding ShowSubtitle}" TextTrimming="CharacterEllipsis"/>
           </StackPanel>
-          <Border Grid.Column="3" Classes="osbadge" HorizontalAlignment="Right" Margin="0,0,8,0" IsVisible="{Binding ShowOsBadge}" BorderBrush="{Binding OsBadgeBrush}"><TextBlock Text="{Binding OsBadge}" Foreground="{Binding OsBadgeBrush}"/></Border>
-          <Border Grid.Column="3" Classes="typechip" Background="{Binding ExtraTypeFill}" BorderBrush="{Binding ExtraTypeBorder}" Margin="0,0,8,0" HorizontalAlignment="Right"
-                  IsVisible="{Binding Descriptor, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-            <TextBlock Text="{Binding Descriptor}" Foreground="{Binding ExtraTypeText}"/>
-          </Border>
+          <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="0">
+            <Border Classes="typechip" Background="{Binding ExtraTypeFill}" BorderBrush="{Binding ExtraTypeBorder}" Margin="0,0,8,0"
+                    IsVisible="{Binding Descriptor, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+              <TextBlock Text="{Binding Descriptor}" Foreground="{Binding ExtraTypeText}"/>
+            </Border>
+            <Border Classes="osbadge" Margin="0,0,8,0" IsVisible="{Binding ShowOsBadge}" BorderBrush="{Binding OsBadgeBrush}"><TextBlock Text="{Binding OsBadge}" Foreground="{Binding OsBadgeBrush}"/></Border>
+          </StackPanel>
           <TextBlock Grid.Column="4" Text="{Binding SizeText}" Foreground="White" FontSize="{StaticResource FontBody}" TextAlignment="Right" VerticalAlignment="Center"/>
         </Grid>
         <ProgressBar Classes="slim" Margin="27,0,0,0"

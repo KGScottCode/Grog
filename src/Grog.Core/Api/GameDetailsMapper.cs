@@ -26,7 +26,7 @@ public static class GameDetailsMapper
             {
                 GameGogId = gogId,
                 FileKey = inst.ManualUrl,
-                Kind = isDlc ? FileKind.DlcInstaller : FileKind.Installer,
+                Kind = IsPatch(inst.Name) ? FileKind.Patch : isDlc ? FileKind.DlcInstaller : FileKind.Installer,
                 Name = inst.Name,
                 Os = inst.Os,
                 Language = inst.Language,
@@ -94,4 +94,11 @@ public static class GameDetailsMapper
     }
 
     public static string Slugify(string title) => Format.Naming.Slug(title);
+
+    // GOG's details list patches among the installers, distinguished only by name: "Patch (1.0 to 1.1)",
+    // "Patch 1.31", "Patch 1.31 (Part 1 of 2)". A version or bracket must follow, so "Patchwork" and a game
+    // titled "Patch Quest" stay games.
+    private static readonly System.Text.RegularExpressions.Regex PatchName =
+        new(@"^\s*Patch\s*(\(|\d)", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+    internal static bool IsPatch(string? name) => name is not null && PatchName.IsMatch(name);
 }

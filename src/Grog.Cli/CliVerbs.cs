@@ -1612,7 +1612,7 @@ internal static partial class CliVerbs
                 Console.WriteLine($"    {f.Name,-42} {meta,-18} {size,8}{ver}");
             }
         }
-        Dump("Installers", g.Files.Where(f => f.Kind is FileKind.Installer or FileKind.DlcInstaller));
+        Dump("Installers", g.Files.Where(f => f.Kind is FileKind.Installer or FileKind.DlcInstaller or FileKind.Patch));
         Dump("Extras", g.Files.Where(f => f.Kind == FileKind.Extra));
         Console.WriteLine($"\n  {g.Files.Count} file(s) total.");
         return Continue;
@@ -1996,7 +1996,7 @@ internal static partial class CliVerbs
               grogcli show <id|title>   Dump all installers + extras for one game
               grogcli download [flt]    Download missing/updated. Scope flags:
                                           --id --title --updates --parallel N --limit-mbps --debug --largest [N]
-                                          --installers-only --extras-only --skip-extras --skip-installers --no-dlc
+                                          --installers-only --extras-only --skip-extras --skip-installers --skip-patches --no-dlc
                                           --extra-type <t[,t2]>  --os <a[,b]> [--os-fallback]  --lang <a[,b]>
                                           --type <game|mod|pack|dlc|movie>  --title-regex <rx>  --blacklist <s[,s]>
                                           --ignore-saved-scope (lift the GUI-saved scope; it is the base filter)
@@ -2017,7 +2017,7 @@ internal static partial class CliVerbs
               grogcli root forget <label> --yes        Stop tracking a drive: its files count as not backed up
               grogcli pause | resume                   Hold / release the download queue ('backup' honours it)
               grogcli scope [show|set]                 The saved scope (base filter): --os <list> --lang <list>
-                                                         [--installers-only|--with-extras] [--games|--no-games]
+                                                         [--installers-only|--with-extras] [--games|--no-games] [--patches|--no-patches]
               grogcli policy [show|games|extras|game]  Route content to drives
               grogcli relocate <game> --to <root>      Move a game's files to another drive
               grogcli reorg [status|run|resume]        Reorganize backups to the current layout (resumable)
@@ -2118,7 +2118,7 @@ internal static partial class CliVerbs
     internal static string Trunc(string s, int n) => CliText.Trunc(s, n);
 
     // Builds a DownloadScope from CLI flags, layered over any saved defaults in the manifest.
-    //   --installers-only / --extras-only / --skip-extras / --skip-installers
+    //   --installers-only / --extras-only / --skip-extras / --skip-installers / --skip-patches
     //   --extra-type <t[,t2]>   (soundtrack, artbook, manual, ...)
     //   --os <a[,b]> [--os-fallback]   --lang <a[,b]>
     //   --type <game|mod|pack|dlc|movie>   --title-regex <rx>
@@ -2135,10 +2135,11 @@ internal static partial class CliVerbs
         static IEnumerable<string> Split(string? v) =>
             (v ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-        if (Has("--installers-only")) { scope.IncludeExtras = false; scope.IncludePatches = false; }
+        if (Has("--installers-only")) scope.IncludeExtras = false;   // patches are installers here, as before 0.1.3
         if (Has("--extras-only")) { scope.IncludeInstallers = false; scope.IncludePatches = false; scope.IncludeDlcInstallers = false; }
         if (Has("--skip-extras")) scope.IncludeExtras = false;
-        if (Has("--skip-installers")) scope.IncludeInstallers = false;
+        if (Has("--skip-installers")) { scope.IncludeInstallers = false; scope.IncludePatches = false; }
+        if (Has("--skip-patches")) scope.IncludePatches = false;
         if (Has("--no-dlc")) scope.IncludeDlcInstallers = false;
 
         foreach (var t in Split(Val("--extra-type"))) scope.ExtraTypes.Add(t);

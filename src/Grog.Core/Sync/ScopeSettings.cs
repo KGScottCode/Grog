@@ -21,17 +21,21 @@ public sealed class ScopeSettings
     public List<string> Platforms { get; set; } = new();
     public bool PlatformsChosen { get; set; }
 
+    public bool IncludePatches { get; set; } = true;
+
     public Scope ToScope() => new(IncludeGames, IncludeExtras,
         Languages.Count > 0 ? Languages : null,
         Platforms.Count > 0 ? Platforms : null,
-        ExtraLanguagesChosen && ExtraLanguages is { } ex ? ex : null);
+        ExtraLanguagesChosen && ExtraLanguages is { } ex ? ex : null,
+        IncludePatches);
 }
 
 public static class SavedScope
 {
     public static ScopeSettings Set(IManifestStore store, bool? includeGames = null, bool? includeExtras = null,
         IReadOnlyCollection<string>? languages = null, IReadOnlyCollection<string>? platforms = null,
-        IReadOnlyCollection<string>? extraLanguages = null, bool followGamesForExtras = false)
+        IReadOnlyCollection<string>? extraLanguages = null, bool followGamesForExtras = false,
+        bool? includePatches = null)
     {
         ScopeSettings result = null!;
         store.Mutate(m =>
@@ -43,6 +47,7 @@ public static class SavedScope
             if (platforms is not null) { s.Platforms = platforms.ToList(); s.PlatformsChosen = true; }
             if (extraLanguages is not null) { s.ExtraLanguages = extraLanguages.ToList(); s.ExtraLanguagesChosen = true; }
             else if (followGamesForExtras) { s.ExtraLanguages = null; s.ExtraLanguagesChosen = false; }
+            if (includePatches is { } ip) s.IncludePatches = ip;
             result = s;
         });
         return result;

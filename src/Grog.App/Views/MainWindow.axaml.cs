@@ -289,6 +289,11 @@ public partial class MainWindow : Window
                     grid.SelectedItems.Clear();
                     e.Handled = true;
                 }
+                else if (DataContext is MainWindowViewModel svm && svm.Library.SelectedRows.Count > 0)
+                {
+                    svm.Library.UpdateSelection(Array.Empty<object>());   // mirror out of step with the grid
+                    e.Handled = true;
+                }
             };
         }
 

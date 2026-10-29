@@ -358,6 +358,7 @@ public sealed partial class LibraryViewModel : ObservableObject
         // visible; if it got filtered out, retain the reference so the pane stays open (don't null it).
         if (keepSelectedId is { } keepId)
             SelectedRow = Games.FirstOrDefault(g => g.GogId == keepId) ?? SelectedRow;
+        PruneStaleSelection();   // a rebuilt row instance leaves the grid's selection without an event
         OnPropertyChanged(nameof(FilterCountText)); OnPropertyChanged(nameof(HasFilterCount));
         OnPropertyChanged(nameof(ShowGoneBar)); OnPropertyChanged(nameof(GoneBarText));
         OnPropertyChanged(nameof(StatusFilterActive));

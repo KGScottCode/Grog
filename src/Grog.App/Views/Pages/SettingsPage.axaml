@@ -125,6 +125,14 @@
                             </DataTemplate>
                           </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                        <Border Height="1" Background="{StaticResource NeutralRuleFade}" Margin="0,6,0,4" IsVisible="{Binding ShowPatchesToggle}"/>
+                        <CheckBox IsChecked="{Binding IncludePatches, Mode=TwoWay}" IsVisible="{Binding ShowPatchesToggle}"
+                                  HorizontalAlignment="Stretch" Padding="8,4,10,4" Margin="0,0,0,2">
+                          <StackPanel Spacing="0">
+                            <TextBlock Text="Include patches" Foreground="{StaticResource InkPrimary}" FontSize="{StaticResource FontCaption}"/>
+                            <TextBlock Text="{Binding PatchesCostText}" Foreground="{StaticResource InkMuted}" FontSize="{StaticResource FontEyebrow}"/>
+                          </StackPanel>
+                        </CheckBox>
                       </StackPanel>
                     </Flyout>
                   </Button.Flyout>
