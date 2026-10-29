@@ -28,7 +28,7 @@ public class LookupIndexTests
 
     static IEnumerable<(long, string)> Probes() => Enumerable.Range(1, 8).Select(i => ((long)i, "f" + i)).Append((99L, "zz"));
 
-    [Test] void Queue_index_agrees_with_a_scan_through_every_mutator()
+    [Test] void QueueIndex_MatchesScan_EveryMutator()
     {
         var q = new DownloadQueue();
         for (int i = 1; i <= 6; i++) q.Enqueue(i, "f" + i, "r");
@@ -80,7 +80,7 @@ public class LookupIndexTests
     }
 
     // A persisted list with one key twice: the first entry is the queue's, and SetOrder, Remove and the index agree.
-    [Test] void Queue_loaded_with_duplicate_keys_keeps_the_first_entry_everywhere()
+    [Test] void QueueDuplicateKeys_FirstEntryWins()
     {
         var q = new DownloadQueue
         {
@@ -132,7 +132,7 @@ public class LookupIndexTests
     }
 
     // Count cannot see a remove followed by an add; the Core mutators flag it so a removed item never resolves.
-    [Test] void Manifest_ItemById_forgets_an_item_the_Core_mutators_removed_when_Count_did_not_move()
+    [Test] void ItemById_ForgetsRemoved_CountUnchanged()
     {
         var m = new LibraryManifest();
         m.Items.Add(new LibraryItem { GogId = 1, Title = "A" });

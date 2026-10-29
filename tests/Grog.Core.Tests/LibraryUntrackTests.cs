@@ -43,7 +43,7 @@ public class LibraryUntrackTests
     }
 
     [Test]
-    public void Removing_an_owner_removes_sole_owned_items_and_keeps_co_owned()
+    public void RemoveOwner_DropsSoleOwned_KeepsCoOwned()
     {
         var m = Manifest(
             Game(1, ("a", new[] { "alice" }), ("b", new[] { "alice" })),
@@ -62,7 +62,7 @@ public class LibraryUntrackTests
     }
 
     [Test]
-    public void A_sole_owned_file_inside_a_co_owned_game_leaves_with_its_owner()
+    public void SoleOwnedFile_InCoOwnedGame_LeavesToo()
     {
         var m = Manifest(Game(1, ("shared", new[] { "alice", "bob" }), ("regional", new[] { "alice" })));
 
@@ -74,7 +74,7 @@ public class LibraryUntrackTests
     }
 
     [Test]
-    public void Legacy_AccountId_attribution_is_blanked_so_seeding_cannot_resurrect_ownership()
+    public void LegacyAccountId_Blanked_NoResurrection()
     {
         var g = Game(1, ("shared", new[] { "alice", "bob" }));
         g.AccountId = "alice";
@@ -87,7 +87,7 @@ public class LibraryUntrackTests
     }
 
     [Test]
-    public void RemoveItems_removes_named_items_and_their_queue_entries_only()
+    public void RemoveItems_TakesNamedItemsAndQueueOnly()
     {
         var m = Manifest(
             Game(1, ("a", new[] { "alice" })),
@@ -103,7 +103,7 @@ public class LibraryUntrackTests
     }
 
     [Test]
-    public void RemoveItems_marks_every_root_holding_the_removed_bytes_for_reimport()
+    public void RemoveItems_MarksHoldingRootsForReimport()
     {
         var m = Manifest(Game(1, ("a", new[] { "alice" }), ("b", new[] { "alice" })), Game(2, ("a", new[] { "alice" })));
         var primary = new BackupRoot { Id = "primary" }; var second = new BackupRoot { Id = "second" }; var idle = new BackupRoot { Id = "idle" };
@@ -121,7 +121,7 @@ public class LibraryUntrackTests
     }
 
     [Test]
-    public void Fresh_library_reset_empties_items_and_queue_and_keeps_accounts()
+    public void FreshReset_ClearsLibrary_KeepsAccounts()
     {
         var m = Manifest(Game(1, ("a", new[] { "alice" })), Game(2, ("a", new[] { "alice" })));
         m.Accounts.Add(new GrogAccount { Id = "alice", Username = "alice", LastSync = System.DateTimeOffset.UtcNow });
@@ -152,7 +152,7 @@ public class LibraryUntrackTests
 
     // Sweep 2 #31: the removed account's saves resurfaced under the first remaining account.
     [Test]
-    public void Removing_an_account_takes_its_cloud_mirror_so_nothing_is_reseeded_under_another()
+    public void RemoveAccount_TakesCloudMirror_NoReseed()
     {
         var m = Manifest(Game(1, ("a", new[] { "alice", "bob" })));
         m.Accounts.Add(new GrogAccount { Id = "bob", Username = "bob" });
@@ -169,7 +169,7 @@ public class LibraryUntrackTests
     }
 
     [Test]
-    public void A_file_less_item_attributed_only_to_the_account_leaves_with_it()
+    public void FilelessItem_OwnedByAccount_LeavesWithIt()
     {
         // A pack/DLC shell has no files; its ownership is the legacy item-level attribution. SoleOwnedBy
         // previews it, so RemoveOwner must remove it too or the dialog's count lies.
@@ -183,7 +183,7 @@ public class LibraryUntrackTests
     }
 
     [Test]
-    public void Cloud_save_state_for_the_removed_account_is_pruned()
+    public void RemovedAccount_CloudSaveStatePruned()
     {
         var g = Game(1, ("k", new[] { "a", "b" }));
         g.CloudByAccount.Add(new CloudAccountSave { AccountId = "a", Files = 2 });

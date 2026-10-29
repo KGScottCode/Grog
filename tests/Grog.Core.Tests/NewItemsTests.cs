@@ -199,7 +199,7 @@ public class NewItemsTests
     }
 
     [Test]
-    public void A_manifest_without_the_field_deserialises_as_not_new()
+    public void MissingField_DeserialisesAsNotNew()
     {
         // Exactly what an existing library looks like: no IsNew anywhere. Zero migration code, and the
         // whole library must read as not-new.

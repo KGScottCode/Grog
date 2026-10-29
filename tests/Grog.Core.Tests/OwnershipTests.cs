@@ -34,7 +34,7 @@ public class OwnershipTests
     }
 
     [Test]
-    public void Second_account_scanning_an_owned_game_adds_owner_without_duplicating()
+    public void SecondAccountScan_AddsOwner_NoDuplicate()
     {
         var existing = Game(1, "", ("setup.exe", new[] { "" }), ("manual.pdf", new[] { "" }));
         existing.Files[0].State = FileState.Verified;
@@ -51,7 +51,7 @@ public class OwnershipTests
     }
 
     [Test]
-    public void Rescanning_the_same_account_does_not_double_the_owner()
+    public void Rescan_SameAccount_NoDoubleOwner()
     {
         var existing = Game(1, "", ("setup.exe", new[] { "" }));
         LibrarySyncService.MergeIntoForTests(existing, Incoming(1, "setup.exe"), accountId: "");
@@ -59,7 +59,7 @@ public class OwnershipTests
     }
 
     [Test]
-    public void A_file_offered_to_one_account_only_carries_only_that_owner()
+    public void FileOfferedToOne_CarriesOnlyThatOwner()
     {
         // The regional extra: kids' scan returns a bonus file acct's never did. It joins the game with
         // kids as its ONLY owner, while the shared file gains both.
@@ -110,7 +110,7 @@ public class OwnershipTests
     }
 
     [Test]
-    public void Game_union_falls_back_to_attribution_before_migration_touches_it()
+    public void GameUnion_FallsBackToAttribution()
     {
         var item = Game(3, "kids", ("setup.exe", Array.Empty<string>()));
         Assert.True(item.OwnerIds.SequenceEqual(new[] { "kids" }),

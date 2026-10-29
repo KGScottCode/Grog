@@ -44,7 +44,7 @@ public sealed class CloudAccountReconcilerTests
     }
 
     [Test]
-    public void Scanned_account_with_no_container_leaves_the_game_and_mirror_follows_first_entry()
+    public void NoContainer_KeepsGame_MirrorFollowsFirst()
     {
         var game = new LibraryItem { GogId = 1, Title = "Doom" };
         game.CloudByAccount.Add(new CloudAccountSave { AccountId = "acct", SizeBytes = 5 });
@@ -62,7 +62,7 @@ public sealed class CloudAccountReconcilerTests
     }
 
     [Test]
-    public void No_entries_left_clears_the_flag_and_cached_identity()
+    public void NoEntriesLeft_ClearsFlagAndIdentity()
     {
         var game = new LibraryItem { GogId = 1, Title = "Doom", CloudClientId = "stale", CloudSpaceId = "s" };
         game.CloudByAccount.Add(new CloudAccountSave { AccountId = "acct", SizeBytes = 5, SpaceId = "s" });
@@ -77,7 +77,7 @@ public sealed class CloudAccountReconcilerTests
     }
 
     [Test]
-    public void Legacy_single_slot_manifest_seeds_under_the_first_account()
+    public void LegacySingleSlot_SeedsUnderFirstAccount()
     {
         var game = new LibraryItem { GogId = 1, Title = "Doom", HasCloudSaves = true, CloudSaveSize = 42, CloudSaveFiles = 3,
                                      CloudLocalSaveCount = 2, CloudBackedUpSize = 40 };
@@ -93,7 +93,7 @@ public sealed class CloudAccountReconcilerTests
     }
 
     [Test]
-    public void Pruning_local_saves_updates_the_accounts_entry_and_the_mirror_together()
+    public void PruneLocalSaves_UpdatesEntryAndMirror()
     {
         // The single-write-path rule: bookkeeping lands in the per-account entry, MirrorLegacy follows.
         // Deleting old saves keeps the fingerprint while any save remains; emptying the history clears it,
@@ -116,7 +116,7 @@ public sealed class CloudAccountReconcilerTests
     }
 
     [Test]
-    public void Rescan_replaces_server_facts_but_keeps_local_backup_bookkeeping()
+    public void Rescan_ReplacesServerFacts_KeepsLocal()
     {
         // A listing call changes nothing on disk: the archive and its fingerprint must survive the
         // per-account replacement, or every rescan would flip backed-up games to "never backed up".
@@ -136,7 +136,7 @@ public sealed class CloudAccountReconcilerTests
     }
 
     [Test]
-    public void Account_archive_dirs_are_named_for_the_account_and_never_collide()
+    public void ArchiveDirs_NamedPerAccount_NeverCollide()
     {
         var m = Manifest();
         Assert.True(CloudSaveReconciler.AccountArchiveDir(m, "base", "acct").EndsWith("acct"),
@@ -145,7 +145,7 @@ public sealed class CloudAccountReconcilerTests
     }
 
     [Test]
-    public void A_per_account_folder_override_fully_replaces_the_default_and_skips_the_legacy_fallback()
+    public void FolderOverride_ReplacesDefault_NoLegacy()
     {
         var m = Manifest();
         m.Accounts.Single(a => a.Id == "acct").CloudSavesFolder = "X:\\my-saves";
@@ -155,7 +155,7 @@ public sealed class CloudAccountReconcilerTests
     }
 
     [Test]
-    public void Legacy_flat_archive_stays_readable_for_the_first_account()
+    public void LegacyFlatArchive_FirstAccountReadsIt()
     {
         // Pre-account installs archived at <base>/<game>/cloud-saves. Those bytes never move: the first
         // slot keeps resolving there while such an archive exists and no per-account one does.

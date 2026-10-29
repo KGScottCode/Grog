@@ -25,7 +25,7 @@ public sealed class DelistedSweepTests
     }
 
     [Test]
-    public void Sweep_flags_only_what_no_account_saw_and_clears_what_reappeared()
+    public void Sweep_FlagsUnseen_ClearsReappeared()
     {
         var kept = new LibraryItem { GogId = 1, Title = "Primary's game" };
         var reappeared = new LibraryItem { GogId = 2, Title = "Was flagged", IsDelisted = true };
@@ -40,7 +40,7 @@ public sealed class DelistedSweepTests
     }
 
     [Test]
-    public void Sweep_never_flags_games_owned_only_by_a_removed_account_and_heals_stale_flags()
+    public void Sweep_SkipsRemovedAccountGames_Heals()
     {
         // Owner-hit: removing an account painted its 15 games "delisted by GOG" - false.
         // A game no registered account can ask about is UNANSWERABLE: never flagged, stale flag withdrawn.
@@ -72,7 +72,7 @@ public sealed class DelistedSweepTests
     }
 
     [Test]
-    public void Narrowing_removes_a_scanned_account_from_games_its_scan_never_saw()
+    public void Narrowing_DropsAccount_FromUnseenGames()
     {
         // The stale-attribution repair: the add-merge bug tagged the primary onto games it never owned,
         // and per-file seen-but-not-offered can never fix a game the account's scans do not mention.

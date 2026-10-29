@@ -137,7 +137,7 @@ public class PlacementPlannerTests
 
     // ---- ByContent (role routing + spill fallback) ----
 
-    [Test] void ByContent_RoutesByRole_ThenSpillsWhenRoleDeviceFull()
+    [Test] void ByContent_RoutesByRole_SpillsWhenFull()
     {
         var routing = new RoutingPolicy { Mode = RoutingMode.ByContent };
         routing.RoleRoots[ContentRole.Extras] = S;   // extras pinned to secondary; games default to primary
@@ -155,7 +155,7 @@ public class PlacementPlannerTests
         Assert.Equal(P, Where(plan, "extra2"), "second extra spills to primary -- secondary full");
     }
 
-    [Test] void ByContent_ExtrasOnSecondary_DoNotConsumeThePrimary()
+    [Test] void ByContent_SecondaryExtras_SparePrimary()
     {
         var routing = new RoutingPolicy { Mode = RoutingMode.ByContent };
         routing.RoleRoots[ContentRole.Extras] = S;
@@ -175,7 +175,7 @@ public class PlacementPlannerTests
         Assert.Equal(S, Where(plan, "x2"), "and never take primary room");
     }
 
-    [Test] void ByContent_SpillNeverOversubscribesTheDeviceItLandsOn()
+    [Test] void ByContent_SpillNeverOversubscribes()
     {
         var routing = new RoutingPolicy { Mode = RoutingMode.ByContent };
         routing.RoleRoots[ContentRole.Extras] = S;
@@ -243,7 +243,7 @@ public class PlacementPlannerTests
 
     // After the flagged rows are removed, what remains fits BY CONSTRUCTION, so any reorder of the rest
     // changes only order, never fit. This is what makes "Remove them from the queue" a one-shot, stable action.
-    [Test] void RemovingTheWontFitRows_LeavesASetThatFitsInAnyOrder()
+    [Test] void RemoveWontFit_RestFitsInAnyOrder()
     {
         var files = new[] { File("a", 30, gog: 1), File("big", 500, gog: 2), File("b", 30, gog: 3), File("c", 30, gog: 4) };
         var devices = new[] { Dev(P, 100) };
@@ -272,7 +272,7 @@ public class PlacementPlannerTests
         Assert.False(again.Placements[0].Fits, "no partial: the whole 190 is needed");
     }
     [Test]
-    public void A_file_over_the_volumes_per_file_ceiling_never_lands_there()
+    public void OverPerFileCeiling_NeverLandsThere()
     {
         const long Fat32 = 4294967295L;
         Assert.Equal(Fat32, Grog.Core.Storage.DriveResolver.MaxFileBytesFor("FAT32"));
@@ -296,7 +296,7 @@ public class PlacementPlannerTests
     }
 
     [Test]
-    public void Files_cost_their_cluster_rounded_size_and_the_floor_is_held_back()
+    public void ClusterRoundedCost_FloorHeldBack()
     {
         long floor = Grog.Core.Download.DownloadEngine.FloorBytes;
         var d = DeviceSpace.ForRoot("p", floor + 2 * 4096, true, null) with { ClusterBytes = 4096 };
@@ -311,7 +311,7 @@ public class PlacementPlannerTests
     }
 
     [Test]
-    public void A_partial_discounts_the_file_only_on_the_volume_that_holds_it()
+    public void Partial_DiscountsOnlyOnHoldingVolume()
     {
         var f = new GameFile { GameGogId = 1, FileKey = "/a", Kind = FileKind.Installer, ExpectedSizeBytes = 5000, HasPartial = true, PartialBytes = 4500, PartialRootId = "p" };
         var routing = new RoutingPolicy();

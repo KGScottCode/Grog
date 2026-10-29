@@ -41,7 +41,7 @@ public class ReorgPlannerOldVersionsTests
     // A per-device move must relocate the archive too, preserving the Old Versions/ shape (NOT reshaping it
     // into a game folder via the layout).
     [Test]
-    void ForFileMoves_CarriesOldVersions_PreservingArchiveShape()
+    void ForFileMoves_OldVersions_KeepShape()
     {
         var m = ManifestOnRoot("r1");
         // Two online roots so the layout can resolve source + target paths.

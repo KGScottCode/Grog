@@ -184,7 +184,7 @@ public class ExtrasPlacementTests
     // committed state it returned the moves that undo the change: WithGame committed, SeparateByType staged,
     // and the card footer said "nothing to move" while Apply then moved everything.
     [Test]
-    void PlanMoves_PlansAgainstTheTargetAndLeavesTheManifestUntouched()
+    void PlanMoves_UsesTarget_ManifestUntouched()
     {
         using var bed = new Bed();
         bed.M.ExtrasLayout = ExtrasPlacement.WithGame;   // committed: with the game

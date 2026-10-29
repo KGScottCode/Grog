@@ -103,7 +103,7 @@ public class RunJournalTests
     }
 
     [Test]
-    public void Finish_flushes_every_line_written_through_the_open_stream()
+    public void Finish_FlushesEveryLineWritten()
     {
         // The stream stays open for the run and syncs to disk on a window; Finish syncs the rest and closes it,
         // so a reader after Finish sees every line, batched or not, and the closing line last.
@@ -129,7 +129,7 @@ public class RunJournalTests
     }
 
     [Test]
-    public void Finish_is_idempotent_so_dispose_after_finish_does_not_reopen_it()
+    public void Finish_Idempotent_DisposeNoReopen()
     {
         var j = RunJournal.Start(_dir, "download", 1)!;
         j.Finish(Grog.Core.Scheduling.ScheduleRunOutcome.Completed);
@@ -138,7 +138,7 @@ public class RunJournalTests
     }
 
     [Test]
-    public void A_torn_last_line_does_not_destroy_the_lines_before_it()
+    public void TornLastLine_KeepsEarlierLines()
     {
         var j = RunJournal.Start(_dir, "download", 2)!;
         j.File("a", ok: true, bytes: 1);
@@ -168,7 +168,7 @@ public class RunJournalTests
     }
 
     [Test]
-    public void Old_runs_are_pruned_so_the_folder_cannot_grow_without_bound()
+    public void OldRunsPruned_FolderBounded()
     {
         Directory.CreateDirectory(RunsDir);
         for (int i = 0; i < 30; i++)
@@ -180,7 +180,7 @@ public class RunJournalTests
     }
 
     [Test]
-    public void The_reader_reports_a_failed_run_and_speaks_the_shared_vocabulary()
+    public void Reader_ReportsFailedRun_SharedVocab()
     {
         var j = RunJournal.Start(_dir, "download", 2)!;
         j.File("a", ok: false, bytes: 0, error: "disk full");
@@ -208,7 +208,7 @@ public class RunJournalTests
     }
 
     [Test]
-    public void The_reader_opens_the_events_file_while_a_writer_still_holds_it()
+    public void Reader_OpensEvents_WhileWriterHolds()
     {
         var j = RunJournal.Start(_dir, "download", 2)!;
         j.File("a", ok: false, bytes: 0, error: "disk full");

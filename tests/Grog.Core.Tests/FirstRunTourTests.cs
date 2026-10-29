@@ -25,7 +25,7 @@ public sealed class FirstRunTourTests
     // ---- the list ----
 
     [Test]
-    void The_rails_appear_in_order_each_preceded_by_its_click()
+    void Rails_AppearInOrder_EachAfterItsClick()
     {
         // Owner-stated shape: Account, Folders, Library, Overview, Cloud Saves, Settings, and every page is
         // reached by clicking its rail item first. The pair is what a user experiences as one step.
@@ -55,7 +55,7 @@ public sealed class FirstRunTourTests
     }
 
     [Test]
-    void A_rail_click_and_the_page_it_opens_share_one_number()
+    void RailClickAndPage_ShareOneNumber()
     {
         // Otherwise the counter counts clicks, and "Step 11 of 15" describes plumbing rather than progress.
         Assert.Equal(6, FirstRunTour.Total, "six numbered milestones, one per rail");
@@ -129,7 +129,7 @@ public sealed class FirstRunTourTests
     }
 
     [Test]
-    void Back_walks_one_stop_at_a_time_all_the_way_to_the_start()
+    void Back_OneStopAtATime_ToTheStart()
     {
         var g = Fresh();
         var s = S(view: "Settings", acct: true, folder: true, lib: true, backed: true, sawFile: true);
@@ -160,7 +160,7 @@ public sealed class FirstRunTourTests
     }
 
     [Test]
-    void Reading_an_earlier_stop_is_not_interrupted_by_progress_behind_you()
+    void EarlierStop_NotInterruptedByProgress()
     {
         // The whole point of holding two positions: the tour may advance while the user re-reads something.
         var g = Fresh();
@@ -174,7 +174,7 @@ public sealed class FirstRunTourTests
     }
 
     [Test]
-    void Moving_the_cursor_hands_back_the_page_that_stop_lives_on()
+    void MoveCursor_ReturnsStopsPage()
     {
         // This is what keeps Back honest. The old code synced the page only when walking history forward, so
         // going back left a past caption sitting over the present page.
@@ -190,7 +190,7 @@ public sealed class FirstRunTourTests
     }
 
     [Test]
-    void A_required_stop_cannot_be_skipped_but_an_optional_one_can()
+    void RequiredStop_NotSkippable_OptionalIs()
     {
         var g = Fresh();
         // Start ELSEWHERE: the rail stop completes on arrival, so opening on Accounts would legitimately
@@ -210,7 +210,7 @@ public sealed class FirstRunTourTests
     }
 
     [Test]
-    void The_scan_stop_narrates_while_it_runs_and_the_confirmation_changes_once_a_file_lands()
+    void ScanStop_NarratesRun_ConfirmsOnLanding()
     {
         var g = Fresh();
         g.GoTo("scan");
@@ -238,7 +238,7 @@ public sealed class FirstRunTourTests
     }
 
     [Test]
-    void The_tour_is_complete_only_when_the_last_card_is_acknowledged()
+    void TourComplete_OnlyWhenLastCardAcked()
     {
         // Completion used to be a state predicate, which is how a tour could end before showing its final
         // card. It is now exactly "the user pressed Done on the sign-off".
@@ -255,7 +255,7 @@ public sealed class FirstRunTourTests
     }
 
     [Test]
-    void The_tour_holds_on_the_scan_until_it_finishes_and_its_summary_is_dismissed()
+    void TourHoldsOnScan_UntilSummaryDismissed()
     {
         // The exact sequence reported on: the tour reached "Back Up Your First Game" while the
         // scan was still running, and the summary dialog then appeared behind an already-advanced tour.
@@ -287,7 +287,7 @@ public sealed class FirstRunTourTests
     }
 
     [Test]
-    void An_empty_account_walks_the_whole_tour_without_trapping_or_offering_backups()
+    void EmptyAccount_WalksTour_NoTrapNoBackup()
     {
         // A GOG account with zero games: the scan finds nothing, so HasLibrary never becomes true. The scan
         // stop used to complete on HasLibrary and trapped the tour there forever with the scan already done;
@@ -313,7 +313,7 @@ public sealed class FirstRunTourTests
     }
 
     [Test]
-    void A_scan_that_stored_nothing_does_not_hold_the_tour_at_the_summary()
+    void EmptyScan_DoesNotHoldAtSummary()
     {
         // Signed out, a GOG error, or an empty account: the scan ran but no summary ever opens (the app
         // toasts instead). ItemCountSeen stays false forever, and the tour used to wait at item-count.
@@ -332,7 +332,7 @@ public sealed class FirstRunTourTests
     }
 
     [Test]
-    void The_item_count_stop_disappears_when_its_dialog_never_shows()
+    void ItemCountStop_GoneWhenDialogNeverShows()
     {
         // It exists to hold the tour while a modal is up. With no modal there is nothing to hold, so it must
         // not become a card the user has to dismiss.
@@ -344,7 +344,7 @@ public sealed class FirstRunTourTests
     }
 
     [Test]
-    void Retracing_forward_passes_over_an_already_satisfied_nav_stop()
+    void RetraceForward_SkipsSatisfiedNavStop()
     {
         var g = Fresh();
         g.GoTo("back-up");   // the live edge: everything before it is done
@@ -364,7 +364,7 @@ public sealed class FirstRunTourTests
     }
 
     [Test]
-    void Clicking_the_page_a_retraced_nav_stop_asks_for_moves_the_cursor_on()
+    void RetracedNavStop_ClickingPageAdvances()
     {
         // The exact path the owner walked: Back to the folder stop, Next lands on "Open [Library]" because the
         // library is not known yet, then the rail click opens Library. Sync must step off the nav stop.
@@ -382,7 +382,7 @@ public sealed class FirstRunTourTests
     }
 
     [Test]
-    void Every_move_lands_on_a_stop_whose_page_is_the_one_it_asked_to_open()
+    void EveryMove_LandsOnStopMatchingItsPage()
     {
         // The whole tour, back to the start and forward to the end, with the window following each Move exactly
         // as the app does. At every landing the stop's page and the current page must agree, or the card
@@ -469,7 +469,7 @@ public sealed class FirstRunTourTests
     }
 
     [Test]
-    void A_satisfied_pass_over_stop_is_never_landed_on_from_either_direction()
+    void SatisfiedPassOver_NeverLandedEitherWay()
     {
         // The property behind the retrace bug, for EVERY pass-over stop, not the one that was reported.
         // A tour that reached the end has acked every stop it passed with Next (an Optional stop completes
@@ -492,7 +492,7 @@ public sealed class FirstRunTourTests
     }
 
     [Test]
-    void With_nothing_to_demo_the_back_up_stop_is_skipped_not_shown_empty()
+    void NothingToDemo_BackUpStopSkipped()
     {
         // Library fully backed up, or every remaining file already queued/partial: no arrow to ring.
         var g = Fresh();

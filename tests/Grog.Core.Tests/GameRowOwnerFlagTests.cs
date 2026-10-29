@@ -34,7 +34,7 @@ public class GameRowOwnerFlagTests
     }
 
     // Sweep 2 #13: the fraction counted a file GOG refuses to serve; Status did not.
-    [Test] void UnavailableFilesAreInNeitherTheFractionNorTheStatus()
+    [Test] void UnavailableFiles_OutOfFractionAndStatus()
     {
         var row = GameRowViewModel.FromItem(
             Game(File(FileState.Verified, "a", "me"), File(FileState.Unavailable, "b", "me")), registeredAccounts: null);

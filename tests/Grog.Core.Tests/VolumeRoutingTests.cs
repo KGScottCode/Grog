@@ -130,7 +130,7 @@ public class VolumeRoutingTests
     }
 
     [Test]
-    void Binding_a_folder_creates_nothing_until_the_user_confirms_it()
+    void BindFolder_CreatesNothingUntilConfirmed()
     {
         // Grog binds a DEFAULT folder automatically at first launch, before the user has agreed to anything.
         // Scaffolding from the constructor therefore wrote Games/Extras/Cloud Saves into a location that was

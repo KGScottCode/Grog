@@ -50,7 +50,7 @@ public class StorageReportTests
     }
 
     [Test]
-    void DrivesFor_CountsWhatIsActuallyInGrogTmp_NotAModelledPartial()
+    void DrivesFor_CountsRealGrogTmp_NotModelled()
     {
         // Owner-caught: partial bytes were modelled from the manifest (and credited to the wrong root
         // while a file streamed to the secondary). The .part directory IS the fact: measure it per root.

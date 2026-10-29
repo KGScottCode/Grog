@@ -27,7 +27,7 @@ public sealed class GuideTargetNamesTests
     }
 
     [Test]
-    void Every_guide_target_and_scope_name_exists_in_the_view()
+    void EveryTargetAndScopeName_ExistsInView()
     {
         var xaml = ReadAllViewXaml();
         // Both attribute spellings: x:Name is the norm here, Name is legal and would still resolve.
@@ -59,7 +59,7 @@ public sealed class GuideTargetNamesTests
     }
 
     [Test]
-    void The_guide_actually_spotlights_something_on_most_steps()
+    void Guide_SpotlightsSomethingOnMostSteps()
     {
         // A blunt floor, not a style rule: if the guide stops pointing at real controls it stops being a
         // guide, and the failure is invisible (the caption just drifts to a corner). Rail navigation steps

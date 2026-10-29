@@ -203,7 +203,7 @@ public class ReorgPlannerRoomTests
 
     // 1283: a Change Folder job carries its follow-up (which root flips to which path) in the journal.
     [Test]
-    public void ForRootPathChange_records_the_repoint_and_the_journal_keeps_it()
+    public void ForRootPathChange_RepointJournaled()
     {
         var m = new LibraryManifest { PrimaryRootId = "a" };
         m.Roots.Add(new BackupRoot { Id = "a" });

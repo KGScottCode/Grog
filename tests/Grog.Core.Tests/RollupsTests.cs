@@ -36,7 +36,7 @@ public class RollupsTests
 
     // Sweep 2 #18: the row bar's live figure is in the bar's own unit (files), never bytes.
     [Test]
-    void GameFilePercent_IsFileWeighted_WithTheInFlightFraction()
+    void GameFilePercent_FileWeighted_InFlight()
     {
         var it = Game(1,
             F(FileKind.Installer, FileState.Verified, 9000, key: "big"),

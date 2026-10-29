@@ -29,7 +29,7 @@ public sealed class PlacementShortfallTests
     }
 
     [Test]
-    public void Overflow_spills_to_the_secondary_before_reporting_shortfall()
+    public void Overflow_SpillsToSecondary_BeforeShort()
     {
         var plan = PlacementPlanner.PlanQueueDetailed(
             new[] { File("a", 800), File("b", 800) }, Devices(("p", 1000), ("s", 1000)), Routing(), "p", RoutingMode.Overflow, ExtrasPlacement.SeparateByGame);
@@ -39,7 +39,7 @@ public sealed class PlacementShortfallTests
     }
 
     [Test]
-    public void What_fits_nowhere_is_reported_not_dropped_and_not_forced()
+    public void FitsNowhere_Reported_NotDroppedOrForced()
     {
         var plan = PlacementPlanner.PlanQueueDetailed(
             new[] { File("a", 900), File("big", 5000) }, Devices(("p", 1000)), Routing(), "p", RoutingMode.Overflow, ExtrasPlacement.SeparateByGame);
@@ -53,7 +53,7 @@ public sealed class PlacementShortfallTests
     }
 
     [Test]
-    public void Cumulative_fill_counts_earlier_placements_against_free_space()
+    public void CumulativeFill_CountsEarlierPlacements()
     {
         // Three 400s against 1000 free: the third must not fit -- a naive per-file check would pass it.
         var plan = PlacementPlanner.PlanQueueDetailed(
@@ -64,7 +64,7 @@ public sealed class PlacementShortfallTests
     }
 
     [Test]
-    public void Replanning_after_freeing_space_places_previously_short_files()
+    public void ReplanAfterFreeing_PlacesShortFiles()
     {
         // The restart/re-plan story: the same queue against grown free space stops being short. This is
         // the property the Folders page relies on when it re-plans on every refresh.

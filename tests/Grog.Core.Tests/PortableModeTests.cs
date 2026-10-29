@@ -98,7 +98,7 @@ public sealed class PortableModeTests
     }
 
     [Test]
-    void A_chosen_root_under_the_install_is_remembered_relative_and_survives_a_move()
+    void RootUnderInstall_Relative_SurvivesMove()
     {
         // The USB story: an absolute ChosenRoot dies with its drive letter. Under a portable install the
         // path is stored as a {portable} token and resolved against wherever the install is mounted NOW.
@@ -118,7 +118,7 @@ public sealed class PortableModeTests
     }
 
     [Test]
-    void Paths_outside_the_install_and_non_portable_installs_stay_absolute()
+    void OutsideOrNonPortable_StaysAbsolute()
     {
         Directory.CreateDirectory(DataDir);
         var elsewhere = Path.Combine(_root, "big-disk", "GOG_Library");
@@ -133,7 +133,7 @@ public sealed class PortableModeTests
     }
 
     [Test]
-    void The_portable_default_backup_root_lives_inside_the_install()
+    void PortableDefaultRoot_InsideInstall()
     {
         Directory.CreateDirectory(DataDir);
         Assert.True(BackupLocationSuggester.DefaultRoot().StartsWith(InstallDir),
@@ -145,7 +145,7 @@ public sealed class PortableModeTests
     }
 
     [Test]
-    void A_portable_copy_starts_empty_and_never_reads_the_profile()
+    void PortableCopy_StartsEmpty_IgnoresProfile()
     {
         // The rule: portable and installed have NO concept of each other. A portable copy launched on a
         // machine with an installed setup starts blank -- it must not inherit the manifest, the settings,

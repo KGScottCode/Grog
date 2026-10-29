@@ -260,7 +260,7 @@ public sealed class ReorgHardeningTests
     }
 
     [Test]
-    void Journal_SaveAfterBakRecovery_DoesNotRollCorruptPrimaryIntoBak()
+    void Journal_BakRecovery_CorruptNotRolledIn()
     {
         var dir = Directory.CreateTempSubdirectory("grog-journal-").FullName;
         try
@@ -283,7 +283,7 @@ public sealed class ReorgHardeningTests
     }
 
     [Test]
-    void Journal_SaveThroughNewInstance_KeepsGoodBakWhenPrimaryIsCorrupt()
+    void Journal_NewInstanceSave_KeepsGoodBak()
     {
         var dir = Directory.CreateTempSubdirectory("grog-journal-").FullName;
         try

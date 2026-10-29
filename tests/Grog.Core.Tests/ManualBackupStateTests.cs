@@ -44,7 +44,7 @@ public class ManualBackupStateTests
         Assert.True(m.Items[0].Files.All(f => f.State == FileState.NotBackedUp), "all -> not downloaded");
     }
 
-    [Test] void Unavailable_IsNeverOverwritten_AndANeverDownloadedFileIsNeverMissing()
+    [Test] void Unavailable_Sticks_NeverGotIsNotMissing()
     {
         var m = OneProduct();
         m.Items[0].Files[1].State = FileState.Unavailable;

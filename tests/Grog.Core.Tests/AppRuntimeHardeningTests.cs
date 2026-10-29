@@ -31,7 +31,7 @@ public class AppRuntimeHardeningTests
         while (!cond() && sw.ElapsedMilliseconds < ms) Thread.Sleep(10);
     }
 
-    [Test] void ManifestSaves_LogsOnce_PerReason_AndResetsWhenASaveLands()
+    [Test] void SaveLog_OncePerReason_ResetsOnGoodSave()
     {
         var dir = Directory.CreateTempSubdirectory("grog-msaves-").FullName;
         var logged = new List<string>();
@@ -71,7 +71,7 @@ public class AppRuntimeHardeningTests
         }
     }
 
-    [Test] void AppSettings_LastSaveError_IsSet_OnUnwritablePath_AndClearedByTheNextGoodSave()
+    [Test] void AppSettings_LastSaveError_SetThenCleared()
     {
         var dir = Directory.CreateTempSubdirectory("grog-settings-").FullName;
         var oldEnv = Environment.GetEnvironmentVariable("GROG_CONFIG_DIR");

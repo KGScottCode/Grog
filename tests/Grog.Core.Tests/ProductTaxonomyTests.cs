@@ -18,7 +18,7 @@ public class ProductTaxonomyTests
     static readonly HashSet<long> NoMods = new();
 
     [Test]
-    void ModTagged_ClassifiesAsMod_EvenThoughGogTypesItAsGame()
+    void ModTagged_IsMod_DespiteGogGameType()
     {
         var keeper = Product(1188533399, "keeperfx", "/en/game/keeperfx");
         var mods = new HashSet<long> { 1188533399 };

@@ -600,7 +600,7 @@ public class ReorgRunnerTests
     // ---- change-location (root path repoint) -----------------------------------------------
 
     [Test]
-    void ForRootPathChange_KeepsRelKeepsRoot_OnlyFolderMoves()
+    void ForRootPathChange_OnlyFolderMoves()
     {
         var m = new LibraryManifest { PrimaryRootId = "primary" };
         var it = new LibraryItem { GogId = 1, Title = "Alpha", Slug = "alpha" };
@@ -729,7 +729,7 @@ public class ReorgRunnerTests
     // 1283: when the move names its storage folder (rel lines up with abs), that folder itself must
     // exist, whatever ancestor does: an unplugged stick's folder is gone even when its parent is not.
     [Test]
-    void A_missing_storage_folder_is_unreachable_even_under_an_existing_parent()
+    void MissingStorageFolder_Unreachable()
     {
         var parent = Path.Combine(Path.GetTempPath(), "grog-reach-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(parent);

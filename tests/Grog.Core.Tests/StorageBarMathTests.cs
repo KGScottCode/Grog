@@ -31,14 +31,14 @@ public class StorageBarMathTests
     }
 
     [Test]
-    void OtherBytes_IsZeroWhenGrogHoldsEverythingUsedAcrossBothFolders()
+    void OtherBytes_ZeroWhenGrogHoldsAllUsed()
     {
         var r = Row(grog: 120 * GB, sibling: 180 * GB, free: 700 * GB, total: 1000 * GB);
         Assert.Equal(0, r.OtherBytes, "300 used, 300 of it Grog's");
     }
 
     [Test]
-    void OtherBytes_NeverGoesNegativeWhenTheFiguresDisagree()
+    void OtherBytes_NeverNegativeOnDisagreement()
     {
         var r = Row(grog: 100 * GB, sibling: 250 * GB, free: 700 * GB, total: 1000 * GB);
         Assert.Equal(0, r.OtherBytes, "clamped at zero");
@@ -64,7 +64,7 @@ public class StorageBarMathTests
 
     // 1282: a verify on a storage shows on its card ("Verifying 37 / 192"); idle cards carry nothing.
     [Test]
-    public void A_verifying_card_names_its_progress_and_an_idle_one_does_not()
+    public void VerifyingCard_NamesProgress_IdleNot()
     {
         var idle = Row(0, 0, 100, 100);
         Assert.False(idle.IsVerifying); Assert.Equal("", idle.VerifyText);

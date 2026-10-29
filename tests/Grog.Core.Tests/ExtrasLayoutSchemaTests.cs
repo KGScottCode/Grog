@@ -20,7 +20,7 @@ public class ExtrasLayoutSchemaTests
 
     static JsonManifestStore StoreAt(string dir) => new(dir);
 
-    [Test] void FreshManifest_DefaultsToWithGame_AndSurvivesRoundTrip()
+    [Test] void FreshManifest_WithGame_RoundTrips()
     {
         var dir = TempCfg();
         try

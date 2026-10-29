@@ -41,7 +41,7 @@ public sealed class VolumesRegressionTests
     // ---- F3: portable hint ------------------------------------------------------------------------------------
 
     [Test]
-    void A_secondary_under_the_portable_install_re_binds_after_the_install_moves()
+    void PortableSecondary_RebindsAfterMove()
     {
         var b = Temp("port");
         var envBefore = Environment.GetEnvironmentVariable("GROG_CONFIG_DIR");
@@ -126,7 +126,7 @@ public sealed class VolumesRegressionTests
     }
 
     [Test]
-    void A_withdrawn_slot_we_hold_bytes_for_moves_to_the_archive_list_flagged()
+    void WithdrawnSlotWithBytes_ArchivedFlagged()
     {
         var existing = Game(("setup.exe", FileState.Verified, true), ("bonus.zip", FileState.Verified, true));
         var incoming = Game(("setup.exe", FileState.NotBackedUp, false));
@@ -160,7 +160,7 @@ public sealed class VolumesRegressionTests
     }
 
     [Test]
-    void A_withdrawn_slot_GOG_relists_is_reinstated_not_duplicated()
+    void WithdrawnSlotRelisted_Reinstated()
     {
         var existing = Game(("setup.exe", FileState.Verified, true), ("bonus.zip", FileState.Verified, true));
         LibrarySyncService.MergeIntoForTests(existing, Game(("setup.exe", FileState.NotBackedUp, false)));
@@ -175,7 +175,7 @@ public sealed class VolumesRegressionTests
     }
 
     [Test]
-    void A_withdrawn_slot_whose_bytes_are_Missing_is_dropped_not_archived()
+    void WithdrawnSlotMissingBytes_Dropped()
     {
         var existing = Game(("setup.exe", FileState.Verified, true), ("bonus.zip", FileState.Missing, true));
         LibrarySyncService.MergeIntoForTests(existing, Game(("setup.exe", FileState.NotBackedUp, false)));
@@ -186,7 +186,7 @@ public sealed class VolumesRegressionTests
     // ---- F8: UNC probe ----------------------------------------------------------------------------------------
 
     [Test]
-    void A_UNC_path_is_classified_and_probed_without_throwing()
+    void UncPath_ClassifiedAndProbed_NoThrow()
     {
         Assert.True(DriveResolver.IsUncPath(@"\\server\share\x"), "two leading backslashes: a share");
         Assert.False(DriveResolver.IsUncPath(@"C:\x"), "a drive letter is not");
@@ -198,7 +198,7 @@ public sealed class VolumesRegressionTests
     }
 
     [Test]
-    void A_present_share_with_no_size_figures_is_online_with_unknown_capacity()
+    void ShareWithoutSizes_OnlineUnknownCapacity()
     {
         var s = new DriveResolver.DriveState(true, 0, 0, CapacityKnown: false);
         Assert.True(s.Online && !s.CapacityKnown, "present, sizes unknown");
@@ -207,7 +207,7 @@ public sealed class VolumesRegressionTests
     // ---- F11: saved scope writer --------------------------------------------------------------------------------
 
     [Test]
-    void SavedScope_Set_writes_the_manifest_scope_and_leaves_unnamed_parts_alone()
+    void SavedScope_Set_LeavesUnnamedPartsAlone()
     {
         var store = new MemoryStore();
         SavedScope.Set(store, includeExtras: false, languages: new[] { "English" });
@@ -222,7 +222,7 @@ public sealed class VolumesRegressionTests
     }
 
     [Test]
-    void SavedScope_prune_drops_only_queued_files_the_scope_excludes()
+    void SavedScope_Prune_DropsOnlyExcludedQueued()
     {
         var store = new MemoryStore();
         var item = new LibraryItem { GogId = 9, Title = "Nine", Slug = "nine" };

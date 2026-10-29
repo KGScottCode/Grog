@@ -11,7 +11,7 @@ using Grog.Core.Tests.Framework;
 public class GameDetailsMapperTests
 {
     [Test]
-    void The_discovered_preview_carries_the_same_item_the_manifest_would_get()
+    void DiscoveredPreview_MatchesManifestItem()
     {
         // Preview rows exist so the grid fills DURING a scan. They are only safe because the mapper is pure
         // and the manifest write still happens once, at the end: cancel and nothing was ever stored. This
@@ -69,7 +69,7 @@ public class GameDetailsMapperTests
     }
 
     [Test]
-    void ToLibraryItem_TagsPatchRowsAndKeepsTitleInstallers()
+    void ToLibraryItem_TagsPatches_KeepsTitles()
     {
         var details = new GameDetails
         {
@@ -138,7 +138,7 @@ public class SyncMergeCarryForwardTests
     // No size from GOG = nothing to download: Unavailable with a reason, never queued, never counted.
     // A held copy is left alone; a size that appears on a later sync clears it.
     [Test]
-    void MergeInto_SizelessFile_IsUnavailable_UntilASizeAppears()
+    void MergeInto_Sizeless_UnavailableUntilSized()
     {
         var existing = GameWithFile(new GameFile { GameGogId = 1, FileKey = "/dl/0", Version = "1.0", State = FileState.NotBackedUp, ExpectedSizeBytes = 10 });
         MergeInto(existing, GameWithFile(new GameFile { GameGogId = 1, FileKey = "/dl/0", Version = "1.0", ExpectedSizeBytes = 0 }));
@@ -182,7 +182,7 @@ public class SyncMergeCarryForwardTests
 
     // Version changed: flag UpdateAvailable and DROP the stale hash (it describes the old build, not the new).
     [Test]
-    void MergeInto_VersionChanged_FlagsUpdateAndDropsStaleHash()
+    void MergeInto_VersionChange_UpdateDropsHash()
     {
         var existing = GameWithFile(new GameFile
         {
@@ -211,7 +211,7 @@ public class BackupStatusRollupTests
     }
 
     [Test]
-    void StaleNotDownloaded_ReconcilesToComplete_WhenFilesDownloaded()
+    void StaleNotDownloaded_ReconcilesToComplete()
     {
         // The exact restart/post-download bug: files landed (Downloaded) but the cached rollup was
         // never refreshed and still reads NotDownloaded. Recompute must re-derive it to Complete.

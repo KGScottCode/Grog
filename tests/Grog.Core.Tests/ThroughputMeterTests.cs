@@ -113,7 +113,7 @@ public class ThroughputMeterTests
         m.Sample(At(t), cum, true); m.FileCompleted(id, bytes);
     }
 
-    [Test] void SmallFilesCostTimeThatIsNotBytes_AndTheModelSeesIt()
+    [Test] void SmallFiles_CostNonByteTime_ModelSeesIt()
     {
         var m = new ThroughputMeter();
         double t = 0; long cum = 0;
@@ -167,7 +167,7 @@ public class ThroughputMeterTests
         Assert.True(next > first - 1 && next < first + 6, $"drifted toward ~40 s without jumping: {first:F1} -> {next:F1}");
     }
 
-    [Test] void Big_files_behind_small_ones_are_priced_at_the_link_rate()
+    [Test] void BigFilesBehindSmall_PricedAtLinkRate()
     {
         // Walk: smallest first, three 1 MB files at 1 MB/s landed, then 540 GB remains in 300 files. The per-file
         // fit has no byte slope; the estimate must still charge the bytes beyond the seen size at the link's rate.
@@ -180,7 +180,7 @@ public class ThroughputMeterTests
         Assert.True(eta!.Value > 400_000, $"~540,000 s at 1 MB/s, not minutes: got {eta.Value:F0}");
     }
 
-    [Test] void Nothing_is_promised_before_the_run_has_moved_enough()
+    [Test] void NoPromise_BeforeRunMovesEnough()
     {
         var m = new ThroughputMeter();
         double t = 0; long cum = 0;

@@ -316,7 +316,7 @@ public sealed class ExtrasPlacementEditorTests
 
     // Sweep 2 #19: the card read the drives once. Removing the secondary left it dirty on a missing drive.
     [Test]
-    void RemovingTheSecondDrive_UnderAnUntouchedCard_LeavesItClean()
+    void RemoveSecondDrive_UntouchedCard_Clean()
     {
         var card = Card(ExtrasPlacement.SeparateByGame, committedExtrasRoot: "r2");
         Assert.False(card.IsDirty, "at rest");
@@ -331,7 +331,7 @@ public sealed class ExtrasPlacementEditorTests
     }
 
     [Test]
-    void RemovingTheSecondDrive_DropsAStagedChoiceThatNamedIt_AndKeepsOneThatDidNot()
+    void RemoveSecondDrive_DropsChoicesNamingIt()
     {
         var card = Card(ExtrasPlacement.SeparateByGame);
         card.SelectStorageCommand.Execute("secondary");

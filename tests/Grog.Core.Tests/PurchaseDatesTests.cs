@@ -133,7 +133,7 @@ public class PurchaseDatesTests
     // ---------------- mode choice ----------------
 
     [Test]
-    void NeedsBackfill_TrueOnlyWhenThereIsNoEvidenceEitherWay()
+    void NeedsBackfill_OnlyWithNoEvidence()
     {
         var store = Library(1, 2);
         Assert.True(PurchaseDatesRun.NeedsBackfill(store.Current), "nothing dated and nothing answered");
@@ -143,7 +143,7 @@ public class PurchaseDatesTests
     }
 
     [Test]
-    void NeedsBackfill_FalseWhenEverythingWasAnsweredNoRecord()
+    void NeedsBackfill_FalseWhenAllNoRecord()
     {
         var store = Library(1, 2);
         PurchaseDatesRun.Settle(store);
@@ -153,7 +153,7 @@ public class PurchaseDatesTests
     }
 
     [Test]
-    void Unanswered_SeparatesNotAskedYetFromAskedAndNotThere()
+    void Unanswered_NotAskedVsAskedNotThere()
     {
         var store = Library(1, 2, 3);
         store.Current.ItemById(1)!.DateAcquired = Epoch(1_500_000_000);
@@ -175,7 +175,7 @@ public class PurchaseDatesTests
     }
 
     [Test]
-    void Apply_ClearsNoPurchaseRecordWhenADateFinallyArrives()
+    void Apply_DateArrives_ClearsNoRecord()
     {
         var store = Library(1);
         store.Current.ItemById(1)!.NoPurchaseRecord = true;

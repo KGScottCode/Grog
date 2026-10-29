@@ -209,7 +209,7 @@ public class VolumeServiceTests
     }
 
     [Test]
-    void DetachRoot_KeepsFilesCounted_NeverBinds_AndReattaches()
+    void DetachRoot_KeepsCountNoBind_Reattaches()
     {
         var (store, root, _) = NewSetup();
         try
@@ -351,7 +351,7 @@ public class VolumeServiceTests
     }
 
     [Test]
-    void SwapIntoSlot_TakesTheSlot_AndAPrimarySwapStampsImplicitFiles()
+    void SwapIntoSlot_PrimarySwapStampsImplicit()
     {
         var (store, root, _) = NewSetup();
         try
@@ -381,7 +381,7 @@ public class VolumeServiceTests
 
     // 1281: adding the primary's own folder (or a tracked drive's) as a second storage is refused by name, not nested.
     [Test]
-    void FindSamePath_NamesTheTrackedRoot_AndNestingDoesNot()
+    void FindSamePath_TrackedRoot_NotNested()
     {
         var (store, root, _) = NewSetup();
         try

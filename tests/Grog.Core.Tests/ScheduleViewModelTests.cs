@@ -50,7 +50,7 @@ public sealed class ScheduleViewModelTests
     }
 
     // Sweep 2 #21: re-enabling kept the anchor from the first enable.
-    [Test] void ReEnablingRestampsTheAnchor_SoTimeSpentOffIsNeverAMiss()
+    [Test] void ReEnable_RestampsAnchor_TimeOffNoMiss()
     {
         var old = DateTimeOffset.Now.AddDays(-30);
         var (vm, h) = Rig(new BackupSchedule { Enabled = false, Frequency = ScheduleFrequency.Daily, TimeOfDayMinutes = 3 * 60, AnchorDate = old });
@@ -89,7 +89,7 @@ public sealed class ScheduleViewModelTests
         Assert.Equal("Automatic backups are off.", vm.NextFireLine, "settings line");
     }
 
-    [Test] void RecordRunOutcomeStampsAttemptAlwaysAndLastRunOnlyOnFinish()
+    [Test] void RecordOutcome_Attempt_LastRunOnFinish()
     {
         var s = new BackupSchedule { Enabled = true, AnchorDate = DateTimeOffset.Now.AddDays(-2) };
         var (vm, h) = Rig(s);
@@ -125,7 +125,7 @@ public sealed class ScheduleViewModelTests
         Assert.Equal("1 hour ago", vm.LastRunResultSub, "no journal, no failures: the time alone");
     }
 
-    [Test] void OverdueOnLaunchRespectsPromptFlagAnchorAndCoverage()
+    [Test] void OverdueOnLaunch_PromptFlagAnchorCoverage()
     {
         var s = new BackupSchedule { Enabled = true, Frequency = ScheduleFrequency.Daily, TimeOfDayMinutes = 3 * 60,
                                      AnchorDate = DateTimeOffset.Now.AddDays(-3) };
@@ -226,7 +226,7 @@ public sealed class ScheduleViewModelTests
 
     // 1296: a schedule LIFTS the user's pause; the host no longer refuses a paused queue.
     // Grog's own pause for a missing drive is a passing refusal: the slot is kept and the next tick retries quietly.
-    [Test] void ADisconnectedDriveRefusalKeepsTheSlotAndRetriesNextTick()
+    [Test] void DisconnectedDrive_KeepsSlot_RetriesNext()
     {
         var s = new BackupSchedule { Enabled = true, AnchorDate = DateTimeOffset.Now.AddDays(-2) };
         var (vm, h) = Rig(s);

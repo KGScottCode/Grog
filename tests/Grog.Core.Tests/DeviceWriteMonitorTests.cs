@@ -8,7 +8,7 @@ namespace Grog.Core.Tests;
 public sealed class DeviceWriteMonitorTests
 {
     [Test]
-    public void Slow_after_sustained_long_flushes_and_fast_again_only_under_the_low_water_mark()
+    public void SlowOnLongFlushes_FastBelowLowWater()
     {
         var m = new DeviceWriteMonitor();
         Assert.False(m.IsSlow("usb"), "unknown device is not slow");
@@ -24,7 +24,7 @@ public sealed class DeviceWriteMonitorTests
     }
 
     [Test]
-    public void Primary_key_is_the_empty_string_and_null_maps_to_it()
+    public void PrimaryKey_IsEmpty_NullMapsToIt()
     {
         var m = new DeviceWriteMonitor();
         m.Record(null, 5); m.Record(null, 5);

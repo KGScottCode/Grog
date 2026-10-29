@@ -34,7 +34,7 @@ public class ReorgPlannerOfflineGuardTests
     }
 
     [Test]
-    void ForLayoutChange_OfflineDrive_IsReportedAndItsMovesExcluded()
+    void ForLayoutChange_OfflineDrive_Excluded()
     {
         var (m, layout, _) = TwoRoots_SecondOffline("setup.exe");   // flat -> needs Games/game/setup.exe
 

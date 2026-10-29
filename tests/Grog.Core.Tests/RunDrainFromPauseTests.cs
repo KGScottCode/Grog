@@ -101,7 +101,7 @@ public sealed class RunDrainFromPauseTests
     }
 
     [Test]
-    public void Disarm_after_a_bailed_resume_leaves_the_next_run_unrestricted()
+    public void DisarmAfterBailedResume_NextRunFree()
     {
         var (engine, root, partial, _) = Rig();
         try

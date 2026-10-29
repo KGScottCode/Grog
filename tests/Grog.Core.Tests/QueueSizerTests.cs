@@ -45,7 +45,7 @@ public sealed class QueueSizerTests
     private static async Task Drain(QueueSizer s) { for (int i = 0; i < 200 && s.IsRunning; i++) await Task.Delay(20); Assert.False(s.IsRunning, "the pass ends"); }
 
     [Test]
-    public void Unsized_is_the_queued_files_still_at_their_label_in_queue_order()
+    public void Unsized_QueuedAtLabel_InQueueOrder()
     {
         var s = Lib();
         Assert.Equal("b1,a1,a3", string.Join(",", QueueSizer.Unsized(s.Current).Select(k => k.FileKey)), "a2 already sized; b2 not queued");

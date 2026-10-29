@@ -50,7 +50,7 @@ public sealed class ReplanConcurrencyTests
         => e.Snapshot.GroupBy(t => (t.File.GameGogId, t.File.FileKey)).Count(g => g.Count() > 1);
 
     [Test]
-    public void Re_planning_while_tasks_complete_never_enqueues_a_file_twice()
+    public void ReplanDuringCompletion_NoDoubleEnqueue()
     {
         var (store, engine) = Rig();
         using var settler = new RunSettler(store, engine, null, new NullBackupHost());

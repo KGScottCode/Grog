@@ -25,7 +25,7 @@ public class CoLocationLayoutTests
     static GameFile Extra(string name, string type) =>
         new() { Kind = FileKind.Extra, Name = name, ExtraType = type };
 
-    [Test] void PrimaryBindsToTheManifestsPath_NotTheCallersStaleOne()
+    [Test] void Primary_BindsManifestPath_NotCallers()
     {
         // One fact: the primary root's PathHint. A host whose own setting lags (App after a promotion, or after
         // a CLI --primary) must FOLLOW the manifest, not drag the root onto its stale folder.
@@ -56,7 +56,7 @@ public class CoLocationLayoutTests
         finally { Directory.Delete(Path.GetFullPath(Path.Combine(root, "..")), true); }
     }
 
-    [Test] void WithGame_IsTheFreshLibraryDefault_FlatExtrasInsideGameFolder()
+    [Test] void WithGame_FreshDefault_FlatExtrasInGame()
     {
         var (store, root) = New();
         try
@@ -69,7 +69,7 @@ public class CoLocationLayoutTests
         finally { Directory.Delete(Path.GetFullPath(Path.Combine(root, "..")), true); }
     }
 
-    [Test] void WithGame_ExtrasFollowTheGamesRoot_ExtrasRoleRootIgnored()
+    [Test] void WithGame_ExtrasFollowGamesRoot_NotRole()
     {
         var (store, root) = New();
         try

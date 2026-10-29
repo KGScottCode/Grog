@@ -36,7 +36,7 @@ public class SchedulePlannerTests
     }
 
     [Test]
-    void Daily_fires_today_when_the_hour_is_still_ahead_and_tomorrow_once_it_passes()
+    void Daily_TodayIfHourAhead_ElseTomorrow()
     {
         var s = Daily();
         var beforeSlot = SchedulePlanner.NextFire(s, Local(2026, 8, 22, 1, 0))!.Value;
@@ -121,7 +121,7 @@ public class SchedulePlannerTests
     // ---- "has this slot already been covered?" --------------------------------------------
 
     [Test]
-    void A_backup_at_or_after_the_slot_covers_it_and_one_before_does_not()
+    void BackupAtOrAfterSlot_Covers_BeforeNot()
     {
         var slot = Local(2026, 8, 22, 3, 0);
         var now  = Local(2026, 8, 22, 3, 0, 30);   // the tick that found the slot due
@@ -165,7 +165,7 @@ public class SchedulePlannerTests
     }
 
     [Test]
-    void A_daily_slot_keeps_its_LOCAL_hour_across_a_DST_boundary()
+    void DailySlot_KeepsLocalHourAcrossDst()
     {
         // THE regression this guards. Stamping every future slot with TODAY'S offset makes a 03:00 backup
         // fire at 02:00 or 04:00 local on the other side of a transition. The offset must change and the
@@ -186,7 +186,7 @@ public class SchedulePlannerTests
     }
 
     [Test]
-    void Daily_next_and_previous_keep_03_00_on_the_day_after_a_US_DST_switch()
+    void Daily_NextAndPrevious_Keep0300AfterUsDst()
     {
         // The "tomorrow" and "yesterday" slots were today's slot plus or minus 24 h with today's UTC offset,
         // so the first fire after a switch landed an hour off. Pinned to America/New_York through the planner's
@@ -224,7 +224,7 @@ public class SchedulePlannerTests
     }
 
     [Test]
-    void Every_frequency_reports_a_local_hour_that_matches_the_setting()
+    void EveryFrequency_LocalHourMatchesSetting()
     {
         // Across a whole year, in whatever zone the suite is running in: the configured wall-clock time is
         // the one contract a scheduler cannot get wrong.
@@ -244,7 +244,7 @@ public class SchedulePlannerTests
     }
 
     [Test]
-    void A_half_hour_offset_zone_still_gets_the_configured_minute()
+    void HalfHourOffsetZone_KeepsConfiguredMinute()
     {
         // India (+05:30) and Lord Howe (+10:30/+11:00) have offsets that are not whole hours, and Lord
         // Howe's DST step is THIRTY MINUTES. Arithmetic that assumes hour-aligned offsets survives
@@ -259,7 +259,7 @@ public class SchedulePlannerTests
     }
 
     [Test]
-    void Previous_and_next_bracket_now_with_no_gap_and_no_overlap()
+    void PreviousAndNext_BracketNow_NoGapOverlap()
     {
         // The overdue-on-launch check compares LastRun against PreviousFire. If the two ends could ever
         // cross, a launch would either miss a due slot or invent one.

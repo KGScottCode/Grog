@@ -164,7 +164,7 @@ public class PreservationTests
 
     // Sweep 2 #27: orphans --move carried the Old Versions archive and live partials away.
     [Test]
-    void Orphans_NeverTouchTheArchive_Partials_CloudSaves_OrItsOwnFolder()
+    void Orphans_SpareArchivePartialsSavesOwnDir()
     {
         var (store, root, layout) = NewSetup();
         try

@@ -41,7 +41,7 @@ public class BackupLocationTests
     }
 
     [Test]
-    void Format_CompactPair_SharesOneUnit_OneDecimal_NoneWhenWhole()
+    void CompactPair_OneUnit_OneDecimalUnlessWhole()
     {
         // The CLI download renderer's fixed right column (was a private copy in Program.cs).
         Assert.Equal("71.5/87 MB", Grog.Core.Format.ByteFormat.CompactPair(74973184, 91226112), "MB pair, one decimal");

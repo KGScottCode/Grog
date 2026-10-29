@@ -44,7 +44,7 @@ public class ScheduleRunCopyTests
     }
 
     [Test]
-    void A_completed_slot_offers_no_excuse_because_it_cannot_be_overdue()
+    void CompletedSlot_NoExcuse_CannotBeOverdue()
     {
         // Completed stamps LastRun, and the overdue check returns before it ever reaches the wording. Null
         // is the honest answer here: there is no sentence to write, so the caller keeps its default.

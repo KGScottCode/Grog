@@ -25,7 +25,7 @@ public class ConcurrencyAdvisorTests
         => Assert.Equal(2, ConcurrencyAdvisor.Pick(Enumerable.Repeat(4000 * MB, 10).ToList(), 12));
 
     [Test]
-    public void Mixed_head_follows_the_median_not_the_biggest_file()
+    public void MixedHead_FollowsMedian_NotBiggest()
     {
         var head = new[] { 4000 * MB, 1 * MB, 1 * MB, 1 * MB, 1 * MB, 2 * MB, 1 * MB, 1 * MB, 1 * MB, 1 * MB };
         Assert.Equal(4, ConcurrencyAdvisor.Pick(head, 50), "one big installer beside small files still parallelizes the small ones");

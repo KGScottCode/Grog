@@ -40,7 +40,7 @@ public sealed class QueueShaperTests
     private static DeviceSpace[] Room(long p, long s) => new[] { new DeviceSpace("p", p, true), new DeviceSpace("s", s, true) };
 
     [Test]
-    public void FileLimitBlocking_names_the_ceiling_only_when_the_ceiling_is_the_reason()
+    public void FileLimitBlocking_OnlyWhenCeilingIsCause()
     {
         const long fat = 4294967295L;
         var big = F(1, "big", 5_000_000_000L); var small = F(1, "small", 1_000_000_000L);
@@ -54,7 +54,7 @@ public sealed class QueueShaperTests
     }
 
     [Test]
-    public void A_rounded_label_at_the_ceiling_fits_until_the_real_size_says_otherwise()
+    public void RoundedLabelAtCeiling_FitsUntilRealSize()
     {
         const long fat = 4294967295L;
         var stick = new[] { new DeviceSpace("p", 10_000_000_000L, true) { MaxFileBytes = fat } };
@@ -77,7 +77,7 @@ public sealed class QueueShaperTests
     }
 
     [Test]
-    public void CeilingSizeCheck_records_the_real_length_and_survives_a_failed_ask()
+    public void CeilingSizeCheck_RecordsLength_FailSafe()
     {
         var store = new MemStore(Lib());
         var a = F(1, "a", 4294967296L); var b = F(1, "b", 4294967296L);
@@ -90,7 +90,7 @@ public sealed class QueueShaperTests
     }
 
     [Test]
-    public void EndOfFittingBlock_is_after_the_last_fitting_row_when_rows_interleave()
+    public void EndOfFittingBlock_LastFit_Interleaved()
     {
         var m = Lib();
         m.Downloads.Enqueue(1, "a1", "p", fits: true);
@@ -103,7 +103,7 @@ public sealed class QueueShaperTests
     }
 
     [Test]
-    public void CouldFit_uses_the_routed_root_and_does_not_spill_in_Manual_mode()
+    public void CouldFit_RoutedRoot_NoSpillInManual()
     {
         var m = Lib();
         m.Routing.SetRole(ContentRole.Games, "s");   // installers routed to the secondary
@@ -125,7 +125,7 @@ public sealed class QueueShaperTests
     }
 
     [Test]
-    public void PullUpWhatFits_lifts_in_order_and_is_stable_under_a_replan()
+    public void PullUpWhatFits_InOrder_StableOnReplan()
     {
         var m = Lib();
         m.Downloads.Enqueue(1, "a2", "p", fits: false);   // 100: too big
@@ -146,7 +146,7 @@ public sealed class QueueShaperTests
     // 1283: the pull-up spends the planner's cost (whole size off the partial's volume, plus the per-file
     // overhead), not the bare remainder, so what it lifts the next plan keeps.
     [Test]
-    public void PullUpWhatFits_spends_the_planners_cost_not_the_bare_remainder()
+    public void PullUpWhatFits_SpendsPlannerCost()
     {
         var m = Lib();
         var b2 = m.ItemById(2)!.Files.First(f => f.FileKey == "b2");   // 30
@@ -161,7 +161,7 @@ public sealed class QueueShaperTests
     }
 
     [Test]
-    public void PullUpWhatFits_pulls_nothing_when_nothing_fits_or_nothing_fitted()
+    public void PullUpWhatFits_NothingWhenNothingFits()
     {
         var m = Lib();
         m.Downloads.Enqueue(1, "a2", "p", fits: false);

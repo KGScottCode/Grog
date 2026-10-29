@@ -136,7 +136,7 @@ public class LanguageScopeTests
         Assert.True(!s.Includes(Extra("comic (FR)")), "french extra dropped, inheriting the games pick");
     }
 
-    [Test] void ExtraLanguages_WidenIndependently_WithoutTouchingGames()
+    [Test] void ExtraLanguages_Widen_GamesUntouched()
     {
         // the owner's actual reason for the split: keep installers to one language, take every collectible.
         var s = Scope.Both.WithLanguages(new[] { "English" })
@@ -148,7 +148,7 @@ public class LanguageScopeTests
         Assert.True(s.Includes(Installer("English")), "english installer still kept");
     }
 
-    [Test] void ExtraLanguages_NarrowIndependently_WithoutTouchingGames()
+    [Test] void ExtraLanguages_Narrow_GamesUntouched()
     {
         // The other direction: take every installer language, but only English collectibles.
         var s = Scope.Both.WithExtraLanguages(new[] { "English" });

@@ -30,13 +30,22 @@ public sealed class BackupQueueBuilderTests
         return m;
     }
 
+    private sealed class MemoryStore : IManifestStore
+    {
+        public MemoryStore(LibraryManifest m) => Current = m;
+        public LibraryManifest Current { get; }
+        public ManifestGate Gate { get; } = new();
+        public System.Threading.Tasks.Task LoadAsync(System.Threading.CancellationToken ct = default) => System.Threading.Tasks.Task.CompletedTask;
+        public System.Threading.Tasks.Task SaveAsync(System.Threading.CancellationToken ct = default) => System.Threading.Tasks.Task.CompletedTask;
+    }
+
     private static List<string> Keys(LibraryManifest m, BackupRunOptions o)
         => BackupQueueBuilder.Build(m, null, o).Select(x => x.File.FileKey).OrderBy(k => k).ToList();
 
     // "Back up this game" with a queue already standing: two of its three files ran, the third
     // stayed at position 46 because the mid-run re-plan admits the whole queue in PERSISTED order.
     [Test]
-    public void A_picked_games_files_go_to_the_front_of_a_standing_queue_in_their_own_order()
+    public void PickedGame_JumpsStandingQueue_KeepsOrder()
     {
         var m = Lib();
         foreach (var k in new[] { "one-setup", "one-manual" }) m.Downloads.Enqueue(1, k);
@@ -54,6 +63,28 @@ public sealed class BackupQueueBuilderTests
     public void Default_picks_every_gap_and_nothing_present()
         => Assert.Equal("film-mp4,one-manual,one-setup,two-old,two-setup", string.Join(",", Keys(Lib(), new BackupRunOptions())));
 
+    // #2: the saved scope's Include patches toggle decides whether a patch row is a gap worth queueing, and
+    // turning it off afterwards drops an already-queued patch; nothing else in the queue moves.
+    [Test]
+    public void PatchesToggle_GatesAndPrunesQueue()
+    {
+        var m = Lib();
+        var patch = F(1, "one-patch", FileKind.Patch); patch.Os = "windows"; patch.Language = "English";
+        m.Items[0].Files.Add(patch);
+        m.Scope = new ScopeSettings();   // defaults: games, extras, patches all on
+        Assert.Equal("film-mp4,one-manual,one-patch,one-setup,two-old,two-setup", string.Join(",", Keys(m, new BackupRunOptions())), "patch queued by default");
+
+        m.Scope.IncludePatches = false;
+        Assert.Equal("film-mp4,one-manual,one-setup,two-old,two-setup", string.Join(",", Keys(m, new BackupRunOptions())), "patch left out when off");
+
+        m.Scope.IncludePatches = true;
+        m.Downloads.Enqueue(1, "one-patch"); m.Downloads.Enqueue(1, "one-setup");
+        m.Scope.IncludePatches = false;
+        var dropped = SavedScope.PruneQueuedOutOfScope(new MemoryStore(m));
+        Assert.Equal("one-patch", string.Join(",", dropped.Select(d => d.FileKey)), "only the patch is pruned");
+        Assert.Equal("one-setup", string.Join(",", m.Downloads.Snapshot().Select(q => q.FileKey)), "installer stays queued");
+    }
+
     private sealed class OfflineAware : IBackupLayout
     {
         public string? ResolvePath(GameFile f) => null;
@@ -66,7 +97,7 @@ public sealed class BackupQueueBuilderTests
     }
 
     [Test]
-    public void Resume_drain_leaves_a_file_whose_home_drive_is_unplugged_queued_and_unfetched()
+    public void ResumeDrain_UnpluggedDrive_StaysQueued()
     {
         var m = Lib();
         m.ItemById(2)!.Files.First(f => f.FileKey == "two-old").RootId = "offline";
@@ -128,7 +159,7 @@ public sealed class BackupQueueBuilderTests
     }
 
     [Test]
-    public void Replan_moves_a_pending_whole_game_onto_the_primary_once_room_appears()
+    public void Replan_PendingGame_ToPrimaryOnceRoom()
     {
         // Owner,: 1.09 GB left on the primary at the end of a run, three games under that size queued for the
         // secondary. The first plan reserved with rounded-up sizes; a re-plan against real free space fixes it.

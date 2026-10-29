@@ -57,7 +57,7 @@ public class PendingImportTests
         finally { Directory.Delete(dir, true); }
     }
 
-    [Test] void OnceItemsExist_OnlineRootBecomesRunnable_AndClearStopsIt()
+    [Test] void ItemsExist_OnlineRootRunnable_ClearStops()
     {
         var (store, dir) = New();
         try

@@ -12,7 +12,7 @@ using Grog.Core.Tests.Framework;
 public class ScheduleRunOutcomeTests
 {
     [Test]
-    void A_finished_run_and_an_abandoned_one_are_different_facts()
+    void FinishedVsAbandoned_DifferentFacts()
     {
         // The whole reason for a second pair of fields. Before this, "did a run end here?" and "did a run
         // FINISH here?" were the same question, so a stopped run either lied about completing or vanished.
@@ -55,7 +55,7 @@ public class ScheduleRunOutcomeTests
     }
 
     [Test]
-    void A_stamped_outcome_survives_a_round_trip_as_its_word()
+    void StampedOutcome_RoundTripsAsItsWord()
     {
         // The manifest writes enums as strings (readable states in the file). A schedule written by this
         // build must still read back on the next one, and must not be positionally coupled to the enum.
@@ -78,7 +78,7 @@ public class ScheduleRunOutcomeTests
     }
 
     [Test]
-    void A_schedule_written_before_this_feature_still_loads()
+    void PreFeatureSchedule_StillLoads()
     {
         // Every existing install has a Schedule with neither field. Null must mean "no run has ended yet",
         // not a crash and not a fabricated Completed.

@@ -40,7 +40,7 @@ public class ScopeTallyTests
     // The patch toggle: a Games sub-choice. Off, patches leave Games and Both; the Patches bucket still
     // prices them (its own axis lifted) so the toggle's row shows what turning it back on would add.
     [Test]
-    void PatchesOff_LeaveGamesAndBoth_ButStayPricedOnTheirOwnRow()
+    void PatchesOff_LeaveGamesBoth_OwnRowPriced()
     {
         var m = Library(Game(100), Patch(30), Extra(5));
         var on  = ScopeTally.ByContent(m, Scope.Both);
@@ -74,7 +74,7 @@ public class ScopeTallyTests
     // THE rule. Priced under the current pick, "Extras only" would read 0 B while extras are switched off --
     // which is exactly the number a user weighing whether to switch them ON must not be shown.
     [Test]
-    void TheContentAxisIsLifted_SoAnUnpickedOptionStillShowsItsCost()
+    void ContentAxisLifted_UnpickedShowsCost()
     {
         var m = Library(Game(100), Extra(30));
 

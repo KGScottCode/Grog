@@ -132,7 +132,7 @@ public class DeviceGridTypeFilterTests
         Assert.True(grid.TypeOptions.All(o => o.IsActive));
     }
 
-    [Test] void TheFilterSurvivesTheRebuildEveryLandedFileTriggers()
+    [Test] void Filter_SurvivesLandedFileRebuild()
     {
         // BuildGridRows clears the grid before every rebuild (one per landed file during a run). The user's
         // "Show: Game only" must come back on the new rows, or it resets to "All types" two seconds after

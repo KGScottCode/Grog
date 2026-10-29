@@ -81,7 +81,7 @@ public class ImportPlannerTests
     }
 
     [Test]
-    void A_backup_root_with_a_top_level_Extras_folder_is_not_a_game_folder()
+    void RootWithTopLevelExtras_IsNotGameFolder()
     {
         var (store, root) = NewManifest();
         store.Current.Items.Add(Item(3, "Leap of Love", "leap_of_love", ("k1", "setup", 8)));
@@ -202,7 +202,7 @@ public class ImportPlannerTests
     // ---- depth-capped walk ----
 
     [Test]
-    void FindCandidateFolders_StopsAtGameFolders_AndRespectsDepthCap()
+    void FindCandidates_StopAtGames_DepthCapped()
     {
         var (store, root) = NewManifest();
         try

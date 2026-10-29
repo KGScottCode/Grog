@@ -170,7 +170,7 @@ public class ImportRunTests
     }
 
     [Test]
-    void DefaultPrimary_IsMarkedPending_SoTheFirstScanWalksIt()
+    void DefaultPrimary_Pending_FirstScanWalksIt()
     {
         using var rig = new Rig();   // the Rig's ctor is the first-run path: EnsurePrimary and nothing else
         var primary = rig.Store.Current.Roots.Single(r => r.Id == rig.Store.Current.PrimaryRootId);

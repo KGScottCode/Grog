@@ -62,7 +62,7 @@ public sealed class ReplanOnSortTests
                                       .Select(t => t.File.FileKey).OrderBy(k => k));
 
     [Test]
-    public void Replan_cannot_rescue_a_file_that_never_entered_the_engine()
+    public void Replan_CannotRescue_NeverInEngine()
     {
         var m = Lib();
         var engine = Engine();
@@ -86,7 +86,7 @@ public sealed class ReplanOnSortTests
     }
 
     [Test]
-    public void ReplanWholeQueue_readmits_a_file_whose_task_was_cancelled_mid_transfer()
+    public void ReplanWholeQueue_ReadmitsCancelled()
     {
         var m = Lib();
         var engine = Engine();
@@ -102,7 +102,7 @@ public sealed class ReplanOnSortTests
     }
 
     [Test]
-    public void ReplanWholeQueue_without_an_engine_still_rewrites_the_flags()
+    public void ReplanWholeQueue_NoEngine_RewritesFlags()
     {
         var m = Lib();
         m.Downloads.Enqueue(1, "big-setup", "p"); m.Downloads.Enqueue(2, "small-setup", "p");
@@ -114,7 +114,7 @@ public sealed class ReplanOnSortTests
     }
 
     [Test]
-    public void ReplanWholeQueueDetailed_reports_the_room_left_after_the_fitting_files()
+    public void ReplanDetailed_ReportsRoomAfterFitting()
     {
         var m = Lib();
         m.Items[1].Files[0].HasPartial = true; m.Items[1].Files[0].PartialBytes = 4;   // small: 10 total, 4 on disk
@@ -125,7 +125,7 @@ public sealed class ReplanOnSortTests
     }
 
     [Test]
-    public void ReplanWholeQueue_without_an_engine_counts_only_flag_flips()
+    public void ReplanWholeQueue_NoEngine_CountsFlips()
     {
         var m = Lib();
         m.Downloads.Enqueue(1, "big-setup", "p"); m.Downloads.Enqueue(2, "small-setup", "p");
@@ -166,7 +166,7 @@ public sealed class ReplanOnSortTests
     }
 
     [Test]
-    public void A_replan_never_resurrects_an_entry_that_left_the_queue()
+    public void Replan_NeverResurrectsDequeued()
     {
         var m = Lib();
         var engine = Engine();
@@ -199,7 +199,7 @@ public sealed class ReplanOnSortTests
     }
 
     [Test]
-    public void A_file_that_stops_fitting_leaves_the_engine_but_stays_queued()
+    public void StopsFitting_LeavesEngine_StaysQueued()
     {
         var m = Lib();
         var engine = Engine();
@@ -214,7 +214,7 @@ public sealed class ReplanOnSortTests
     }
 
     [Test]
-    public void A_second_pass_over_an_unchanged_queue_changes_nothing()
+    public void SecondPass_UnchangedQueue_NoOp()
     {
         var m = Lib();
         var engine = Engine();
@@ -227,7 +227,7 @@ public sealed class ReplanOnSortTests
     }
 
     [Test]
-    public void The_manifest_gate_is_never_held_while_the_engine_raises_events()
+    public void ManifestGate_NotHeldDuringEngineEvents()
     {
         var m = Lib();
         var store = Store(m);
@@ -248,7 +248,7 @@ public sealed class ReplanOnSortTests
     }
 
     [Test]
-    public void A_replan_that_drops_many_files_raises_a_constant_number_of_events()
+    public void ReplanDropsMany_ConstantEventCount()
     {
         var m = new LibraryManifest();
         for (long g = 1; g <= 60; g++)
@@ -283,7 +283,7 @@ public sealed class ReplanOnSortTests
     // ----: the Fits flag on the persisted entry (inform, never choose) ----
 
     [Test]
-    public void ReplanWholeQueue_marks_the_entry_Fits_false_then_true_again()
+    public void ReplanWholeQueue_FitsFalseThenTrue()
     {
         var m = Lib(); var engine = Engine();
         m.Downloads.Enqueue(1, "big-setup", "p"); m.Downloads.Enqueue(2, "small-setup", "p");
@@ -298,7 +298,7 @@ public sealed class ReplanOnSortTests
     }
 
     [Test]
-    public void A_wont_fit_row_at_the_head_keeps_its_place_and_the_engine_takes_the_next()
+    public void WontFitAtHead_StaysPut_EngineTakesNext()
     {
         var m = Lib(); var engine = Engine();
         m.Downloads.Enqueue(1, "big-setup", "p"); m.Downloads.Enqueue(2, "small-setup", "p");
@@ -322,7 +322,7 @@ public sealed class ReplanOnSortTests
     }
 
     [Test]
-    public void RemoveWontFit_takes_only_the_flagged_rows_and_keeps_the_order_of_the_rest()
+    public void RemoveWontFit_OnlyFlagged_OrderKept()
     {
         var q = new DownloadQueue();
         q.Enqueue(2, "s1", "p", fits: true); q.Enqueue(1, "b1", "p", fits: false);
@@ -333,7 +333,7 @@ public sealed class ReplanOnSortTests
         Assert.Equal(0, q.RemoveWontFit().Count, "idempotent");
     }
     [Test]
-    public void A_partial_its_volume_can_never_finish_is_released_and_the_room_is_replanned()
+    public void UnfinishablePartial_Released_Replanned()
     {
         var root = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "grog-deadpart-" + Guid.NewGuid().ToString("N"));
         System.IO.Directory.CreateDirectory(System.IO.Path.Combine(root, ".grog-tmp"));
@@ -360,7 +360,7 @@ public sealed class ReplanOnSortTests
     }
 
     [Test]
-    public void A_partial_is_kept_while_a_drive_is_offline_or_when_it_is_resumable_where_it_sits()
+    public void Partial_KeptIfOfflineOrResumableInPlace()
     {
         var root = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "grog-keeppart-" + Guid.NewGuid().ToString("N"));
         System.IO.Directory.CreateDirectory(System.IO.Path.Combine(root, ".grog-tmp"));
@@ -411,7 +411,7 @@ public sealed class ReplanOnSortTests
     // 1283: the whole-queue walk applies Build's rule: a file whose home drive (old build) is unplugged
     // is not handed to the engine on another root. It stays queued, flag untouched, waiting for its drive.
     [Test]
-    public void Whole_queue_replan_leaves_a_file_whose_home_drive_is_offline_out_of_the_engine()
+    public void WholeReplan_OfflineHomeDrive_OutOfEngine()
     {
         var m = Lib();
         m.Roots.Add(new BackupRoot { Id = "offline", Label = "Away" });
@@ -428,7 +428,7 @@ public sealed class ReplanOnSortTests
     // 1283: an unchecked transfer whose recorded partial already sits on the target volume is charged
     // only what is still to come; those bytes are already out of the drive's free figure.
     [Test]
-    public void In_flight_reservation_does_not_double_charge_a_partial_already_on_the_volume()
+    public void InFlightReserve_NoDoubleChargePartial()
     {
         var f = F(1, "big-setup", 1_000_000_000);
         f.HasPartial = true; f.PartialBytes = 600_000_000; f.PartialRootId = "p";
@@ -441,7 +441,7 @@ public sealed class ReplanOnSortTests
 
     // 1283: a file whose.part is being carried between drives is not taken by a worker until released.
     [Test]
-    public void A_held_file_is_skipped_by_the_workers_until_released()
+    public void HeldFile_SkippedUntilReleased()
     {
         var engine = Engine();
         var a = F(1, "big-setup", 100); var b = F(2, "small-setup", 10);

@@ -69,7 +69,7 @@ public class DownloadQueueTests
         GameTitle = name, TargetRootId = root,
     };
 
-    [Test] void Reorder_on_a_slow_drive_preempts_the_demoted_download()
+    [Test] void Reorder_SlowDrive_PreemptsDemoted()
     {
         var mon = new DeviceWriteMonitor(); mon.Record("stick", 17);
         var e = new DownloadEngine(null!, null!) { MaxConcurrent = 2, DeviceMonitor = mon };
@@ -84,7 +84,7 @@ public class DownloadQueueTests
         Assert.Equal("s1,s2,big", string.Join(",", e.Snapshot.Select(t => t.GameTitle)), "engine follows the sort");
     }
 
-    [Test] void Reorder_on_a_slow_drive_keeps_one_file_per_drive_in_the_window()
+    [Test] void Reorder_SlowDrive_OneFilePerDrive()
     {
         // Two workers, one slow drive: the window on that drive is ONE file. A second Active on it (started before
         // the drive was judged slow) that the sort puts behind another row on the same drive is preempted.
@@ -101,7 +101,7 @@ public class DownloadQueueTests
         Assert.True(b.PreemptRequested, "the demoted second file on the slow drive stops");
     }
 
-    [Test] void Reorder_never_preempts_a_file_that_is_writing_verifying_or_saving()
+    [Test] void Reorder_NeverPreempts_WriteVerifySave()
     {
         // Owner: every byte is in; stopping it now only throws away the flush or the hash.
         foreach (var phase in new[] { "Writing to disk", "Verifying", "Saving" })
@@ -119,7 +119,7 @@ public class DownloadQueueTests
         }
     }
 
-    [Test] void Waiting_rows_on_a_slow_drive_never_bump_a_fast_drive_download()
+    [Test] void WaitingSlowRows_NeverBumpFastDrive()
     {
         // : two stick rows sorted on top take ONE slot between them (the stick runs one file), so the hard
         // drive's download keeps the other slot instead of being cut and picked straight back up.
@@ -135,7 +135,7 @@ public class DownloadQueueTests
         Assert.True(k.PreemptRequested, "the demoted stick file gives the stick to s1");
     }
 
-    [Test] void Two_stick_files_already_running_are_not_bumped_when_nothing_waits_above_them()
+    [Test] void TwoRunningStickFiles_NotBumped_NoWaiters()
     {
         // : both started before the stick was judged slow. Raising the limit (or a drag elsewhere) re-runs
         // the window; nothing on the stick ranks above the second, so nothing stops.
@@ -151,7 +151,7 @@ public class DownloadQueueTests
         Assert.True(!a.PreemptRequested && !b.PreemptRequested, "no waiting stick row ranks above either");
     }
 
-    [Test] void Lowering_the_limit_counts_every_running_file_on_a_slow_drive()
+    [Test] void LowerLimit_CountsAllRunningOnSlowDrive()
     {
         // : two stick files and one hard-drive file running, limit 3 -> 2: three files on two slots is one too many.
         var mon = new DeviceWriteMonitor(); mon.Record("stick", 17);
@@ -166,7 +166,7 @@ public class DownloadQueueTests
         Assert.True(!a.PreemptRequested && !b.PreemptRequested, "the first two keep their slots");
     }
 
-    [Test] void Reorder_on_a_fast_drive_still_keeps_the_whole_window()
+    [Test] void Reorder_FastDrive_KeepsWholeWindow()
     {
         var e = new DownloadEngine(null!, null!) { MaxConcurrent = 2 };
         var a = K("a", "hd"); var b = K("b", "hd"); var c = K("c", "hd");

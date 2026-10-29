@@ -40,7 +40,7 @@ public class ProcessPresenceTests
         finally { Directory.Delete(dir, true); }
     }
 
-    [Test] void Disposing_A_Refused_Instance_Leaves_The_Holders_Files()
+    [Test] void DisposeRefused_LeavesHoldersFiles()
     {
         var dir = Directory.CreateTempSubdirectory("grog-presence-").FullName;
         try

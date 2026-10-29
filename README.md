@@ -54,6 +54,7 @@ Grog isn't signed yet, so Windows and macOS ask you to confirm the first launch;
 - **Installed or portable:** a no-admin installer, or a folder that runs from anywhere, USB stick included.
 - **Several drives:** spread the library across drives; a disconnected drive pauses the backup until it's back.
 - **Several GOG accounts in one library;** shared purchases appear once.
+- **Choose what to back up:** games, extras, patches, platforms and languages; the Library filters by the same types.
 - **Extras** with each game or in their own folder tree; ratings, languages and an optional mature-content filter.
 - **Command-line tool** for servers and scheduled jobs.
 

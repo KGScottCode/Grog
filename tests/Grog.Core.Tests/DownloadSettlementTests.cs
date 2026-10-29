@@ -22,7 +22,7 @@ public sealed class DownloadSettlementTests
     }
 
     [Test]
-    public void Completed_clears_strikes_and_partial_and_leaves_the_queue()
+    public void Completed_ClearsStrikesPartial_Dequeues()
     {
         var (m, f, t) = Rig(DownloadTaskState.Completed); f.FailedAttempts = 2;
         var (o, changed) = DownloadSettlement.Settle(m, t, f);
@@ -68,7 +68,7 @@ public sealed class DownloadSettlementTests
     }
 
     [Test]
-    public void RequeueFresh_lifts_Corrupt_and_forgets_the_partial()
+    public void RequeueFresh_LiftsCorrupt_DropsPartial()
     {
         var (m, f, _) = Rig(DownloadTaskState.Failed); m.Downloads.Remove(7, "/k");
         f.State = FileState.Corrupt; f.FailedAttempts = RetryPolicy.MaxAttempts;
@@ -78,7 +78,7 @@ public sealed class DownloadSettlementTests
     }
 
     [Test]
-    public void A_disk_full_failure_takes_no_strike_and_flags_the_row_wont_fit()
+    public void DiskFull_NoStrike_FlagsWontFit()
     {
         var (m, f, t) = Rig(DownloadTaskState.Failed); t.DiskFull = true;
         for (int n = 0; n < 5; n++) Assert.Equal(DownloadSettlement.Outcome.NoRoom, DownloadSettlement.Settle(m, t, f).Outcome);
@@ -94,7 +94,7 @@ public sealed class DownloadSettlementTests
     }
 
     [Test]
-    public void RequeueFresh_keeps_the_partial_of_a_file_that_was_not_condemned()
+    public void RequeueFresh_KeepsUncondemnedPartial()
     {
         var (m, f, _) = Rig(DownloadTaskState.Failed); f.State = FileState.NotBackedUp; f.FailedAttempts = 1;
         DownloadSettlement.RequeueFresh(m, 7, f);
@@ -103,7 +103,7 @@ public sealed class DownloadSettlementTests
     }
 
     [Test]
-    public void Part_names_survive_a_path_change_and_the_sweep_is_owner_aware()
+    public void PartNames_SurvivePathChange_OwnerSweep()
     {
         var a = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "grog-part-a-" + System.Guid.NewGuid().ToString("N"));
         var b = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "grog-part-b-" + System.Guid.NewGuid().ToString("N"));

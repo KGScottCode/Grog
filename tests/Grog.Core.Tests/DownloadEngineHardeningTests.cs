@@ -247,7 +247,7 @@ public sealed class DownloadEngineHardeningTests
     // 1274: GOG's listed size can be off by several percent; that is the
     // checksum's call, not a refusal. Only a body of another order (an error page) is refused.
     [Test]
-    public void A_body_a_few_percent_off_the_label_is_plausible_and_an_error_page_is_not()
+    public void NearLabelBody_Plausible_ErrorPageNot()
     {
         Assert.True(DownloadEngine.PlausibleBodyLength(897_450_000, 941_000_000), "4.6% under the label");
         Assert.True(DownloadEngine.PlausibleBodyLength(32, 8), "bytes apart: display rounding");
@@ -258,7 +258,7 @@ public sealed class DownloadEngineHardeningTests
 
     // 1279: an extra's label is a placeholder (a 111.90 KB manual listed at 10.00 MB, measured): never refused on length.
     [Test]
-    public void An_extras_body_is_never_refused_on_length_but_an_installers_still_is()
+    public void LengthCheck_SparesExtras_NotInstallers()
     {
         Assert.False(DownloadEngine.RefusesBodyLength(FileKind.Extra, 114_585, 10_485_760), "a manual at GOG's flat 10 MB label");
         Assert.True(DownloadEngine.RefusesBodyLength(FileKind.Installer, 114_585, 10_485_760), "an installer stub of the same size");

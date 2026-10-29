@@ -63,7 +63,7 @@ public sealed class LocalDeletionTests
 
     // Sweep 2 #7: removing a drive with "Delete files" was a hand loop. One plan for the whole drive.
     [Test]
-    public void A_whole_drive_delete_takes_queued_files_and_orphan_archives_and_leaves_other_drives_alone()
+    public void DriveDelete_TakesQueuedAndOrphans_OnlyIt()
     {
         var root = Root(); var (m, item) = Lib();
         var here = Put(root, item, "/a", "Games/one/setup.exe");
@@ -94,7 +94,7 @@ public sealed class LocalDeletionTests
     }
 
     [Test]
-    public void Deleting_a_withdrawn_archive_record_removes_the_bytes_and_the_record()
+    public void DeleteWithdrawnArchive_BytesAndRecordGo()
     {
         var root = Root(); var (m, item) = Lib();
         var keep = Put(root, item, "/a", "Games/one/setup.exe");
@@ -112,7 +112,7 @@ public sealed class LocalDeletionTests
     }
 
     [Test]
-    public void Removes_the_game_folder_once_it_is_empty_but_never_one_with_content()
+    public void GameFolder_RemovedOnlyWhenEmpty()
     {
         var root = Root(); var (m, item) = Lib();
         var a = Put(root, item, "/a", "Games/one/setup.exe");
@@ -125,7 +125,7 @@ public sealed class LocalDeletionTests
     }
 
     [Test]
-    public void Takes_the_files_archived_builds_under_Old_Versions_with_it()
+    public void TakesOldVersionsBuilds_WithTheFile()
     {
         var root = Root(); var (m, item) = Lib();
         var f = Put(root, item, "/a", "Games/one/setup.exe");
@@ -156,7 +156,7 @@ public sealed class LocalDeletionTests
     }
 
     [Test]
-    public void A_file_already_missing_from_disk_still_has_its_record_cleared()
+    public void MissingFile_RecordStillCleared()
     {
         var root = Root(); var (m, item) = Lib();
         var f = Put(root, item, "/a", "Games/one/setup.exe");
@@ -168,7 +168,7 @@ public sealed class LocalDeletionTests
     }
 
     [Test]
-    public void A_file_on_an_offline_drive_is_a_failure_and_keeps_its_record()
+    public void OfflineDriveFile_Fails_KeepsRecord()
     {
         var root = Root(); var (m, item) = Lib();
         var f = Put(root, item, "/a", "Games/one/setup.exe"); f.RootId = "offline";
@@ -178,7 +178,7 @@ public sealed class LocalDeletionTests
     }
 
     [Test]
-    public void A_root_folder_absent_from_disk_is_an_unplugged_drive_not_a_missing_file()
+    public void AbsentRoot_IsUnplugged_NotMissingFile()
     {
         // The primary binds to the caller's path even when that path does not exist, so ResolvePath returns a
         // path on a drive that is not here. Every file on it would read "missing" and lose its record while
@@ -194,7 +194,7 @@ public sealed class LocalDeletionTests
     }
 
     [Test]
-    public void The_top_level_category_folder_survives_the_last_delete()
+    public void CategoryFolder_SurvivesLastDelete()
     {
         var root = Root(); var (m, item) = Lib();
         var f = Put(root, item, "/a", "Games/loose.exe");
@@ -225,7 +225,7 @@ public sealed class LocalDeletionTests
     }
 
     [Test]
-    public void An_archived_build_on_an_offline_drive_is_a_named_failure_and_not_previewed()
+    public void OfflineArchivedBuild_NamedFail_NoPreview()
     {
         var root = Root(); var (m, item) = Lib();
         var f = Put(root, item, "/a", "Games/one/setup.exe");

@@ -93,7 +93,7 @@ public class LibraryStatsTests
         Assert.Equal(0, games.Missing, "games-only: nothing missing");
     }
 
-    [Test] void CategoryMagnitudes_SplitGamesAndExtras_FullLibrary()
+    [Test] void CategoryMagnitudes_SplitGamesExtras()
     {
         // Two backable games; game 2 has an extra.
         var m = Manifest(

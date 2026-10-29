@@ -114,7 +114,7 @@ public sealed class CoreHardeningTests
     }
 
     [Test]
-    public void SafeDestination_rejects_rooted_and_parent_names_and_accepts_nested_ones()
+    public void SafeDestination_RejectsRootedAndParent()
     {
         var root = Path.Combine(Path.GetTempPath(), "grog-safe-root");
         Assert.Null(CloudSaveService.SafeDestination(root, "../x"), "parent escape");
@@ -147,7 +147,7 @@ public sealed class CoreHardeningTests
     }
 
     [Test]
-    public void Trusted_hosts_are_gog_com_and_its_subdomains_over_https()
+    public void TrustedHosts_GogComSubdomainsHttps()
     {
         Assert.True(CloudSaveService.IsTrustedDownloadHost("https://cloudstorage.gog.com/v1/u/c/f"), "subdomain");
         Assert.True(CloudSaveService.IsTrustedDownloadHost("https://gog.com/x"), "apex");
@@ -372,7 +372,7 @@ public sealed class CoreHardeningTests
     // ---- token protection readout ---------------------------------------------------------------
 
     [Test]
-    public void An_encrypted_token_file_reads_as_encrypted_even_with_no_key_available()
+    public void EncryptedToken_ReadsEncrypted_NoKey()
     {
         if (FileTokenStore.PlainTextPreferred) return;   // the opt-out marker on this machine overrides every header
         var dir = Directory.CreateTempSubdirectory("grog-token-").FullName;

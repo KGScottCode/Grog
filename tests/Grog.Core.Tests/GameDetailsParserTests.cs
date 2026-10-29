@@ -129,7 +129,7 @@ public class GameDetailsParserTests
 public class GameDetailsParserShapeTests
 {
     [Test]
-    void Parse_FlatDownloadsArray_MovieStyle_YieldsInstallers()
+    void Parse_FlatMovieDownloads_YieldInstallers()
     {
         // Movies use a flat array of file objects instead of the [lang,{os}] nesting.
         const string movie = """
@@ -179,7 +179,7 @@ public class GameDetailsEmptyResponseTests
     }
 
     [Test]
-    void Parse_EmptyArrayWithWhitespace_ThrowsNoGameDetails()
+    void Parse_WhitespaceEmptyArray_Throws()
     {
         Assert.Throws<NoGameDetailsException>(() => GameDetailsParser.Parse("  [ ]  "), "whitespace [] -> NoGameDetails");
     }

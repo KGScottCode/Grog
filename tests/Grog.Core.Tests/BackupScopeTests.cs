@@ -130,7 +130,7 @@ public class BackupScopeTests
     }
 
     // ---- Status truth table ----
-    [Test] void GamesOnly_InstallerPresent_ExtraMissing_IsComplete()
+    [Test] void GamesOnly_ExtraMissing_IsComplete()
         => Assert.Equal(BackupStatus.Complete,
             BackupScope.Status(Item((FileKind.Installer, FileState.Present, 100), (FileKind.Extra, FileState.NotBackedUp, 50)), Scope.GamesOnly),
             "games-only ignores the missing extra");
@@ -140,7 +140,7 @@ public class BackupScopeTests
             BackupScope.Status(Item((FileKind.Installer, FileState.Present, 100), (FileKind.Extra, FileState.NotBackedUp, 50)), Scope.Both),
             "the missing extra now counts");
 
-    [Test] void ExtrasOnly_ExtraPresent_InstallerMissing_IsComplete()
+    [Test] void ExtrasOnly_InstallerMissing_IsComplete()
         => Assert.Equal(BackupStatus.Complete,
             BackupScope.Status(Item((FileKind.Installer, FileState.NotBackedUp, 100), (FileKind.Extra, FileState.Present, 50)), Scope.ExtrasOnly),
             "extras-only ignores the missing installer");

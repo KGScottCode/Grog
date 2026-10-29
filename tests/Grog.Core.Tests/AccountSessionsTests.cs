@@ -47,7 +47,7 @@ public sealed class AccountSessionsTests
     }
 
     [Test]
-    public void Picker_chooses_the_first_owner_in_registration_order()
+    public void Picker_TakesFirstRegisteredOwner()
     {
         var (s, _, _) = Setup();
         SignIn(s, "acct"); SignIn(s, "kids");
@@ -55,7 +55,7 @@ public sealed class AccountSessionsTests
     }
 
     [Test]
-    public void Picker_falls_through_to_the_second_owner_when_the_first_is_signed_out()
+    public void Picker_FallsThrough_WhenFirstSignedOut()
     {
         // The resilience the owners list exists for: acct signed out, kids still feeds the backup.
         var (s, _, _) = Setup();
@@ -64,7 +64,7 @@ public sealed class AccountSessionsTests
     }
 
     [Test]
-    public void Picker_returns_null_when_every_owner_is_signed_out_and_names_them()
+    public void Picker_AllSignedOut_NullAndNamesThem()
     {
         var (s, _, _) = Setup();
         Assert.True(s.FirstAuthenticatedOwner(File("acct", "kids")) is null, "no key to the door today");
@@ -72,7 +72,7 @@ public sealed class AccountSessionsTests
     }
 
     [Test]
-    public void Picker_skips_an_account_whose_auth_failed_this_run_until_marked_ok()
+    public void Picker_SkipsAuthFailed_UntilMarkedOk()
     {
         var (s, _, _) = Setup();
         SignIn(s, "acct"); SignIn(s, "kids");
@@ -91,7 +91,7 @@ public sealed class AccountSessionsTests
     }
 
     [Test]
-    public void Adopt_hands_back_the_given_pair_for_that_account_only()
+    public void Adopt_ReturnsPair_ForThatAccountOnly()
     {
         // The App's interactive session is bound to the first account's token file; reusing it here means one
         // GogAuthService per token file, so two instances never race on a rotated refresh token.

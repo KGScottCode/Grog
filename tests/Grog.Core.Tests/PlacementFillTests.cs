@@ -12,7 +12,7 @@ namespace Grog.Core.Tests;
 public sealed class PlacementFillTests
 {
     [Test]
-    public void A_14GB_primary_against_490GB_ends_within_a_few_MB_of_full()
+    public void Primary14GB_Vs490GB_EndsWithinFewMB()
     {
         var rng = new Random(20260905);
         var files = new List<PlacementPlanner.FileToPlace>();

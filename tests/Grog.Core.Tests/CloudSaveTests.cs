@@ -10,7 +10,7 @@ using Grog.Core.Tests.Framework;
 public class CloudSaveTests
 {
     [Test]
-    void The_local_save_count_still_reads_from_the_OLD_json_name()
+    void LocalSaveCount_ReadsOldJsonName()
     {
         // "Snapshot" became "local save" throughout the code. This field is PERSISTED, so the wire name was
         // pinned rather than renamed: without the pin, every existing manifest would read back zero and a
@@ -232,7 +232,7 @@ public class CloudSaveTests
     }
 
     [Test]
-    void Apply_ClearsStaleCloudIdentityOnItemsWithoutContainers()
+    void Apply_ClearsStaleIdentity_NoContainer()
     {
         // A game left with a cached client id / size / space id from testing, but no container any more.
         var stale = Item(2, "Witcher");

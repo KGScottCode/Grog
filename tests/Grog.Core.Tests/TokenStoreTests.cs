@@ -165,7 +165,7 @@ public sealed class TokenStoreTests
     }
 
     [Test]
-    public void Protection_reason_names_the_opt_out_when_the_marker_is_set()
+    public void ProtectionReason_NamesOptOut_WithMarker()
     {
         // The reason must name the CAUSE, not just the state: the UI's opt-out sentence ("so scheduled
         // CLI runs can read it") is only true when the user chose it, and this is the choice.
@@ -263,7 +263,7 @@ public sealed class TokenStoreTests
     }
 
     [Test]
-    public void Protection_reason_without_marker_is_keyring_dependent_not_opt_out()
+    public void ProtectionReason_NoMarker_IsKeyring()
     {
         // With no marker, whatever else the reason is it must NOT be OptedOut -- this is exactly the
         // false sentence the old card showed a keyring-less Linux user.

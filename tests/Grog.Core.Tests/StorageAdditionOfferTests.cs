@@ -38,7 +38,7 @@ public sealed class StorageAdditionOfferTests
     }
 
     [Test]
-    public void ShouldOffer_only_when_a_queued_row_targets_the_new_root()
+    public void ShouldOffer_OnlyWhenQueueTargetsNewRoot()
     {
         var m = Lib();
         Assert.True(StorageAdditionOffer.ShouldOffer(m, "s"), "rows target s");
@@ -48,7 +48,7 @@ public sealed class StorageAdditionOfferTests
     }
 
     [Test]
-    public void Counts_queue_to_new_and_files_on_old_primary_including_old_versions()
+    public void Counts_QueueToNew_OldPrimaryWithVersions()
     {
         var m = Lib();
         m.Items[2].Files[0].HasPartial = true; m.Items[2].Files[0].PartialBytes = 20;   // 50 needs 30
@@ -60,7 +60,7 @@ public sealed class StorageAdditionOfferTests
     }
 
     [Test]
-    public void Split_games_are_those_with_files_on_primary_AND_files_queued_to_new()
+    public void SplitGames_OnPrimaryAndQueuedToNew()
     {
         var r = StorageAdditionOffer.Compute(Lib(), "s", "p");
         Assert.Equal(2, r.SplitGameCount, "Split and Extras; Whole has no queue row, Fresh has nothing present");
@@ -70,7 +70,7 @@ public sealed class StorageAdditionOfferTests
     }
 
     [Test]
-    public void A_pinned_extra_is_held_back_from_the_per_game_move_but_not_from_move_everything()
+    public void PinnedExtra_SkipsPerGameMove_NotMoveAll()
     {
         var m = Lib();
         m.SetExtrasLayout(ExtrasPlacement.SeparateByGame);

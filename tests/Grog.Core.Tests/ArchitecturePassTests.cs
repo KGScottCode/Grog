@@ -45,7 +45,7 @@ public sealed class ArchitecturePassTests
         Assert.Equal(0, run.TryAppend(layout).Count, "a layout plan never joins a relocate job");
     }
 
-    [Test] public void Remaining_writes_are_unsettled_cross_volume_copies_less_what_is_copied()
+    [Test] public void RemainingWrites_UnsettledCopiesMinusDone()
     {
         var j = new ReorgJob { Reason = ReorgReason.Relocate };
         j.Moves.Add(Mv(1, "a", size: 100, copied: 30));

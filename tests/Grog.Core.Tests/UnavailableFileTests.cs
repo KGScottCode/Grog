@@ -82,7 +82,7 @@ public class UnavailableFileTests
 
     // The self-heal: sync is where GOG's view refreshes, so it clears the flag and lets the file retry once.
     [Test]
-    void Sync_ClearsUnavailableSoEntitlementChangesSelfHeal()
+    void Sync_ClearsUnavailable_EntitlementHeals()
     {
         var manifest = new Grog.Core.Manifest.LibraryManifest();
         var existing = Game(("deadextra", FileState.Unavailable));
@@ -186,7 +186,7 @@ public class LogFileTests
 
     // The App holds three LogFile instances on one grog.log; two open streams on one file clobbered each other.
     [Test]
-    void TwoInstancesOnOnePath_InterleaveWithoutLosingLines()
+    void TwoInstancesOnePath_NoLinesLost()
     {
         var dir = System.IO.Directory.CreateTempSubdirectory("grog-log-").FullName;
         var a = new Grog.Core.Storage.LogFile(dir);

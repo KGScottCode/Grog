@@ -14,7 +14,7 @@ namespace Grog.Core.Tests;
 public sealed class EffectiveRootIdTests
 {
     [Test]
-    public void A_null_RootId_resolves_to_the_primary_and_a_set_one_wins()
+    public void NullRootId_IsPrimary_SetOneWins()
     {
         var m = new LibraryManifest { PrimaryRootId = "primary" };
         Assert.Equal("primary", m.EffectiveRootId(new GameFile()), "no RootId: the primary");
@@ -26,7 +26,7 @@ public sealed class EffectiveRootIdTests
 public sealed class PluralTests
 {
     [Test]
-    public void Counts_and_nouns_pluralise_with_s_or_the_given_form()
+    public void Pluralise_WithSOrGivenForm()
     {
         Assert.Equal("1 file", Plural.Of(1, "file"), "one");
         Assert.Equal("0 files", Plural.Of(0, "file"), "zero takes the plural");
@@ -50,7 +50,7 @@ public sealed class FolderPrunerDeleteIfEmptyTests
     }
 
     [Test]
-    public void A_transient_lock_is_retried_once_and_a_second_refusal_is_given_up()
+    public void TransientLock_RetriedOnce_ThenGivesUp()
     {
         var once = new FlakyIo { RefuseFirst = 1 };
         Assert.True(FolderPruner.DeleteIfEmpty("/x/.grog-tmp", once), "gone after the retry");
@@ -62,7 +62,7 @@ public sealed class FolderPrunerDeleteIfEmptyTests
     }
 
     [Test]
-    public void A_folder_with_content_or_no_folder_at_all_is_left_alone()
+    public void FolderWithContentOrAbsent_LeftAlone()
     {
         var full = new FlakyIo { Empty = false };
         Assert.False(FolderPruner.DeleteIfEmpty("/x/.grog-tmp", full), "content stays");
@@ -91,7 +91,7 @@ public sealed class FolderPrunerDeleteIfEmptyTests
 public sealed class TestTimeoutTests
 {
     [Test]
-    public void The_attribute_beats_the_env_var_which_beats_the_default()
+    public void Attribute_BeatsEnvVar_BeatsDefault()
     {
         var prev = Environment.GetEnvironmentVariable("GROG_TEST_TIMEOUT");
         try

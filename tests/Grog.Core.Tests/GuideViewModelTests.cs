@@ -125,7 +125,7 @@ public sealed class GuideViewModelTests
         Assert.Equal("Setup guide closed. Reopen it any time from Settings.", Assert.Single(host.Logged), "logged once");
     }
 
-    [Test] void BackUpStepPicksTheSmallestFileAndReleasesItOnLeaving()
+    [Test] void BackUpStep_PicksSmallest_ReleasesOnLeave()
     {
         var host = new FakeHost { IsConnected = true, TotalCount = 2, CurrentViewName = "Library" };
         host.Rows.Add(Row(1, "Anchorhead", File("setup.exe", 5_000)));

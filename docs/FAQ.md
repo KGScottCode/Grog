@@ -18,6 +18,15 @@ See the install guides: [Windows](install/Windows.md), [macOS](install/macOS.md)
 The next scan flags it and queues the new version. With **Keep the version an update replaces** on, the
 old installer moves to `Old Versions/`: GOG stops offering old builds, so that is the only way back.
 
+### Do I need the patches?
+
+GOG lists patches next to the installers: small downloads that take an installed game from one version to
+the next. The full installer Grog keeps is always the current version, so a fresh install never needs them;
+they only save re-downloading the whole game on a machine that already has an older version installed.
+Settings, **Content**, **Include patches** turns them off (default on); off, queued patches leave the queue
+and anything already downloaded stays. In the Library the **Patches** chip shows just those files. CLI:
+`grogcli scope set --no-patches` persists the same choice, `--skip-patches` skips them for one run.
+
 ### Does Grog need to be running for scheduled backups?
 
 Yes; minimized or in the tray is enough (Settings, **When you close the window**: **Keep Running in
