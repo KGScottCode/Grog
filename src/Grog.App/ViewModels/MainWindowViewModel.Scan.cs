@@ -177,8 +177,8 @@ public partial class MainWindowViewModel
         }
     }
 
-    // "v0.1.4.610 (775708e)": the stamped build number and the commit the SDK puts
-    // after '+' in the informational version, so a bug report names the exact source. The rail keeps v0.1.4.
+    // "v0.1.4 (775708e)": the release version and the commit the SDK puts after '+' in the informational
+    // version, so a bug report names the exact source. The build count stays internal (assembly version).
     public string AppVersionText
     {
         get
@@ -190,6 +190,8 @@ public partial class MainWindowViewModel
             var plus = info.IndexOf('+');
             var sha = plus >= 0 ? info[(plus + 1)..] : "";
             var v = (plus >= 0 ? info[..plus] : info).TrimStart('v', 'V');
+            var parts = v.Split('.');
+            if (parts.Length > 3) v = string.Join('.', parts.Take(3));
             var text = "v" + v;
             if (sha.Length >= 7) text += " (" + sha[..7] + ")";
             return text;
