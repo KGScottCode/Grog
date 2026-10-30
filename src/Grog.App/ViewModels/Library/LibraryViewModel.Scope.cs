@@ -199,6 +199,14 @@ public sealed partial class LibraryViewModel
     public ObservableCollection<PlatformOption> PlatformOptions { get; } = new();
     public bool HasPlatformOptions => PlatformOptions.Count > 0;
 
+    // Before the first scan nothing is known, so the Platforms and Languages pills show greyed with a reason
+    // instead of vanishing (a first-run look at Settings read as "Content is all there is"). After a scan the
+    // pills hide only when there is nothing to choose.
+    public bool LibraryUnscanned => _allGames.Count == 0;
+    public bool ShowPlatformsPill => HasPlatformOptions || LibraryUnscanned;
+    public bool ShowLanguagesPill => HasLanguageChoices || LibraryUnscanned;
+    public const string UnscannedPillText = "After first scan";
+
     private int _neutralFiles; private long _neutralBytes;
     public string NeutralPlatformCostText =>
         $"{Grog.Core.Format.ByteFormat.Size(_neutralBytes)} \u00b7 {_neutralFiles:N0} files";
@@ -257,6 +265,7 @@ public sealed partial class LibraryViewModel
             Runtime.ManifestSaves.Default.SaveInBackground(_manifest, "scope");
         }
         OnPropertyChanged(nameof(HasPlatformOptions)); OnPropertyChanged(nameof(PlatformsLabel));
+        OnPropertyChanged(nameof(LibraryUnscanned)); OnPropertyChanged(nameof(ShowPlatformsPill)); OnPropertyChanged(nameof(ShowLanguagesPill));
         }
         finally { _seedingPlatforms = false; }
     }
@@ -562,6 +571,7 @@ public sealed partial class LibraryViewModel
 
         RebuildVisibleLanguages();
         OnPropertyChanged(nameof(HasLanguageChoices)); OnPropertyChanged(nameof(HasOtherLanguages));
+        OnPropertyChanged(nameof(LibraryUnscanned)); OnPropertyChanged(nameof(ShowPlatformsPill)); OnPropertyChanged(nameof(ShowLanguagesPill));
         OnPropertyChanged(nameof(ShowLanguagePolicy));
         OnPropertyChanged(nameof(TypeLegend));
         OnPropertyChanged(nameof(LanguageSummaryShort)); _root.Settings.RaisePolicySummaryText();

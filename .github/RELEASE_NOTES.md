@@ -7,6 +7,7 @@
   - a share's cluster size and filesystem were unknown, so FAT32-backed shares had no 4 GB file limit;
   - network storage (a share or a mapped drive) now shows a NET chip on its Storage card, and the rail counts it as a network share.
 - **Windows:** saving the sign-in token from two places at once (app and `grogcli`) no longer fails with "access denied"; a read-only `reorg.json` no longer leaves a read-only backup behind.
+- **Settings:** before the first scan, Platforms and Languages show greyed as "After first scan" instead of being absent.
 - **About:** shows build number and commit. gogrepoc / lgogdownloader credit updated (the CLI sign-in it described was removed in 0.1.2).
 
 ## What's new in v0.1.3

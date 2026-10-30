@@ -139,9 +139,11 @@
                 </Button>
               </StackPanel>
 
-              <StackPanel Spacing="6" IsVisible="{Binding HasPlatformOptions}">
+              <StackPanel Spacing="6" IsVisible="{Binding ShowPlatformsPill}">
                 <TextBlock Text="PLATFORMS" Foreground="{StaticResource White}" FontSize="{StaticResource FontEyebrow}" LetterSpacing="0.7" HorizontalAlignment="Center"/>
-                <Button Classes="spill on" FontSize="{StaticResource FontCaption}" Padding="14,7" HorizontalAlignment="Center">
+                <Button Classes="spill" FontSize="{StaticResource FontCaption}" Padding="14,7" HorizontalAlignment="Center" IsEnabled="False"
+                        Content="{x:Static vm:LibraryViewModel.UnscannedPillText}" IsVisible="{Binding LibraryUnscanned}"/>
+                <Button Classes="spill on" FontSize="{StaticResource FontCaption}" Padding="14,7" HorizontalAlignment="Center" IsVisible="{Binding HasPlatformOptions}">
                   <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="9">
                     <TextBlock Grid.Column="0" Text="{Binding PlatformsLabel}" VerticalAlignment="Center"/>
                     <TextBlock Grid.Column="1" Text="&#x25BE;" FontSize="10" VerticalAlignment="Center" Opacity="0.8"/>
@@ -171,9 +173,11 @@
                 </Button>
               </StackPanel>
 
-              <StackPanel Spacing="6" IsVisible="{Binding HasLanguageChoices}">
+              <StackPanel Spacing="6" IsVisible="{Binding ShowLanguagesPill}">
                 <TextBlock Text="LANGUAGES" Foreground="{StaticResource White}" FontSize="{StaticResource FontEyebrow}" LetterSpacing="0.7" HorizontalAlignment="Center"/>
-                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                <Button Classes="spill" FontSize="{StaticResource FontCaption}" Padding="14,7" HorizontalAlignment="Center" IsEnabled="False"
+                        Content="{x:Static vm:LibraryViewModel.UnscannedPillText}" IsVisible="{Binding LibraryUnscanned}"/>
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" IsVisible="{Binding HasLanguageChoices}">
                 <Button Classes="spill on" FontSize="{StaticResource FontCaption}" Padding="14,7"
                         Command="{Binding EditGamesLanguagesCommand}">
                   <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="9">
