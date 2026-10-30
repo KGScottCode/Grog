@@ -44,7 +44,8 @@ public sealed class FillSimulationTests
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "application/json") });
             }
             var key = url.Split("cdn.test/")[1].Split('?')[0];
-            long size = RealSize[key];
+            if (!RealSize.TryGetValue(key, out long size))   // the checksum .xml and anything else unseeded: a real CDN says 404
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new ByteArrayContent(Array.Empty<byte>()) });
             if (req.Method == HttpMethod.Get) Interlocked.Increment(ref Gets);
             long from = req.Headers.Range?.Ranges.FirstOrDefault()?.From ?? 0;
             if (from >= size && from > 0)
@@ -179,6 +180,7 @@ public sealed class FillSimulationTests
                 e.FreeBytesProbe = p => DriveOf(p)?.Free();
                 e.MaxFileBytesProbe = p => DriveOf(p)?.MaxFile ?? long.MaxValue;
                 e.ClusterBytesProbe = _ => Cluster;   // the sim drive's own unit
+                e.VolumeKeyProbe = p => (DriveOf(p) is { } sd ? (sd.Host ?? sd).RootId : null);   // sim drives are volumes, not folders on C:
             };
         }
 

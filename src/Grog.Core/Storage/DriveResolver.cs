@@ -35,7 +35,20 @@ public static class DriveResolver
         catch { return null; }
     }
 
-    public readonly record struct DriveState(bool Online, long Total, long Free, bool CapacityKnown = true);
+    public readonly record struct DriveState(bool Online, long Total, long Free, bool CapacityKnown = true, bool Network = false);
+
+    private static readonly char[] Seps = { '\\', '/' };
+    // "\\server\share" for a UNC path, null otherwise. The volume identity a share has instead of a drive letter.
+    public static string? UncRoot(string? path)
+    {
+        if (!IsUncPath(path)) return null;
+        var p = path!;
+        if (p.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase)) p = @"\\" + p[8..];   // long form -> plain
+        int i = p.IndexOfAny(Seps, 2);
+        if (i < 0) return null;
+        int j = p.IndexOfAny(Seps, i + 1);
+        return j < 0 ? p : p[..j];
+    }
 
     public static bool IsUncPath(string? path)
         => path is { Length: > 2 } && path[0] == '\\' && path[1] == '\\';
@@ -45,13 +58,34 @@ public static class DriveResolver
         bool online;
         try { online = Directory.Exists(path); } catch { online = false; }
         if (!online) return default;
+        // DriveInfo wants a drive letter on Windows and throws on a share (issue #3: a NAS root read as 0 B free
+        // and nothing fit). GetDiskFreeSpaceEx takes any directory, shares included.
+        if (OperatingSystem.IsWindows() && DirectoryCapacity(path) is { } cap)
+            return new DriveState(true, cap.Total, cap.Free, Network: true);
         try
         {
             var di = new DriveInfo(path);
-            return new DriveState(true, di.TotalSize, di.AvailableFreeSpace);
+            return new DriveState(true, di.TotalSize, di.AvailableFreeSpace, Network: true);
         }
-        catch { return new DriveState(true, 0, 0, CapacityKnown: false); }
+        catch { return new DriveState(true, 0, 0, CapacityKnown: false, Network: true); }
     }
+
+    // Total and free bytes of the volume holding a directory, by path rather than drive letter. Windows only; null when
+    // the call fails (share gone, access denied, not Windows).
+    internal static (long Total, long Free)? DirectoryCapacity(string path)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        try
+        {
+            var dir = path.EndsWith('\\') || path.EndsWith('/') ? path : path + '\\';
+            return GetDiskFreeSpaceExW(dir, out ulong free, out ulong total, out _) && total > 0
+                ? ((long)Math.Min(total, long.MaxValue), (long)Math.Min(free, long.MaxValue))
+                : null;
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException) { return null; }
+    }
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, SetLastError = true)]
+    private static extern bool GetDiskFreeSpaceExW(string lpDirectoryName, out ulong lpFreeBytesAvailableToCaller, out ulong lpTotalNumberOfBytes, out ulong lpTotalNumberOfFreeBytes);
 
     private sealed class ProbeEntry { public long StampMs; public DriveState State; public int Refreshing; }
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, ProbeEntry> _probeCache
@@ -140,9 +174,31 @@ public static class DriveResolver
                 }
                 catch { /* keep the mount-matched numbers */ }
             }
-            return new DriveState(true, total, free);
+            return new DriveState(true, total, free, Network: IsNetworkVolume(di));
         }
         catch { return default; }
+    }
+
+    // A mapped letter (Windows) or a cifs/nfs/sshfs mount (Unix) reaches its bytes over the network like a share does.
+    private static readonly HashSet<string> NetworkFormats = new(StringComparer.OrdinalIgnoreCase)
+        { "cifs", "smbfs", "smb3", "nfs", "nfs4", "afpfs", "fuse.sshfs", "sshfs", "webdav", "davfs" };
+    private static bool IsNetworkVolume(DriveInfo d)
+    {
+        try
+        {
+            if (d.DriveType == DriveType.Network) return true;
+            return !OperatingSystem.IsWindows() && d.IsReady && NetworkFormats.Contains(d.DriveFormat);
+        }
+        catch { return false; }   // metadata refused: not worth a label
+    }
+
+    // Answered from the probe cache only, so it is safe on the UI thread; a UNC path needs no probe to be network.
+    public static bool IsNetworkCached(string path)
+    {
+        if (IsUncPath(path)) return true;
+        string key;
+        try { key = Path.GetFullPath(path); } catch { return false; }
+        return _probeCache.TryGetValue(key, out var e) && e.State.Network;
     }
 
     public static bool IsOnline(string path) => Probe(path).Online;
@@ -181,7 +237,7 @@ public static class DriveResolver
         return r;
     }
 
-    public static string? MountRootOf(string path) => For(path)?.RootDirectory.FullName;
+    public static string? MountRootOf(string path) => UncRoot(path) ?? For(path)?.RootDirectory.FullName;
 
     public static long MaxFileBytes(string path)
     {
@@ -194,6 +250,20 @@ public static class DriveResolver
                 if (_maxFilePending.TryAdd(path, 0))
                     _ = System.Threading.Tasks.Task.Run(() => { try { MaxFileBytes(path); } finally { _maxFilePending.TryRemove(path, out _); } });
                 return long.MaxValue;
+            }
+            if (UncRoot(path) is { } share)
+            {
+                lock (_maxFileCache) if (_maxFileCache.TryGetValue(share, out var shareHit)) return shareHit.Max;
+                if (UiThreadGuard.IsUiThread?.Invoke() == true)
+                {
+                    if (_maxFilePending.TryAdd(share, 0))
+                        _ = System.Threading.Tasks.Task.Run(() => { try { MaxFileBytes(path); } finally { _maxFilePending.TryRemove(share, out _); } });
+                    return long.MaxValue;
+                }
+                var fmt = ShareFormat(share);   // null while the share is unreachable: not cached, so a later call asks again
+                long shareMax = MaxFileBytesFor(fmt);
+                if (fmt is not null) lock (_maxFileCache) _maxFileCache[share] = (shareMax, Environment.TickCount64);
+                return shareMax;
             }
             var d = For(path);
             if (d is null) return long.MaxValue;
@@ -240,6 +310,19 @@ public static class DriveResolver
                 _ = System.Threading.Tasks.Task.Run(() => { try { ClusterBytes(path); } catch { } });
                 return DefaultClusterBytes;
             }
+            if (UncRoot(path) is { } share)
+            {
+                lock (_clusterCache) if (_clusterCache.TryGetValue(share, out var shareHit)) return shareHit;
+                if (UiThreadGuard.IsUiThread?.Invoke() == true)
+                {
+                    _ = System.Threading.Tasks.Task.Run(() => { try { ClusterBytes(path); } catch { } });
+                    return DefaultClusterBytes;
+                }
+                long sc;
+                using (Busy(path)) sc = ProbeClusterBytesAt(share + '\\') ?? ClusterBytesFor(ShareFormat(share));
+                lock (_clusterCache) _clusterCache[share] = sc;
+                return sc;
+            }
             var d = For(path);
             if (d is null) return DefaultClusterBytes;
             var key = d.RootDirectory.FullName;
@@ -267,6 +350,29 @@ public static class DriveResolver
     public static long OnDisk(long bytes, long clusterBytes)
         => clusterBytes <= 1 || bytes <= 0 ? Math.Max(0, bytes) : (bytes + clusterBytes - 1) / clusterBytes * clusterBytes;
 
+    // Windows only: the cluster size of the volume at a root path, drive letter or share; null elsewhere or on failure.
+    private static long? ProbeClusterBytesAt(string root)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        try { return GetDiskFreeSpaceW(root, out uint spc, out uint bps, out _, out _) && spc > 0 && bps > 0 ? (long)spc * bps : null; }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException) { return null; }
+    }
+
+    // Windows only: the filesystem name ("NTFS", "FAT32") of a share root; null elsewhere or when the share will not say.
+    private static string? ShareFormat(string share)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        try
+        {
+            var fs = new System.Text.StringBuilder(64);
+            return GetVolumeInformationW(share + '\\', null, 0, out _, out _, out _, fs, fs.Capacity) ? fs.ToString() : null;
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException) { return null; }
+    }
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, SetLastError = true)]
+    private static extern bool GetVolumeInformationW(string lpRootPathName, System.Text.StringBuilder? lpVolumeNameBuffer, int nVolumeNameSize,
+        out uint lpVolumeSerialNumber, out uint lpMaximumComponentLength, out uint lpFileSystemFlags, System.Text.StringBuilder lpFileSystemNameBuffer, int nFileSystemNameSize);
+
     private static long? ProbeClusterBytes(DriveInfo d)
     {
         try
@@ -275,7 +381,7 @@ public static class DriveResolver
             {
                 var root = d.RootDirectory.FullName;
                 if (!root.EndsWith('\\')) root += '\\';
-                return GetDiskFreeSpaceW(root, out uint spc, out uint bps, out _, out _) && spc > 0 && bps > 0 ? (long)spc * bps : null;
+                return ProbeClusterBytesAt(root);
             }
             var buf = new byte[512];   // struct statvfs is well under this on glibc and macOS
             if (statvfs(d.RootDirectory.FullName, buf) != 0) return null;

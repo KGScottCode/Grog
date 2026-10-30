@@ -251,10 +251,13 @@ public sealed class DownloadEngine
         try
         {
             if (Directory.Exists(p)) { _seenRoots.TryAdd(p, 0); return false; }
-            return _seenRoots.ContainsKey(p) && !Grog.Core.Storage.DriveResolver.Probe(p, fresh: true).Online;
+            return _seenRoots.ContainsKey(p) && !RootOnlineProbe(p);
         }
         catch { return false; }
     }
+    // Tests swap this: on Windows a letter-rooted folder reads online while its drive is ready, so a test cannot
+    // "unplug" a drive by removing the folder.
+    internal Func<string, bool> RootOnlineProbe { get; set; } = p => Grog.Core.Storage.DriveResolver.Probe(p, fresh: true).Online;
     private void MarkRootGone(DownloadTask t)
     {
         var key = t.TargetRootId ?? "";
@@ -897,9 +900,11 @@ public sealed class DownloadEngine
 
     internal const int WriteBufferBytes = 1 << 20;
 
+    // Fresh probe, not the 1.5 s cache: the room check runs once per file start and wants the free bytes as of now.
     internal Func<string, long?> FreeBytesProbe { get; set; } = path =>
     {
-        try { return Storage.DriveResolver.For(path)?.AvailableFreeSpace; } catch { return null; }
+        var s = Storage.DriveResolver.Probe(path, fresh: true);
+        return s.Online && s.CapacityKnown ? s.Free : null;
     };
 
     internal Func<string, long> MaxFileBytesProbe { get; set; } = Storage.DriveResolver.MaxFileBytes;
@@ -943,9 +948,12 @@ public sealed class DownloadEngine
         return others;
     }
 
-    private static string? VolumeOf(string path)
+    // Which volume a root path lives on, for the "others still writing here" charge. The fill simulation swaps this:
+    // its drives are folders on one real volume, so the mount table would charge every drive for every other.
+    internal Func<string, string?> VolumeKeyProbe { get; set; } = Storage.DriveResolver.MountRootOf;
+    private string? VolumeOf(string path)
     {
-        try { return Storage.DriveResolver.MountRootOf(path) ?? path; } catch { return path; }
+        try { return VolumeKeyProbe(path) ?? path; } catch { return path; }
     }
 
     private static IOException NoRoomException(string why) => new("No room: " + why + ".", unchecked((int)0x80070070));

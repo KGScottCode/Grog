@@ -88,7 +88,6 @@ public static class TestRunner
                       .ToList();
 
         var results = new List<Result>();
-        bool newDividerShown = false;
         Console.WriteLine();
         Console.WriteLine("==================== GROG SUITE ([Test] discovery) ====================");
 
@@ -121,17 +120,14 @@ public static class TestRunner
                 var skip = m.GetCustomAttribute<SkipAttribute>() ?? classSkip;
                 if (skip != null) { classResults.Add(new(type.Name, testName, Outcome.Skip, skip.Reason)); continue; }
 
+                Progress(type.Name, classResults.Count + 1, tests.Count);
                 classResults.Add(RunOneWithTimeout(type, m, setup, teardown, testName, TimeoutFor(attr)));
             }
+            ClearProgress();
 
             results.AddRange(classResults);
             if (classResults.Count > 0)
             {
-                if (IsNewBatch(type) && !newDividerShown)
-                {
-                    Console.WriteLine(new string('-', 35) + " NEW " + new string('-', 35));
-                    newDividerShown = true;
-                }
                 PrintClassLine(type.Name, classResults);
             }
             foreach (var r in classResults.Where(r => r.Outcome is Outcome.Fail or Outcome.Error))
@@ -226,8 +222,22 @@ public static class TestRunner
     static void InvokeMaybeAsync(MethodInfo? method, object? instance)
     {
         if (method is null) return;
+        // A direct delegate call, not MethodInfo.Invoke: reflection's own frame catches the test's exception first
+        // (to wrap it in TargetInvocationException), which the VS debugger reports as "user-unhandled" and stops on,
+        // even for a deliberate Assert.Skip. The runner's catch below is the real handler either way.
+        if (method.ReturnType == typeof(void))
+        {
+            ((Action)Delegate.CreateDelegate(typeof(Action), instance, method))();
+            return;
+        }
+        if (typeof(Task).IsAssignableFrom(method.ReturnType))
+        {
+            var task = ((Func<Task>)Delegate.CreateDelegate(typeof(Func<Task>), instance, method))();
+            task.GetAwaiter().GetResult();
+            return;
+        }
         var result = method.Invoke(instance, null);
-        if (result is Task task) task.GetAwaiter().GetResult();
+        if (result is Task t) t.GetAwaiter().GetResult();
     }
 
     static Exception Unwrap(TargetInvocationException tie) => tie.InnerException ?? tie;
@@ -241,6 +251,25 @@ public static class TestRunner
     static MethodInfo? FindHook<T>(Type t) where T : Attribute =>
         t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance)
          .FirstOrDefault(m => m.GetCustomAttribute<T>() != null);
+
+    // Live "Class ... 03/12" on the class's own line while it runs (a console only; a redirected log keeps one line
+    // per class). PrintClassLine then overwrites it with the verdict.
+    static readonly bool LiveConsole = !Console.IsOutputRedirected;
+    static int _progressWidth;
+    static void Progress(string name, int n, int of)
+    {
+        if (!LiveConsole) return;
+        string label = $"{name} ({n:00}/{of:00})";
+        string line = $"\r{label} {new string('.', Math.Max(3, 52 - label.Length))} ...";
+        Console.Out.Write(line.PadRight(_progressWidth + 1)); Console.Out.Flush();
+        _progressWidth = line.Length;
+    }
+    static void ClearProgress()
+    {
+        if (!LiveConsole || _progressWidth == 0) return;
+        Console.Out.Write("\r" + new string(' ', _progressWidth) + "\r"); Console.Out.Flush();
+        _progressWidth = 0;
+    }
 
     static void PrintClassLine(string name, List<Result> rs)
     {

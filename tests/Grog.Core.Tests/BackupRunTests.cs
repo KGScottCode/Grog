@@ -310,7 +310,7 @@ public sealed class BackupRunTests
         // (on Linux a deleted folder would just be re-made by the next CreateDirectory).
         r.Gog.OnFile = id => { if (id == 2 && Directory.Exists(secDir)) { Directory.Delete(secDir, true); File.WriteAllText(secDir, ""); } };
         var run = r.Run();
-        r.Host.EngineHook = e => e.RootWentAway += rid => wentAway = rid;
+        r.Host.EngineHook = e => { e.RootWentAway += rid => wentAway = rid; e.RootOnlineProbe = Directory.Exists; };   // the folder IS the drive here
         try
         {
             var result = await run.RunAsync(new BackupRunOptions(), Timeout());

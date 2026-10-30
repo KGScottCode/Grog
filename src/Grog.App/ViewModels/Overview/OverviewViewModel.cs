@@ -148,20 +148,6 @@ public sealed partial class OverviewViewModel : ObservableObject
 
     internal void RaiseRailOverviewSub() { OnPropertyChanged(nameof(RailOverviewSub)); OnPropertyChanged(nameof(RailOverviewSubBrush)); }   // 
 
-    public string RailPrimaryDrive
-    {
-        get
-        {
-            var p = _root.Storage.PrimaryLocation?.Path;
-            if (string.IsNullOrWhiteSpace(p)) return "";
-            var root = System.IO.Path.GetPathRoot(p);
-            if (!string.IsNullOrWhiteSpace(root) && root.Contains(':')) return root.TrimEnd('\\', '/');
-            var name = p.TrimEnd('\\', '/');
-            int i = name.LastIndexOfAny(new[] { '\\', '/' });
-            return i >= 0 && i < name.Length - 1 ? name[(i + 1)..] : name;
-        }
-    }
-
     // No count badge on the Folders rail item: it carries a red dot bound to HasDeviceProblem instead.
 
     public IBrush HealthDotBrush =>

@@ -30,8 +30,17 @@ public class RunJournalTests
 
     private string RunsDir => Path.Combine(_dir, "runs");
 
+    // The journal is open for append while a run is live; a reader must share it (a log viewer does), and on
+    // Windows File.ReadAllLines does not.
+    private static string[] ReadShared(string path)
+    {
+        using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var sr = new StreamReader(fs);
+        return sr.ReadToEnd().Split('\n').Select(l => l.TrimEnd('\r')).ToArray();
+    }
+
     private static List<JsonElement> Lines(string path) =>
-        File.ReadAllLines(path).Where(l => l.Length > 0)
+        ReadShared(path).Where(l => l.Length > 0)
             .Select(l => JsonDocument.Parse(l).RootElement.Clone()).ToList();
 
     private static JsonElement Doc(string path) =>
@@ -143,10 +152,11 @@ public class RunJournalTests
         var j = RunJournal.Start(_dir, "download", 2)!;
         j.File("a", ok: true, bytes: 1);
         // Simulate a process killed MID-WRITE: a truncated fragment, exactly what a torn append leaves behind.
-        File.AppendAllText(j.EventsPath, "{\"ts\":\"2026-08-10T00:00:00\",\"event\":\"file.comp");
+        using (var fs = new FileStream(j.EventsPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))   // beside the live writer, as the crash left it
+        using (var w = new StreamWriter(fs)) w.Write("{\"ts\":\"2026-08-10T00:00:00\",\"event\":\"file.comp");
 
         var good = new List<JsonElement>();
-        foreach (var line in File.ReadAllLines(j.EventsPath))
+        foreach (var line in ReadShared(j.EventsPath))
         {
             try { good.Add(JsonDocument.Parse(line).RootElement.Clone()); } catch { /* torn tail -- discard */ }
         }

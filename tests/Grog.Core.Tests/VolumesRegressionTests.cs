@@ -198,6 +198,37 @@ public sealed class VolumesRegressionTests
     }
 
     [Test]
+    void DirectoryCapacity_ByPath_MatchesDriveInfo()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Null(DriveResolver.DirectoryCapacity(Path.GetTempPath()), "Windows-only probe answers null elsewhere");
+            return;
+        }
+        var dir = Path.GetTempPath();
+        var cap = DriveResolver.DirectoryCapacity(dir);
+        Assert.NotNull(cap, "a local directory has a capacity");
+        var di = new DriveInfo(Path.GetPathRoot(dir)!);
+        Assert.Equal(di.TotalSize, cap!.Value.Total, "same volume total as DriveInfo");
+        Assert.True(cap.Value.Free > 0, "free bytes read by path");
+    }
+
+    [Test]
+    void UncRoot_IsTheShare()
+    {
+        Assert.Equal(@"\\nas\share", DriveResolver.UncRoot(@"\\nas\share\gog\x"), "server + share");
+        Assert.Equal(@"\\nas\share", DriveResolver.UncRoot(@"\\nas\share"), "bare share");
+        Assert.Null(DriveResolver.UncRoot(@"\\nas"), "server alone is no share");
+        Assert.Equal(@"\\nas\share", DriveResolver.UncRoot(@"\\?\UNC\nas\share\x"), "long form folds to the share");
+        Assert.Equal(@"\\nas\share", DriveResolver.UncRoot(@"\\nas\share/gog"), "mixed separators");
+        Assert.Null(DriveResolver.UncRoot(@"C:\x"), "drive letter");
+        Assert.Equal(@"\\nas\share", DriveResolver.MountRootOf(@"\\nas\share\gog"), "a share is its own volume");
+        Assert.Equal(DriveResolver.MountRootOf(@"\\nas\share\a"), DriveResolver.MountRootOf(@"\\nas\share\b"), "two roots on one share share a volume");
+        Assert.True(DriveResolver.IsNetworkCached(@"\\nas\share\gog"), "a share is network without a probe");
+        Assert.False(DriveResolver.IsNetworkCached(Path.GetTempPath()), "nothing probed: not network");
+    }
+
+    [Test]
     void ShareWithoutSizes_OnlineUnknownCapacity()
     {
         var s = new DriveResolver.DriveState(true, 0, 0, CapacityKnown: false);

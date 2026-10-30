@@ -150,6 +150,10 @@
                   <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
                     <Ellipse Width="9" Height="9" Fill="{Binding StateBrush}" VerticalAlignment="Center"/>
                     <TextBlock Text="{Binding StatusWord}" Foreground="{Binding StateBrush}" FontSize="{StaticResource FontRow}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <Border Classes="typechip" BorderBrush="{StaticResource StrokeStronger}" Background="Transparent" Padding="8,2"
+                            IsVisible="{Binding IsNetwork}" ToolTip.Tip="Reached over the network">
+                      <TextBlock Text="NET" Foreground="{StaticResource InkDim}"/>
+                    </Border>
                     <TextBlock Text="{Binding VerifyText}" IsVisible="{Binding IsVerifying}" Foreground="{StaticResource AccentAmber}"
                                FontSize="{StaticResource FontCaption}" FontWeight="SemiBold" FontFeatures="+tnum" VerticalAlignment="Center"/>
                   </StackPanel>

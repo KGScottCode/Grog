@@ -52,7 +52,14 @@ public sealed class FileTokenStore : ITokenStore
             await File.WriteAllBytesAsync(tmp, payload);
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 File.SetUnixFileMode(tmp, UnixFileMode.UserRead | UnixFileMode.UserWrite); // 600
-            File.Move(tmp, _path, overwrite: true);
+            // Two savers (app + CLI, or two sessions) can replace the same file at once; on Windows the loser's
+            // MoveFileEx reads as access denied for a moment. A few short retries settle it.
+            for (int attempt = 0; ; attempt++)
+            {
+                try { File.Move(tmp, _path, overwrite: true); break; }
+                catch (Exception ex) when (attempt < 5 && ex is UnauthorizedAccessException or IOException)
+                { await Task.Delay(10 * (attempt + 1)); }
+            }
         }
         catch { try { File.Delete(tmp); } catch { } throw; }
         ForgetReadable(_path);

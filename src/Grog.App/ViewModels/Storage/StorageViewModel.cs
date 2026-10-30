@@ -93,7 +93,7 @@ public sealed partial class StorageViewModel : ObservableObject
 
     private static bool SameRow(BackupLocationRow a, BackupLocationRow b)
     {
-        if (a.RootId != b.RootId || a.Label != b.Label || a.Path != b.Path || a.IsPrimary != b.IsPrimary
+        if (a.RootId != b.RootId || a.Label != b.Label || a.Path != b.Path || a.IsPrimary != b.IsPrimary || a.IsNetwork != b.IsNetwork
             || a.IsOnline != b.IsOnline || a.GrogBytes != b.GrogBytes || a.FreeBytes != b.FreeBytes
             || a.TotalBytes != b.TotalBytes || a.FileCount != b.FileCount || a.FitColor != b.FitColor
             || a.HoldsGames != b.HoldsGames || a.HoldsExtras != b.HoldsExtras
@@ -131,7 +131,11 @@ public sealed partial class StorageViewModel : ObservableObject
             if (WaitingDrives.Length > 0) return $"waiting for {WaitingDrives}";   // a drive slow to answer
             // "healthy" is gone: green is assumed and never reported, and the dots
             // beside this line already carry connectivity. Trouble states now get their own line below.
-            return $"{n} drive{(n == 1 ? "" : "s")}";
+            int net = BackupLocations.Count(l => l.IsNetwork);
+            int local = n - net;
+            if (net == 0) return $"{n} drive{(n == 1 ? "" : "s")}";
+            string shares = $"{net} network share{(net == 1 ? "" : "s")}";
+            return local == 0 ? shares : $"{local} drive{(local == 1 ? "" : "s")} · {shares}";
         }
     }
 
@@ -511,6 +515,7 @@ public sealed partial class StorageViewModel : ObservableObject
                 HoldsGames = u.RootId == gamesRoot,
                 HoldsExtras = u.RootId == extrasRoot,
                 Removable = root?.Removable ?? false,
+                IsNetwork = Grog.Core.Storage.DriveResolver.IsNetworkCached(u.Path),
                 JustReattached = _justReattached.Contains(u.RootId),
                 // Only paint online/offline once services are up and a real location exists: before that the
                 // primary row probes an empty path and would read a false "offline". Nor before the watch's first

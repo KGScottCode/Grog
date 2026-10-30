@@ -24,7 +24,7 @@ public sealed class BackoffTests
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
             Sent++;
-            return Task.FromResult(Responses.Count > 0 ? Responses.Dequeue()() : Ok());
+            return Faults.AsTask(Responses.Count > 0 ? Responses.Dequeue() : Ok);
         }
     }
 

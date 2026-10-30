@@ -327,7 +327,7 @@ public sealed partial class OverviewViewModel
         OnPropertyChanged(nameof(HealthDeviceProblemCount)); OnPropertyChanged(nameof(HealthIssueCount));
         OnPropertyChanged(nameof(HealthOk)); OnPropertyChanged(nameof(ShowHealthBadge));
         OnPropertyChanged(nameof(HealthBadgeText)); OnPropertyChanged(nameof(HealthBadgeTip)); OnPropertyChanged(nameof(HealthDotBrush));
-        OnPropertyChanged(nameof(RailLibraryCount)); OnPropertyChanged(nameof(RailLibraryTip)); OnPropertyChanged(nameof(RailPrimaryDrive));
+        OnPropertyChanged(nameof(RailLibraryCount)); OnPropertyChanged(nameof(RailLibraryTip));
         OnPropertyChanged(nameof(RailLibrarySub));   // 
         OnPropertyChanged(nameof(RailLibraryExceptions));   // 
         OnPropertyChanged(nameof(HealthVerdict)); OnPropertyChanged(nameof(HealthVerdictBrush));

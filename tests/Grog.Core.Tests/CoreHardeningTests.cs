@@ -50,7 +50,7 @@ public sealed class CoreHardeningTests
                 body = ListBody;
             }
             else if (Files.TryGetValue(url, out var make))
-                return Task.FromResult(make());
+                return Faults.AsTask(make);
             else return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
 
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)

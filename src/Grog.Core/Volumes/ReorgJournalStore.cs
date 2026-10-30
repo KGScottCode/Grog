@@ -34,7 +34,12 @@ public sealed class ReorgJournalStore
         }
         if (TryLoad(_path) is not null)
         {
-            try { File.Copy(_path, _path + ".bak", overwrite: true); } catch { /* best-effort: the primary still lands */ }
+            try
+            {
+                File.Copy(_path, _path + ".bak", overwrite: true);
+                File.SetAttributes(_path + ".bak", FileAttributes.Normal);   // a read-only primary must not breed a read-only backup
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { /* best-effort: the primary still lands */ }
         }
         try
         {

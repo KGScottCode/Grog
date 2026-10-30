@@ -166,11 +166,12 @@ public class JsonManifestStoreTests
     [Test]
     async Task SaveSoon_CoalescesABurstIntoOneWrite()
     {
-        var store = new JsonManifestStore(_dir) { SaveSoonDelay = TimeSpan.FromMilliseconds(100) };
+        // Windows timers tick at ~16 ms, so ten 5 ms waits take ~160 ms there: the window must dwarf the burst.
+        var store = new JsonManifestStore(_dir) { SaveSoonDelay = TimeSpan.FromMilliseconds(400) };
         store.Current.Items.Add(new LibraryItem { GogId = 1, Title = "Burst" });
         for (int i = 0; i < 10; i++) { store.SaveSoon(); await Task.Delay(5); }
-        for (int i = 0; i < 40 && store.SaveCount == 0; i++) await Task.Delay(50);
-        await Task.Delay(300);   // long enough for any second debounce to have fired
+        for (int i = 0; i < 80 && store.SaveCount == 0; i++) await Task.Delay(50);
+        await Task.Delay(900);   // long enough for any second debounce to have fired
         Assert.Equal(1, store.SaveCount, "ten calls within the window, one write");
         Assert.Contains("Burst", File.ReadAllText(ManifestPath), "and the write landed");
     }

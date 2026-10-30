@@ -21,6 +21,7 @@ public sealed record BackupLocationRow(
     long GrogBytes, long FreeBytes, long TotalBytes, int FileCount, string FitColor)
 {
     public string DetachLabel => IsPrimary ? "Forget…" : "Detach…";
+    public bool IsNetwork { get; init; }   // a UNC share or a mapped network letter: the NET chip beside the status word
     public string Name { get; init; } = "";
     public bool ShowName { get; init; }
     public string NameInParens => $"({Name})";

@@ -177,5 +177,24 @@ public partial class MainWindowViewModel
         }
     }
 
-    public string AppVersionText => $"v{VersionString.TrimStart('v', 'V')} \u00A9 2026 - Kevin G. Scott";
+    // "v0.1.4.610 (775708e)": the stamped build number and the commit the SDK puts
+    // after '+' in the informational version, so a bug report names the exact source. The rail keeps v0.1.4.
+    public string AppVersionText
+    {
+        get
+        {
+            var asm = System.Reflection.Assembly.GetExecutingAssembly();
+            var attr = (System.Reflection.AssemblyInformationalVersionAttribute?)System.Attribute.GetCustomAttribute(
+                asm, typeof(System.Reflection.AssemblyInformationalVersionAttribute));
+            var info = attr?.InformationalVersion ?? asm.GetName().Version?.ToString() ?? VersionString;
+            var plus = info.IndexOf('+');
+            var sha = plus >= 0 ? info[(plus + 1)..] : "";
+            var v = (plus >= 0 ? info[..plus] : info).TrimStart('v', 'V');
+            var text = "v" + v;
+            if (sha.Length >= 7) text += " (" + sha[..7] + ")";
+            return text;
+        }
+    }
+
+    public string AppCopyrightText => "\u00A9 2026 - Kevin G. Scott";
 }

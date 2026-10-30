@@ -106,7 +106,9 @@ public sealed class DownloadEngineHardeningTests
             var url = req.RequestUri!.ToString();
             if (url.Contains("embed.gog.com/downlink"))
             {
-                if (ResolveTimesOut) throw new TaskCanceledException("The request was canceled due to the configured HttpClient.Timeout.");
+                // A faulted task, not a throw: a throw here surfaces in the VS debugger as "user-unhandled" (caught first
+                // by HttpClient, which is external code) and stops the suite, although the engine handles it.
+                if (ResolveTimesOut) return Task.FromException<HttpResponseMessage>(new TaskCanceledException("The request was canceled due to the configured HttpClient.Timeout."));
                 var json = "{\"downlink\":\"https://cdn.test/file?token=1\",\"checksum\":\"https://cdn.test/file.xml?token=1\"}";
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
                 { Content = new StringContent(json, Encoding.UTF8, "application/json") });

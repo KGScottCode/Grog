@@ -158,7 +158,7 @@ Grog exists because of these projects and people:
 |---|---|
 | [GOG.com](https://www.gog.com) | the DRM-free store Grog backs up |
 | [Unofficial GOG API docs](https://gogapidocs.readthedocs.io) ([Yepoleb](https://github.com/Yepoleb)) | the API reference |
-| [gogrepoc](https://github.com/Kalanyr/gogrepoc) & [lgogdownloader](https://github.com/Sude-/lgogdownloader) | prior art for GOG's API, and proof the job could be done |
+| [gogrepoc](https://github.com/Kalanyr/gogrepoc) & [lgogdownloader](https://github.com/Sude-/lgogdownloader) | prior art |
 | [Libation](https://github.com/rmcrackan/Libation) ([rmcrackan](https://github.com/rmcrackan), [Mbucari](https://github.com/Mbucari) and contributors) | the library-dashboard concept, the grid-with-artwork idea, and inspiration for the name |
 | [Avalonia](https://avaloniaui.net) (MIT) | the cross-platform UI framework |
 | [Material Design Icons](https://pictogrammers.com/library/mdi/) (Apache 2.0) | the content-type glyphs |

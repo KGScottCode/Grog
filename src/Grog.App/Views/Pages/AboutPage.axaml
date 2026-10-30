@@ -24,10 +24,13 @@
                   HorizontalAlignment="Left" Margin="3,4,0,0"/>
         </StackPanel>
 
-        <TextBlock Grid.Column="1" Text="{Binding AppVersionText}" Foreground="{StaticResource InkDim}"
-                   FontSize="16.5" TextWrapping="Wrap"
-                   HorizontalAlignment="Right" VerticalAlignment="Center"
-                   RenderTransform="translate(0px, 7px)"/>
+        <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center"
+                    RenderTransform="translate(0px, 7px)">
+          <TextBlock Text="{Binding AppVersionText}" Foreground="{StaticResource InkDim}"
+                     FontSize="16.5" HorizontalAlignment="Right"/>
+          <TextBlock Text="{Binding AppCopyrightText}" Foreground="{StaticResource InkDim}"
+                     FontSize="16.5" HorizontalAlignment="Right" Margin="0,2,0,0"/>
+        </StackPanel>
       </Grid>
 
       <Border Height="0" Margin="0,4,0,4"/>
@@ -63,7 +66,6 @@
         </StackPanel>
 
         <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal">
-
           <Button Classes="acklink" Command="{Binding OpenUrlCommand}"
                   CommandParameter="https://github.com/Kalanyr/gogrepoc" ToolTip.Tip="github.com/Kalanyr/gogrepoc">
             <TextBlock Classes="ackname acklinktext" Text="gogrepoc" Margin="0,0,5,5"/>
@@ -74,7 +76,7 @@
             <TextBlock Classes="ackname acklinktext" Text="lgogdownloader"/>
           </Button>
         </StackPanel>
-        <TextBlock Grid.Row="2" Grid.Column="1" Classes="ackrole" Text="the browserless GOG sign-in process"/>
+        <TextBlock Grid.Row="2" Grid.Column="1" Classes="ackrole" Text="prior art"/>
 
         <Button Grid.Row="6" Grid.Column="0" Classes="acklink" Command="{Binding OpenUrlCommand}"
                 CommandParameter="https://getlibation.com" ToolTip.Tip="getlibation.com">

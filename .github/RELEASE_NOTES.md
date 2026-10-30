@@ -1,3 +1,14 @@
+## What's new in v0.1.4
+
+- **Network storage** ([issue #3](https://github.com/KGScottCode/Grog/issues/3)): a backup folder on a NAS or share (`\\server\share`) showed 0 bytes free and every download failed with "No room to download". Fixed. The same audit turned up more drive-letter assumptions on shares, also fixed:
+  - the per-file room check before each download was skipped on a share;
+  - two backup folders on one share were counted as two drives, doubling its free space in the plan;
+  - a move onto a share was not subtracted from its free space while it ran;
+  - a share's cluster size and filesystem were unknown, so FAT32-backed shares had no 4 GB file limit;
+  - network storage (a share or a mapped drive) now shows a NET chip on its Storage card, and the rail counts it as a network share.
+- **Windows:** saving the sign-in token from two places at once (app and `grogcli`) no longer fails with "access denied"; a read-only `reorg.json` no longer leaves a read-only backup behind.
+- **About:** shows build number and commit. gogrepoc / lgogdownloader credit updated (the CLI sign-in it described was removed in 0.1.2).
+
 ## What's new in v0.1.3
 
 - **Patches** ([issue #2](https://github.com/KGScottCode/Grog/issues/2)): GOG's "Patch (a to b)" downloads are now recognised as their own file type, separate from Game and Mod. They are backed up by default; Settings > Content > **Include patches** turns them off, which drops them from the scope and the queue while leaving anything already downloaded on disk. The Library gains a **Patches** filter chip, patch files carry a matching chip in the product details, and chips for content you have excluded from backup are hidden rather than filtering to nothing. A rescan picks up the new type. CLI: `--skip-patches` per run, `scope set --patches|--no-patches` to persist, `scope show` lists it; `--installers-only` still includes patches, `--skip-installers` now skips them too.

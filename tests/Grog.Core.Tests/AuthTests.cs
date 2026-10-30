@@ -124,7 +124,7 @@ public class RefreshFailureTests
         protected override Task<System.Net.Http.HttpResponseMessage> SendAsync(System.Net.Http.HttpRequestMessage req, CancellationToken ct)
         {
             bool refresh = req.RequestUri!.Query.Contains("refresh_token");
-            if (refresh && RefreshAnswers is null) throw new System.Net.Http.HttpRequestException("No such host is known.");
+            if (refresh && RefreshAnswers is null) return Task.FromException<System.Net.Http.HttpResponseMessage>(new System.Net.Http.HttpRequestException("No such host is known."));
             if (refresh && RefreshAnswers != System.Net.HttpStatusCode.OK)
                 return Task.FromResult(new System.Net.Http.HttpResponseMessage(RefreshAnswers!.Value) { Content = new System.Net.Http.StringContent("{}") });
             return Task.FromResult(new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK)
@@ -189,7 +189,7 @@ public class RefreshFailureTests
         public string? LastRefreshToken;
         protected override Task<System.Net.Http.HttpResponseMessage> SendAsync(System.Net.Http.HttpRequestMessage req, CancellationToken ct)
         {
-            if (Offline) throw new System.Net.Http.HttpRequestException("No such host is known.");
+            if (Offline) return Task.FromException<System.Net.Http.HttpResponseMessage>(new System.Net.Http.HttpRequestException("No such host is known."));
             LastRefreshToken = System.Text.RegularExpressions.Regex.Match(req.RequestUri!.Query, "refresh_token=([^&]+)").Groups[1].Value;
             Refreshes++;
             var body = $"{{\"access_token\":\"at{Refreshes}\",\"refresh_token\":\"rt{Refreshes + 1}\",\"expires_in\":3600,\"user_id\":\"u\"}}";
